@@ -42,8 +42,8 @@ CREATE TABLE PEDIDO (
   data_entrega_ou_retirada timestamp(10) NOT NULL, 
   valor_total              numeric(10, 2) NOT NULL, 
   taxa_entrega             numeric(10, 2) DEFAULT 0 NOT NULL, 
-  status                   varchar(255) DEFAULT '"solicitado"' NOT NULL CHECK(status IN ('solicitado', 'orcamento', 'confirmado', 'em_producao', 'pronto', 'entregue', 'finalizado', 'cancelado')), 
-  status_pagamento         varchar(255) DEFAULT '"aguardando_sinal"' NOT NULL CHECK(status_pagamento IN ('aguardando_sinal', 'sinal_pago', 'pago')), 
+  status                   varchar(255) DEFAULT 'solicitado' NOT NULL CHECK(status IN ('solicitado', 'orcamento', 'confirmado', 'em_producao', 'pronto', 'entregue', 'finalizado', 'cancelado')), 
+  status_pagamento         varchar(255) DEFAULT 'aguardando_sinal' NOT NULL CHECK(status_pagamento IN ('aguardando_sinal', 'sinal_pago', 'pago')), 
   tipo_entrega             varchar(255) NOT NULL CHECK(tipo_entrega IN ('entrega', 'retirada')), 
   motivo_cancelamento      varchar(255), 
   rastreamento             varchar(255), 
@@ -111,7 +111,7 @@ CREATE TABLE INGREDIENTE (
   data_atualizacao  timestamp(10) NOT NULL, 
   unidade_receita   varchar(20) NOT NULL, 
   fator_conversao   numeric(10, 3) DEFAULT 1 NOT NULL, 
-  tipo              varchar(20) DEFAULT '"ingrediente"' NOT NULL CHECK(tipo IN ('ingrediente', 'embalagem', 'decoracao')), 
+  tipo              varchar(20) DEFAULT 'ingrediente' NOT NULL CHECK(tipo IN ('ingrediente', 'embalagem', 'decoracao')), 
   ativo             bool DEFAULT 'true' NOT NULL);
 CREATE TABLE FORNECEDOR (
   ID_fornecedor     SERIAL NOT NULL, 
