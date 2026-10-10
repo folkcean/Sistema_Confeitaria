@@ -1,16 +1,3 @@
--- =============================================================
--- Seed: um ano de operacao de uma confeitaria de movimento medio.
--- Gerado por gerar_seed_um_ano.py (semente 2026). Nao edite a mao: ajuste o gerador e gere de novo.
---
--- ATENCAO: apaga TODOS os dados das tabelas antes de inserir.
--- Requer o schema com as colunas usuario.perfil e usuario.senha_hash.
--- Uso: docker compose exec -T db psql -U app -d appdb -v ON_ERROR_STOP=1 --single-transaction < db/seed_um_ano.sql
---
--- Conteudo: 143 usuarios (140 clientes), 25 produtos, 17 receitas,
--- 26 insumos, 1214 pedidos, 1603 itens de pedido, 207 compras,
--- 11597 movimentacoes de estoque.
--- As datas foram geradas com "hoje" = 2026-10-10; o bloco final desloca tudo para a data atual.
--- =============================================================
 
 SET client_min_messages = warning;
 

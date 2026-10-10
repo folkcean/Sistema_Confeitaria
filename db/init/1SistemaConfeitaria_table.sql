@@ -4,11 +4,11 @@ CREATE TABLE USUARIO (
   email           varchar(255) UNIQUE, 
   telefone        varchar(11) NOT NULL UNIQUE, 
   senha_hash      varchar(255), 
-  data_cadastro   timestamp(10) NOT NULL, 
+  data_cadastro   timestamp(6) DEFAULT now() NOT NULL, 
   ativo           bool DEFAULT 'true' NOT NULL, 
   cpf             char(11) UNIQUE, 
   data_nascimento date, 
-  perfil          varchar(20) CHECK(perfil IN ('cliente', 'funcionario', 'administrador')));
+  perfil          varchar(20) NOT NULL CHECK(perfil IN ('cliente', 'funcionario', 'administrador')));
 CREATE TABLE CLIENTE (
   ID_usuario             int4 NOT NULL, 
   apelido                varchar(255) NOT NULL, 
@@ -39,8 +39,8 @@ CREATE TABLE PEDIDO (
   ID_pedido                SERIAL NOT NULL, 
   ID_endereco_entrega      int4, 
   ID_cliente               int4 NOT NULL, 
-  data_criacao             timestamp(10) NOT NULL, 
-  data_entrega_ou_retirada timestamp(10) NOT NULL, 
+  data_criacao             timestamp(6) DEFAULT now() NOT NULL, 
+  data_entrega_ou_retirada timestamp(6) NOT NULL, 
   valor_total              numeric(10, 2) NOT NULL, 
   taxa_entrega             numeric(10, 2) DEFAULT 0 NOT NULL, 
   status                   varchar(255) DEFAULT 'solicitado' NOT NULL CHECK(status IN ('solicitado', 'orcamento', 'confirmado', 'em_producao', 'pronto', 'entregue', 'finalizado', 'cancelado')), 
@@ -92,7 +92,7 @@ CREATE TABLE RECEITA (
   rendimento_qtd numeric(10, 3) NOT NULL, 
   rendimento_un  varchar(100) NOT NULL, 
   complexidade   varchar(255), 
-  data_criacao   timestamp(10) NOT NULL, 
+  data_criacao   timestamp(6) DEFAULT now() NOT NULL, 
   ativa          bool DEFAULT 'true' NOT NULL);
 CREATE TABLE ITEM_RECEITA (
   ID_item_receita       SERIAL NOT NULL, 
@@ -109,7 +109,7 @@ CREATE TABLE INSUMO (
   quantidade_atual  numeric(10, 3) DEFAULT 0 NOT NULL, 
   estoque_minimo    numeric(10, 3) DEFAULT 0 NOT NULL, 
   custo_por_unidade numeric(10, 4), 
-  data_atualizacao  timestamp(10) NOT NULL, 
+  data_atualizacao  timestamp(6) DEFAULT now() NOT NULL, 
   unidade_receita   varchar(20) NOT NULL, 
   fator_conversao   numeric(10, 3) DEFAULT 1 NOT NULL, 
   tipo              varchar(20) DEFAULT 'ingrediente' NOT NULL CHECK(tipo IN ('ingrediente', 'embalagem', 'decoracao')), 
@@ -126,8 +126,8 @@ CREATE TABLE FORNECEDOR (
 CREATE TABLE COMPRA_INSUMO (
   ID_compra_insumo SERIAL NOT NULL, 
   ID_fornecedor    int4 NOT NULL, 
-  data_compra      timestamp(10) NOT NULL, 
-  data_entrega     timestamp(10), 
+  data_compra      timestamp(6) DEFAULT now() NOT NULL, 
+  data_entrega     timestamp(6), 
   valor_total      numeric(10, 2) NOT NULL, 
   status           varchar(255) NOT NULL CHECK(status IN ('pendente', 'recebida', 'cancelada')), 
   nota_fiscal      varchar(255));
@@ -146,7 +146,7 @@ CREATE TABLE MOVIMENTACAO_ESTOQUE (
   ID_insumo               int4 NOT NULL, 
   tipo                    varchar(20) NOT NULL CHECK(tipo IN ('entrada', 'consumo', 'perda', 'ajuste')), 
   quantidade              numeric(10, 3) NOT NULL, 
-  data                    timestamp NOT NULL, 
+  data                    timestamp DEFAULT now() NOT NULL, 
   motivo                  varchar(255), 
   ID_pedido               int4, 
   ID_compra_insumo        int4);
