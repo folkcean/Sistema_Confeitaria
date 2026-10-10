@@ -1,6 +1,5 @@
-/* fix acentos em entidades */
-CREATE TABLE USUÁRIO (
-  ID_usuário      SERIAL NOT NULL,
+CREATE TABLE USUARIO (
+  ID_usuario      SERIAL NOT NULL,
   nome            varchar(255) NOT NULL,
   email           varchar(255) UNIQUE,
   telefone        varchar(11) NOT NULL UNIQUE,
@@ -10,35 +9,35 @@ CREATE TABLE USUÁRIO (
   cpf             char(11) UNIQUE,
   data_nascimento date);
 CREATE TABLE CLIENTE (
-  USUÁRIOID_usuário      int4 NOT NULL,
+  ID_usuario             int4 NOT NULL,
   apelido                varchar(255) NOT NULL,
   cliente_vip            bool DEFAULT 'false' NOT NULL,
   instagram              varchar(255),
   restricoes_alimentares varchar(255),
   observacoes            text,
   preferencias           text);
-CREATE TABLE FUNCIONÁRIO (
-  USUÁRIOID_usuário int4 NOT NULL,
-  cargo             varchar(255) NOT NULL,
-  data_contratacao  date NOT NULL);
+CREATE TABLE FUNCIONARIO (
+  ID_usuario       int4 NOT NULL,
+  cargo            varchar(255) NOT NULL,
+  data_contratacao date NOT NULL);
 CREATE TABLE ADMINISTRADOR (
-  USUÁRIOID_usuário int4 NOT NULL,
+  ID_usuario        int4 NOT NULL,
   nivel_privilegio  varchar(255) NOT NULL,
   acesso_financeiro bool DEFAULT 'false' NOT NULL);
-CREATE TABLE ENDEREÇO (
-  ID_endereco              SERIAL NOT NULL,
-  CLIENTEUSUÁRIOID_usuário int4 NOT NULL,
-  apelido                  varchar(255),
-  logradouro               varchar(255) NOT NULL,
-  numero                   varchar(255) NOT NULL,
-  complemento              varchar(255),
-  bairro                   varchar(255) NOT NULL,
-  cidade                   varchar(255) NOT NULL,
-  cep                      char(8) NOT NULL);
+CREATE TABLE ENDERECO (
+  ID_endereco SERIAL NOT NULL,
+  ID_cliente  int4 NOT NULL,
+  apelido     varchar(255),
+  logradouro  varchar(255) NOT NULL,
+  numero      varchar(255) NOT NULL,
+  complemento varchar(255),
+  bairro      varchar(255) NOT NULL,
+  cidade      varchar(255) NOT NULL,
+  cep         char(8) NOT NULL);
 CREATE TABLE PEDIDO (
   ID_pedido                SERIAL NOT NULL,
-  ENDEREÇOID_endereco      int4,
-  CLIENTEUSUÁRIOID_usuário int4 NOT NULL,
+  ID_endereco_entrega      int4,
+  ID_cliente               int4 NOT NULL,
   data_criacao             timestamp(10) NOT NULL,
   data_entrega_ou_retirada timestamp(10) NOT NULL,
   valor_total              numeric(10, 2) NOT NULL,
@@ -54,8 +53,8 @@ CREATE TABLE PEDIDO (
   nome_recebedor           varchar(255));
 CREATE TABLE ITEM_PEDIDO (
   ID_item_pedido       SERIAL NOT NULL,
-  PRODUTOID_produto    int4 NOT NULL,
-  PEDIDOID_pedido      int4 NOT NULL,
+  ID_produto           int4 NOT NULL,
+  ID_pedido            int4 NOT NULL,
   quantidade           int4 NOT NULL,
   preco_unitario       numeric(10, 2) NOT NULL,
   personalizacao       varchar(255),
@@ -64,12 +63,12 @@ CREATE TABLE ITEM_PEDIDO (
   observacoes          varchar(255),
   custo_unitario       numeric(10, 2) NOT NULL CHECK(custo_unitario >= 0));
 CREATE TABLE OPCAO_PERSONALIZACAO (
-  ID_opcao          SERIAL NOT NULL,
-  PRODUTOID_produto int4 NOT NULL,
-  nome              varchar(255) NOT NULL,
-  descricao         varchar(255),
-  custo_adicional   numeric(10, 2) NOT NULL,
-  ativo             bool DEFAULT 'true' NOT NULL);
+  ID_opcao        SERIAL NOT NULL,
+  ID_produto      int4 NOT NULL,
+  nome            varchar(255) NOT NULL,
+  descricao       varchar(255),
+  custo_adicional numeric(10, 2) NOT NULL,
+  ativo           bool DEFAULT 'true' NOT NULL);
 CREATE TABLE PRODUTO (
   ID_produto         SERIAL NOT NULL,
   nome               varchar(255) NOT NULL,
@@ -95,15 +94,15 @@ CREATE TABLE RECEITA (
   data_criacao   timestamp(10) NOT NULL,
   ativa          bool DEFAULT 'true' NOT NULL);
 CREATE TABLE ITEM_RECEITA (
-  id_item_receita           SERIAL NOT NULL,
-  INGREDIENTEID_INGREDIENTE int4 NOT NULL,
-  RECEITAID_receita         int4 NOT NULL,
-  quantidade_necessaria     numeric(10, 3) NOT NULL,
-  observacoes               varchar(255),
-  CONSTRAINT uq_receita_ingrediente
-    UNIQUE (RECEITAID_receita, INGREDIENTEID_INGREDIENTE));
-CREATE TABLE INGREDIENTE (
-  ID_INGREDIENTE    SERIAL NOT NULL,
+  ID_item_receita       SERIAL NOT NULL,
+  ID_insumo             int4 NOT NULL,
+  ID_receita            int4 NOT NULL,
+  quantidade_necessaria numeric(10, 3) NOT NULL,
+  observacoes           varchar(255),
+  CONSTRAINT uq_receita_insumo
+    UNIQUE (ID_receita, ID_insumo));
+CREATE TABLE INSUMO (
+  ID_insumo         SERIAL NOT NULL,
   nome              varchar(255) NOT NULL UNIQUE,
   unidade_medida    varchar(255) NOT NULL,
   quantidade_atual  numeric(10, 3) DEFAULT 0 NOT NULL,
@@ -123,35 +122,35 @@ CREATE TABLE FORNECEDOR (
   cnpj              varchar(14) UNIQUE,
   contato_principal varchar(255),
   ativo             bool DEFAULT 'true' NOT NULL);
-CREATE TABLE COMPRA (
-  id_compra               SERIAL NOT NULL,
-  FORNECEDORID_fornecedor int4 NOT NULL,
-  data_compra             timestamp(10) NOT NULL,
-  data_entrega            timestamp(10),
-  valor_total             numeric(10, 2) NOT NULL,
-  status                  varchar(255) NOT NULL CHECK(status IN ('pendente', 'recebida', 'cancelada')),
-  nota_fiscal             varchar(255));
-CREATE TABLE ITEM_COMPRA (
-  ID_item_compra            SERIAL NOT NULL,
-  INGREDIENTEID_INGREDIENTE int4 NOT NULL,
-  COMPRAid_compra           int4 NOT NULL,
-  quantidade                numeric(10, 3) NOT NULL,
-  custo_unitario            numeric(10, 4) NOT NULL);
+CREATE TABLE COMPRA_INSUMO (
+  ID_compra_insumo SERIAL NOT NULL,
+  ID_fornecedor    int4 NOT NULL,
+  data_compra      timestamp(10) NOT NULL,
+  data_entrega     timestamp(10),
+  valor_total      numeric(10, 2) NOT NULL,
+  status           varchar(255) NOT NULL CHECK(status IN ('pendente', 'recebida', 'cancelada')),
+  nota_fiscal      varchar(255));
+CREATE TABLE ITEM_COMPRA_INSUMO (
+  ID_item_compra   SERIAL NOT NULL,
+  ID_insumo        int4 NOT NULL,
+  ID_compra_insumo int4 NOT NULL,
+  quantidade       numeric(10, 3) NOT NULL,
+  custo_unitario   numeric(10, 4) NOT NULL);
 CREATE TABLE PRODUTO_RECEITA (
-  quantidade        numeric(10, 3) DEFAULT 1 NOT NULL CHECK(quantidade > 0),
-  PRODUTOID_produto int4 NOT NULL,
-  RECEITAID_receita int4 NOT NULL);
+  quantidade numeric(10, 3) DEFAULT 1 NOT NULL CHECK(quantidade > 0),
+  ID_produto int4 NOT NULL,
+  ID_receita int4 NOT NULL);
 CREATE TABLE MOVIMENTACAO_ESTOQUE (
-  ID_MOVIMENTACAO_ESTOQUE   SERIAL NOT NULL,
-  INGREDIENTEID_INGREDIENTE int4 NOT NULL,
-  tipo                      varchar(20) NOT NULL CHECK(tipo IN ('entrada', 'consumo', 'perda', 'ajuste')),
-  quantidade                numeric(10, 3) NOT NULL,
-  data                      timestamp NOT NULL,
-  motivo                    varchar(255),
-  PEDIDOID_pedido           int4,
-  COMPRAid_compra           int4);
-CREATE TABLE ITEM_PEDIDO_OPCAO (
-  ITEM_PEDIDOID_item_pedido    int4 NOT NULL,
-  OPCAO_PERSONALIZACAOID_opcao int4 NOT NULL,
-  quantidade                   int4 DEFAULT 1 NOT NULL CHECK(quantidade > 0),
-  custo_cobrado                numeric(10, 2) NOT NULL);
+  ID_movimentacao_estoque SERIAL NOT NULL,
+  ID_insumo               int4 NOT NULL,
+  tipo                    varchar(20) NOT NULL CHECK(tipo IN ('entrada', 'consumo', 'perda', 'ajuste')),
+  quantidade              numeric(10, 3) NOT NULL,
+  data                    timestamp NOT NULL,
+  motivo                  varchar(255),
+  ID_pedido               int4,
+  ID_compra_insumo        int4);
+CREATE TABLE OPCAO_ESCOLHIDA (
+  ID_item_pedido int4 NOT NULL,
+  ID_opcao       int4 NOT NULL,
+  quantidade     int4 DEFAULT 1 NOT NULL CHECK(quantidade > 0),
+  custo_cobrado  numeric(10, 2) NOT NULL);
