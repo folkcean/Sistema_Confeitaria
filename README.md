@@ -46,6 +46,30 @@ Pré-requisito: Docker com Docker Compose.
 Os scripts de `db/init/` só rodam quando o banco é criado pela primeira vez.
 Para recriar do zero (**apaga todos os dados**): `docker compose down -v` e depois `docker compose up -d`.
 
+## Alterações no Banco de Dados
+
+O DER no Visual Paradigm é a fonte da verdade do banco. Toda alteração começa nele, nunca direto no SQL.
+
+### Estrutura
+- `db/init/` — estrutura inicial do banco, gerada a partir do DER. Roda só uma vez, quando o banco é criado. **Não deve mais ser editada.**
+- `db/update/` — alterações feitas depois da criação inicial, numeradas em ordem (`001_...sql`, `002_...sql`).
+
+### Como fazer uma alteração
+1. Altere o DER no Visual Paradigm.
+2. Gere o script com a opção **Update** e exporte para arquivo em vez de executar direto no banco.
+3. Salve como `db/update/<próximo número>_<descricao_curta>.sql` (ex.: `001_adiciona_perfil_usuario.sql`).
+4. **Revise o script antes de rodar.** Se você renomeou uma coluna, o VP pode ter gerado `DROP COLUMN` + `ADD COLUMN`, o que apaga os dados. Nesse caso, troque por `ALTER TABLE ... RENAME COLUMN ...`.
+5. Aplique no seu banco:
+```bash
+   docker compose exec -T db psql -U app -d appdb -v ON_ERROR_STOP=1 --single-transaction < db/update/001_adiciona_perfil_usuario.sql
+```
+6. Faça o commit do DER e do script juntos, e avise a dupla qual arquivo novo ela precisa aplicar.
+
+### Regras
+- Nunca edite um arquivo de `db/update/` que já foi commitado. Para corrigir algo, crie um novo.
+- Depois de um `git pull` que trouxe arquivos novos em `db/update/`, aplique cada um, em ordem, com o comando do passo 5.
+- Cada arquivo deve ser aplicado **uma única vez** em cada banco.
+
 ## Versionamento
 
 ### Novo ciclo de desenovolvimento:
