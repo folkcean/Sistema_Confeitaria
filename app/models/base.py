@@ -100,7 +100,7 @@ def validarTelefone(telefone: str) -> str:
         raise ValidacaoError("Telefone inválido: informe DDD + número")
     return digitos
 
-def validarCpf(cpf: str) -> str:
+def validarCPF(cpf: str) -> str:
     """Valida os dígitps verificadores de um CPF e devolve apenas os dígitos"""
     d = re.sub(r"\D", "", exigirTexto(cpf, "CPF"))
     # Rejeita o tamanho errado e sequências repetidas (111.111.111-11)
