@@ -3,16 +3,18 @@ services:
     image: postgres:18
     restart: unless-stopped
     environment:
-      POSTGRES_USER: app
+      #Diz quais são as credenciais
+      POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}   #Vai procurar no .env
-      POSTGRES_DB: appdb
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - pgdata:/var/lib/postgresql #Diretorio onde o banco de dados está armazenado
-      - ./init:/docker-entrypoint-initdb.d:ro   #Diretorio onde os scripts the inicialização estão guardados.
+      - ./db/init:/docker-entrypoint-initdb.d:ro   #Diretorio onde os scripts the inicialização estão guardados.
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U app -d appdb"]
+      #Teste de integridade.
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 10

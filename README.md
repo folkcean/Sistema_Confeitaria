@@ -27,6 +27,25 @@ A aplicação está dividida em duas grandes frentes que compartilham a mesma in
 - Testes: pytest
 - Organização e Versão: Git, GitHub e Docker para rodar o banco de dados
 
+## Banco de Dados (Docker)
+
+Pré-requisito: Docker com Docker Compose.
+
+### Primeira vez
+1. `cp .env.example .env` — cria seu arquivo de configuração local (não vai para o GitHub).
+2. Edite o `.env` e defina uma senha em `POSTGRES_PASSWORD`.
+3. `docker compose up -d` — sobe o PostgreSQL e executa os scripts de `db/init/` (criação das tabelas).
+4. `docker compose ps` — aguarde o status `healthy`.
+
+### Dia a dia
+- `docker compose up -d` — liga o banco.
+- `docker compose stop` — desliga o banco (os dados continuam salvos).
+- `docker compose exec db psql -U app -d appdb` — abre o terminal SQL do banco.
+
+### Atenção
+Os scripts de `db/init/` só rodam quando o banco é criado pela primeira vez.
+Para recriar do zero (**apaga todos os dados**): `docker compose down -v` e depois `docker compose up -d`.
+
 ## Versionamento
 
 ### Novo ciclo de desenovolvimento:
