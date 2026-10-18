@@ -69,6 +69,72 @@ O DER no Visual Paradigm é a fonte da verdade do banco. Toda alteração começ
 - Nunca edite um arquivo de `db/update/` que já foi commitado. Para corrigir algo, crie um novo.
 - Depois de um `git pull` que trouxe arquivos novos em `db/update/`, aplique cada um, em ordem, com o comando do passo 5.
 - Cada arquivo deve ser aplicado **uma única vez** em cada banco.
+## Estrutura do Projeto
+
+```
+sistema-confeitaria/
+├── app/
+│   ├── controllers/                 # (a criar) rotas Flask, sem regra de negócio
+│   ├── models/                      # entidades e regras do negócio; sem Flask e sem SQL
+│   │   ├── __init__.py              # índice dos models
+│   │   ├── administrador.py
+│   │   ├── base.py                  # Entidade (classe mãe de tudo que tem id)
+│   │   ├── cliente.py
+│   │   ├── contratos.py             # Protocols de Pedido, Estoque e Recomendador
+│   │   ├── endereco.py
+│   │   ├── enums.py                 # Perfil, StatusPedido, StatusPagamento...
+│   │   ├── funcionario.py
+│   │   ├── opcao_personalizacao.py
+│   │   ├── produto.py
+│   │   ├── senha.py                 # Senha (hash) e SenhaAusente
+│   │   └── usuario.py               # Usuario (classe abstrata)
+│   ├── services/                    # casos de uso
+│   │   ├── __init__.py
+│   │   ├── autenticacao.py          # login e tokens
+│   │   └── controle_login.py        # bloqueio por tentativas
+│   ├── templates/
+│   ├── validators/                  # validação de dados; não conhece nenhuma entidade
+│   │   ├── __init__.py
+│   │   ├── campos.py                # garantir() e Validador
+│   │   └── senha.py                 # regras de força da senha
+│   ├── __init__.py
+│   └── exceptions.py                # ValidacaoError, AcessoNegadoError...
+├── tests/
+├── .env                             # local, não vai para o GitHub
+├── .gitignore
+├── README.md
+├── requirements.txt
+└── run.py
+```
+
+## Convenções de código
+
+**Nomes**
+- Classes: `PascalCase` (`OpcaoPersonalizacao`)
+- Métodos e funções: `camelCase` (`adicionarEndereco`)
+- Variáveis, atributos e propriedades: `snake_case` (`custo_adicional`)
+- Constantes: `MAIUSCULAS` (`TAMANHO_MINIMO`)
+- Arquivos e pastas: `snake_case` (`opcao_personalizacao.py`)
+- Nome começando com `_` = uso interno da classe; não acessar de fora.
+
+**Orientação a objetos**
+- Não usamos `if/elif/else`. No lugar, usamos polimorfismo (cada classe responde do seu jeito),
+  tabelas (`dict`/`Enum`) e a função `garantir(condicao, erro)` para validações.
+  Única exceção: `if TYPE_CHECKING:` (recurso de tipagem, não é regra de negócio).
+- Entidades ficam em `app/models`, um arquivo por tabela do DER. Partes que só existem dentro de outra entidade também têm arquivo próprio e se referenciam por dicas de tipo.
+- Importações sempre absolutas: `from app.models import Cliente`.
+
+**Regras que não podem ser quebradas**
+- Todo dado que entra passa por `Validador` (`app/validators/campos.py`).
+  Erros usam as exceções de `app.exceptions`.
+- Dinheiro é `Decimal` (via `Validador.dinheiro`), **nunca `float`**.
+- A senha nunca é guardada em texto: use `Senha.criar(...)`. Só o hash vai para o banco.
+- O CPF só é lido por `obterCpf(solicitante)`, que confere a permissão.
+- Regra de negócio não fica em controller nem em repository.
+
+**Comentários**
+- Toda classe e função tem docstring (`"""..."""`) dizendo o que faz e por quê.
+- Uso de `#` para explicar sintaxe ou lógica que não é óbvia, escrito em português.
 
 ## Versionamento
 
