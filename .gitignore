@@ -12,3 +12,6 @@ __pycache__/
 
 # Sistema
 .DS_Store
+
+# Backups automaticos do Visual Paradigm
+*.vpp.bak_*
