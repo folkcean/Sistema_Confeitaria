@@ -13,25 +13,26 @@ Hierarquia:
             └── AcessoNegadoError          (perfil sem permissão)
 """
 
+
 class ConfeitariaError(Exception):
     """Exceção base de todo o sistema"""
- 
- 
+
+
 class ValidacaoError(ConfeitariaError):
     """Lançada quando um dado informado é inválido"""
- 
- 
+
+
 class SenhaFracaError(ValidacaoError):
     """Lançada quando a senha não atende aos requisitos mínimos de segurança"""
- 
- 
+
+
 class TransicaoStatusError(ValidacaoError):
     """Lançada quando o pedido tenta mudar para um status que o fluxo não permite"""
- 
- 
+
+
 class AutenticacaoError(ConfeitariaError):
     """Lançada em falhas de login ou tokens inválidos/expirados"""
- 
- 
+
+
 class AcessoNegadoError(ConfeitariaError):
     """Lançada quando um perfil tenta acessar uma funcionalidade restrita"""

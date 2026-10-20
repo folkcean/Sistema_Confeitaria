@@ -9,6 +9,7 @@ Hierarquia do DER (cada subtipo tem PK/FK = USUÁRIO.ID_usuário):
       ├── Funcionario    (funcionario.py)
       └── Administrador  (administrador.py)
 """
+
 from __future__ import annotations
 
 # ABC = "Abstract Base Class": a classe base para criar classes abstratas
@@ -18,7 +19,7 @@ from datetime import date, datetime
 
 from app.exceptions import AcessoNegadoError
 from app.validators.campos import Validador, garantir
- 
+
 from .base import Entidade
 from .contratos import ClienteConsultavel
 from .enums import Perfil
@@ -31,9 +32,18 @@ class Usuario(Entidade, ABC):
     data_cadastro, ativo, cpf (nulo, único), data_nascimento (nula)
     """
 
-    def __init__(self, nome: str, email: str | None, telefone: str, cpf: str | None,
-                 data_nascimento: date | datetime | str | None = None, senha: Senha | None = None,
-                 id_usuario: int | None = None, data_cadastro: datetime | None = None, ativo: bool = True):
+    def __init__(
+        self,
+        nome: str,
+        email: str | None,
+        telefone: str,
+        cpf: str | None,
+        data_nascimento: date | datetime | str | None = None,
+        senha: Senha | None = None,
+        id_usuario: int | None = None,
+        data_cadastro: datetime | None = None,
+        ativo: bool = True,
+    ):
         """
         Valida e normaliza cada campo. A senha chega pronta (objeto Senha), criada por Senha.criar ou Senha.deHash
         """
@@ -44,7 +54,9 @@ class Usuario(Entidade, ABC):
         # Validador.opcional: se vier vazio/None guarda None; se vier preenchido, valida e normaliza
         self._email = Validador.opcional(Validador.email, email)
         self._telefone = Validador.telefone(telefone)
-        self._data_nascimento = Validador.opcional(Validador.dataNascimento, data_nascimento)
+        self._data_nascimento = Validador.opcional(
+            Validador.dataNascimento, data_nascimento
+        )
         # O CPF é dado sensível: só sai por obterCpf(), que confere a permissão
         self.__cpf = Validador.opcional(Validador.cpf, cpf)
         # `senha or SenhaAusente()`: se não veio senha (None), usa o "objeto de senha vazia"
@@ -58,7 +70,8 @@ class Usuario(Entidade, ABC):
     # `@property` cria o getter (obj.nome) e `@nome.setter` cria o setter (obj.nome = "x")
     # Cada setter revalida o objeto antes de gravar, então o objeto nunca fica com dado inválido
     @property
-    def nome(self) -> str: return self._nome
+    def nome(self) -> str:
+        return self._nome
 
     @nome.setter
     def nome(self, valor: str) -> None:
@@ -68,7 +81,8 @@ class Usuario(Entidade, ABC):
         self._nome = Validador.texto(valor, "nome")
 
     @property
-    def email(self) -> str | None: return self._email
+    def email(self) -> str | None:
+        return self._email
 
     @email.setter
     def email(self, valor: str | None) -> None:
@@ -78,7 +92,8 @@ class Usuario(Entidade, ABC):
         self._email = Validador.opcional(Validador.email, valor)
 
     @property
-    def telefone(self) -> str: return self._telefone
+    def telefone(self) -> str:
+        return self._telefone
 
     @telefone.setter
     def telefone(self, valor: str) -> None:
@@ -88,7 +103,8 @@ class Usuario(Entidade, ABC):
         self._telefone = Validador.telefone(valor)
 
     @property
-    def data_nascimento(self) -> date | None: return self._data_nascimento
+    def data_nascimento(self) -> date | None:
+        return self._data_nascimento
 
     @data_nascimento.setter
     def data_nascimento(self, valor) -> None:
@@ -98,10 +114,12 @@ class Usuario(Entidade, ABC):
         self._data_nascimento = Validador.opcional(Validador.dataNascimento, valor)
 
     @property
-    def data_cadastro(self) -> datetime: return self._data_cadastro
+    def data_cadastro(self) -> datetime:
+        return self._data_cadastro
 
     @property
-    def ativo(self) -> bool: return self._ativo
+    def ativo(self) -> bool:
+        return self._ativo
 
     def ativar(self) -> None:
         """
@@ -136,7 +154,9 @@ class Usuario(Entidade, ABC):
         """
         garantir(
             solicitante is self or solicitante.acessa_dados_sensiveis,
-            AcessoNegadoError("Apenas o próprio usuário ou o administrador pode consultar este CPF"),
+            AcessoNegadoError(
+                "Apenas o próprio usuário ou o administrador pode consultar este CPF"
+            ),
         )
         return self.__cpf
 
@@ -174,6 +194,6 @@ class Usuario(Entidade, ABC):
     def consultarCliente(self, cliente: ClienteConsultavel) -> dict:
         """
         Devolve os dados do cliente que ESTE perfil tem direito de ver, ou lança AcessoNegadoError
-        
+
         Cada perfil responde do seu jeito (admin vê tudo, funcionário só o operacional, cliente só o próprio)
         """

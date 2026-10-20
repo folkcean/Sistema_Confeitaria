@@ -7,6 +7,7 @@ Aqui só decide se a senha é forte o suficiente. Guardar/proteger a senha é ou
 
 Ideia: Cada exigência é um objeto (RegraSenha), para criar uma nova exigência basta acrescentar um item na lista REGRAS
 """
+
 from __future__ import annotations
 
 import re
@@ -14,6 +15,7 @@ from dataclasses import dataclass
 
 from app.exceptions import SenhaFracaError
 from app.validators.campos import garantir
+
 
 # @dataclass(frozen=True) acima da classe é uma função que "embrulha" a classe e acrescenta comportamento
 # 1. cria o __init__ sozinho
@@ -23,6 +25,7 @@ class RegraSenha:
     """
     Uma exigência da senha: descrição (para a mensagem de erro) + padrão que a senha precisa casar
     """
+
     descricao: str
     padrao: re.Pattern
 
@@ -45,10 +48,15 @@ class ValidadorSenha:
     #   \d            -> pelo menos um dígito
     #   [^A-Za-z0-9]  -> pelo menos um caractere que NÃO seja letra nem número (o ^ dentro de [] significa "não")
     REGRAS = (
-        RegraSenha("ter entre 8 e 128 caracteres", re.compile(r"\A.{8,128}\Z", re.DOTALL)),
+        RegraSenha(
+            "ter entre 8 e 128 caracteres", re.compile(r"\A.{8,128}\Z", re.DOTALL)
+        ),
         RegraSenha("conter letras", re.compile(r"[A-Za-z]")),
         RegraSenha("conter números", re.compile(r"\d")),
-        RegraSenha("conter ao menos um caractere especial (ex.: @, #, !)", re.compile(r"[^A-Za-z0-9]")),
+        RegraSenha(
+            "conter ao menos um caractere especial (ex.: @, #, !)",
+            re.compile(r"[^A-Za-z0-9]"),
+        ),
     )
 
     @classmethod
@@ -64,4 +72,7 @@ class ValidadorSenha:
         # Monta uma lista nova a partir de outra -> descrição de cada regra violada
         problemas = [regra.descricao for regra in violadas]
         # Lista vazia é falsa: `not problemas` é True quando nenhuma regra foi violada -> senha ok
+        garantir(
+            not problemas, SenhaFracaError("A senha deve " + ", ".join(problemas) + ".")
+        )
         garantir(not problemas, SenhaFracaError("A senha deve " + ", ".join(problemas) + "."))

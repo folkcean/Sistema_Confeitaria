@@ -8,6 +8,7 @@ Fluxo: normaliza o e-mail -> confere se está bloqueado -> localiza o usuário -
 
 Login é feito só por e-mail
 """
+
 from __future__ import annotations
 
 from typing import Protocol
@@ -19,8 +20,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.exceptions import AutenticacaoError, ValidacaoError
 from app.models.usuario import Usuario
-from app.validators.campos import garantir
 from app.services.controle_login import ControleLogin
+from app.validators.campos import garantir
 
 
 class RepositorioUsuarios(Protocol):
@@ -58,13 +59,23 @@ class Autenticacao:
     MENSAGEM_FALHA = "E-mail ou senha incorretos."
     VALIDADE_TOKEN_SEGUNDOS = 8 * 3600  # 8 horas
 
-    def __init__(self, repositorio: RepositorioUsuarios, chave_secreta: str, controle: ControleLogin | None = None):
+    def __init__(
+        self,
+        repositorio: RepositorioUsuarios,
+        chave_secreta: str,
+        controle: ControleLogin | None = None,
+    ):
         """A chave secreta vem do .env e precisa ter ao menos 16 caracteres"""
-        garantir(len(chave_secreta or "") >= 16, ValidacaoError("A chave secreta deve ter ao menos 16 caracteres"))
+        garantir(
+            len(chave_secreta or "") >= 16,
+            ValidacaoError("A chave secreta deve ter ao menos 16 caracteres"),
+        )
         self._repositorio = repositorio
         self._controle = controle or ControleLogin()
         # O "salt" separa o uso desta chave de outros usos da mesma chave na aplicação: um token gerado para outra finalidade não vale aqui
-        self._serializer = URLSafeTimedSerializer(chave_secreta, salt="confeitaria-auth")
+        self._serializer = URLSafeTimedSerializer(
+            chave_secreta, salt="confeitaria-auth"
+        )
         # Hash qualquer, gerado uma vez, que serve de isca para o UsuarioInexistente
         self._hash_isca = generate_password_hash("Isca contra enumeração de usuários")
 
@@ -74,7 +85,9 @@ class Autenticacao:
         # 1) Se estiver bloqueado, recusa sem sequer conferir a senha
         self._controle.exigirLiberado(chave)
         # 2) `or` usa o Null Object quando o repositório devolve None
-        usuario = self._repositorio.buscarPorEmail(chave) or UsuarioInexistente(self._hash_isca)
+        usuario = self._repositorio.buscarPorEmail(chave) or UsuarioInexistente(
+            self._hash_isca
+        )
         # 3) Senha correta E conta ativa. A mensagem é a mesma para qualquer motivo de falha
         try:
             garantir(
@@ -90,7 +103,9 @@ class Autenticacao:
 
     def gerarToken(self, usuario: Usuario) -> str:
         """Token assinado com o id e o perfil do usuário"""
-        return self._serializer.dumps({"uid": usuario.id, "perfil": usuario.perfil.value})
+        return self._serializer.dumps(
+            {"uid": usuario.id, "perfil": usuario.perfil.value}
+        )
 
     def validarToken(self, token: str) -> dict:
         """Confere assinatura e validade (8h). SignatureExpired é subclasse de BadSignature,

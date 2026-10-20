@@ -4,6 +4,7 @@ app / models / endereco.py
 DER: um CLIENTE tem vários ENDEREÇOS (1:N). Cada endereço pertence a um só cliente
 (FK CLIENTEUSUÁRIOID_usuário) e some junto com ele (ON DELETE CASCADE)
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -24,8 +25,17 @@ class Endereco(Entidade):
     Imutável depois de criado: para mudar, remove-se e cadastra-se outro
     """
 
-    def __init__(self, logradouro: str, numero: str, bairro: str, cidade: str, cep: str,
-                 complemento: str = "", apelido: str = "", id_endereco: int | None = None):
+    def __init__(
+        self,
+        logradouro: str,
+        numero: str,
+        bairro: str,
+        cidade: str,
+        cep: str,
+        complemento: str = "",
+        apelido: str = "",
+        id_endereco: int | None = None,
+    ):
         """
         Valida e normaliza todos os campos
         """
@@ -43,21 +53,36 @@ class Endereco(Entidade):
 
     # Leitura simples dos campos (sem setters: o endereço é imutável)
     @property
-    def logradouro(self) -> str: return self._logradouro
+    def logradouro(self) -> str:
+        return self._logradouro
+
     @property
-    def numero(self) -> str: return self._numero
+    def numero(self) -> str:
+        return self._numero
+
     @property
-    def complemento(self) -> str | None: return self._complemento
+    def complemento(self) -> str | None:
+        return self._complemento
+
     @property
-    def bairro(self) -> str: return self._bairro
+    def bairro(self) -> str:
+        return self._bairro
+
     @property
-    def cidade(self) -> str: return self._cidade
+    def cidade(self) -> str:
+        return self._cidade
+
     @property
-    def cep(self) -> str: return self._cep
+    def cep(self) -> str:
+        return self._cep
+
     @property
-    def apelido(self) -> str | None: return self._apelido
+    def apelido(self) -> str | None:
+        return self._apelido
+
     @property
-    def cliente(self) -> Cliente | None: return self._cliente
+    def cliente(self) -> Cliente | None:
+        return self._cliente
 
     @property
     def id_cliente(self) -> int | None:
@@ -80,7 +105,9 @@ class Endereco(Entidade):
         Endereço por extenso, ex.: 'Rua A, 10, Apto 2 - Centro, Campos - CEP 28000-000'
         """
         # filter(None, ...) descarta o complemento quando ele é None, sem precisar de if
-        rua = ", ".join(filter(None, (self._logradouro, self._numero, self._complemento)))
+        rua = ", ".join(
+            filter(None, (self._logradouro, self._numero, self._complemento))
+        )
         return f"{rua} - {self._bairro}, {self._cidade} - CEP {self._cep[:5]}-{self._cep[5:]}"
 
     def __repr__(self) -> str:

@@ -1,7 +1,7 @@
 """
 app / services / controle_login.py
 
-Controle de tentativas de login 
+Controle de tentativas de login
 
 Padrão "State":
     Cada e-mail está sempre em UM de dois estados:
@@ -11,6 +11,7 @@ Padrão "State":
     Fluxo:  Livre(0) -> falha -> Livre(1) -> ... -> Livre(4) -> falha -> Bloqueado(até daqui a 15 min)
             Bloqueado -> (passam 15 min) -> nova falha -> Livre(1)   (recomeça a contar)
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -39,7 +40,9 @@ class PoliticaBloqueio:
     Define quantas falhas são toleradas e por quanto tempo o bloqueio dura
     """
 
-    def __init__(self, max_tentativas: int = 5, tempo_bloqueio: timedelta = timedelta(minutes=15)):
+    def __init__(
+        self, max_tentativas: int = 5, tempo_bloqueio: timedelta = timedelta(minutes=15)
+    ):
         """Guarda os limites"""
         self._max_tentativas = max_tentativas
         self._tempo_bloqueio = tempo_bloqueio
@@ -109,7 +112,9 @@ class ControleLogin:
         estado = self._estados.get(chave, Livre())
         garantir(
             not estado.bloqueado(datetime.now()),
-            AutenticacaoError("Muitas tentativas incorretas, tente novamente em alguns minutos"),
+            AutenticacaoError(
+                "Muitas tentativas incorretas, tente novamente em alguns minutos"
+            ),
         )
 
     def registrarFalha(self, chave: str) -> None:

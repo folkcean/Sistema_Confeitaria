@@ -9,6 +9,7 @@ Não guarda a senha real, apenas o hash
     O Werkzeug (Flask) acrescenta um 'salt' aleatório: duas senhas iguais geram hashes diferentes
 
 """
+
 from __future__ import annotations
 
 # generate_password_hash(senha) -> devolve o hash (com salt) para guardar
@@ -60,8 +61,8 @@ class Senha:
 
 class SenhaAusente(Senha):
     """
-    Null Object: usuário sem senha cadastrada (coluna NULL) 
-    
+    Null Object: usuário sem senha cadastrada (coluna NULL)
+
     "NULL OBJECT": em vez de guardar None e perguntar `if senha is None` em todo lugar, guardamos um
     objeto que tem os mesmos métodos mas já se comporta como "sem senha". Assim o resto do código trata
     todo mundo igual, sem precisar de if
@@ -70,7 +71,7 @@ class SenhaAusente(Senha):
     def __init__(self):
         """
         Sem hash nenhum
-        
+
         `super().__init__(None)` chama o __init__ da classe mãe (Senha) passando None como hash
         """
         super().__init__(None)

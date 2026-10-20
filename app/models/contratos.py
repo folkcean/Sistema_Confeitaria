@@ -10,6 +10,7 @@ Pra que serve aqui:
        O contrato descreve o que é esperado deles
 
 """
+
 from __future__ import annotations
 
 from typing import Protocol

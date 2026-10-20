@@ -9,11 +9,13 @@ from __future__ import annotations
 from app.exceptions import ValidacaoError
 from app.validators.campos import garantir
 
+
 class Entidade:
     """
     Superclasse de todas as entidades com identidade persistível no banco de dados
     Garante que todo objeto tenha um id (pk do DER)
     """
+
     def __init__(self, id_entidade: int | None = None):
         """
         Construtor: roda quando o objeto é criado
@@ -36,5 +38,9 @@ class Entidade:
         """
         Usado logo após o INSERT, quando o banco gera a pk, depois de definido é imutável
         """
+        garantir(
+            self._id is None,
+            ValidacaoError("Esta entidade já possuoi um ID (não alterável)"),
+        )
         garantir(self._id is None, ValidacaoError("Esta entidade já possuoi um ID (não alterável)"))
         self._id = novo_id

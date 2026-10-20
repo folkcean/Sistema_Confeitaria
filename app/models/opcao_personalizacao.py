@@ -2,10 +2,11 @@
 app / models / opcao_personalizacao.py
 
 Variação/adicional que o cliente pode escolher em um produto (tabela OPCAO_PERSONALIZACAO)
- 
+
 Relação do DER: um PRODUTO tem várias OPÇÕES (1:N). Cada opção pertence a um só produto
 (FK PRODUTOID_produto) e some junto com ele (ON DELETE CASCADE)
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -25,8 +26,14 @@ class OpcaoPersonalizacao(Entidade):
     DER: ID_opcao, PRODUTOID_produto (FK), nome, descricao (nula), custo_adicional numeric(10,2), ativo
     """
 
-    def __init__(self, nome: str, custo_adicional=0, descricao: str = "", ativo: bool = True,
-                 id_opcao: int | None = None):
+    def __init__(
+        self,
+        nome: str,
+        custo_adicional=0,
+        descricao: str = "",
+        ativo: bool = True,
+        id_opcao: int | None = None,
+    ):
         """Valida e normaliza os campos. O vínculo com o produto é feito por Produto.adicionarOpcao"""
         super().__init__(id_opcao)
         self._nome = Validador.texto(nome, "nome da opção")
@@ -39,15 +46,24 @@ class OpcaoPersonalizacao(Entidade):
 
     # Leitura simples dos campos
     @property
-    def nome(self) -> str: return self._nome
+    def nome(self) -> str:
+        return self._nome
+
     @property
-    def descricao(self) -> str | None: return self._descricao
+    def descricao(self) -> str | None:
+        return self._descricao
+
     @property
-    def custo_adicional(self) -> Decimal: return self._custo_adicional
+    def custo_adicional(self) -> Decimal:
+        return self._custo_adicional
+
     @property
-    def ativo(self) -> bool: return self._ativo
+    def ativo(self) -> bool:
+        return self._ativo
+
     @property
-    def produto(self) -> Produto | None: return self._produto
+    def produto(self) -> Produto | None:
+        return self._produto
 
     @property
     def produto_id(self) -> int | None:

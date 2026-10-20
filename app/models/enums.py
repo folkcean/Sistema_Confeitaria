@@ -5,6 +5,7 @@ Valores fixos do sistema
 
 Lista fechada de opções com nome -> exemplo: troca o uso de vários 'em_producao' espalhados pelo código por 'StatusPedido.EM_PRODUCAO'
 """
+
 from enum import Enum
 
 from app.exceptions import TransicaoStatusError
@@ -15,6 +16,7 @@ class Perfil(Enum):
     """
     Tipo de usuário (subtipos de USUÁRIO no DER)
     """
+
     CLIENTE = "cliente"
     FUNCIONARIO = "funcionario"
     ADMINISTRADOR = "administrador"
@@ -23,11 +25,12 @@ class Perfil(Enum):
 class StatusPedido(Enum):
     """
     PEDIDO.status e as regras de mudança entre status
-    
+
     Fluxo da entrevista:
     solicitado -> orcamento -> (sinal de 50%) -> confirmado -> em_producao -> pronto -> entregue -> finalizado
     O cancelamento só ocorre depois de confirmado, exige motivo e não tem reembolso.
     """
+
     SOLICITADO = "solicitado"
     ORCAMENTO = "orcamento"
     CONFIRMADO = "confirmado"
@@ -55,7 +58,9 @@ class StatusPedido(Enum):
         """
         garantir(
             self.podeIrPara(destino),
-            TransicaoStatusError(f"Não é possível mudar o pedido de '{self.value}' para '{destino.value}'")
+            TransicaoStatusError(
+                f"Não é possível mudar o pedido de '{self.value}' para '{destino.value}'"
+            ),
         )
 
     def exigeMotivo(self) -> bool:
@@ -70,7 +75,9 @@ class StatusPedido(Enum):
 _TRANSICOES = {
     StatusPedido.SOLICITADO: frozenset({StatusPedido.ORCAMENTO}),
     StatusPedido.ORCAMENTO: frozenset({StatusPedido.CONFIRMADO}),
-    StatusPedido.CONFIRMADO: frozenset({StatusPedido.EM_PRODUCAO, StatusPedido.CANCELADO}),
+    StatusPedido.CONFIRMADO: frozenset(
+        {StatusPedido.EM_PRODUCAO, StatusPedido.CANCELADO}
+    ),
     StatusPedido.EM_PRODUCAO: frozenset({StatusPedido.PRONTO, StatusPedido.CANCELADO}),
     StatusPedido.PRONTO: frozenset({StatusPedido.ENTREGUE, StatusPedido.CANCELADO}),
     StatusPedido.ENTREGUE: frozenset({StatusPedido.FINALIZADO}),
@@ -83,6 +90,7 @@ class StatusPagamento(Enum):
     """
     PEDIDO.status_pagamento
     """
+
     AGUARDANDO_SINAL = "aguardando_sinal"
     SINAL_PAGO = "sinal_pago"
     PAGO = "pago"
@@ -92,6 +100,7 @@ class TipoEntrega(Enum):
     """
     PEDIDO.tipo_entrega
     """
+
     ENTREGA = "entrega"
     RETIRADA = "retirada"
 
@@ -100,6 +109,7 @@ class FormaPagamento(Enum):
     """
     PEDIDO.forma_pagamento_sinal e forma_pagamento_restante
     """
+
     PIX = "pix"
     DINHEIRO = "dinheiro"
     CARTAO = "cartao"
@@ -109,6 +119,7 @@ class TipoMovimentacao(Enum):
     """
     MOVIMENTACAO_ESTOQUE.tipo
     """
+
     ENTRADA = "entrada"
     CONSUMO = "consumo"
     PERDA = "perda"
@@ -119,6 +130,7 @@ class StatusCompra(Enum):
     """
     COMPRA.status
     """
+
     PENDENTE = "pendente"
     RECEBIDA = "recebida"
     CANCELADA = "cancelada"
@@ -128,6 +140,7 @@ class TipoInsumo(Enum):
     """
     INGREDIENTE.tipo
     """
+
     INGREDIENTE = "ingrediente"
     EMBALAGEM = "embalagem"
     DECORACAO = "decoracao"
