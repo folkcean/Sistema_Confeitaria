@@ -7,14 +7,16 @@ Lista fechada de opções com nome -> exemplo: troca o uso de vários 'em_produc
 """
 
 from enum import Enum
-
+from decimal import Decimal
 from app.exceptions import TransicaoStatusError
-from app.validators.campos import garantir
+from app.validators.campos import Validador, garantir
 
 
 class Perfil(Enum):
     """
     Tipo de usuário (subtipos de USUÁRIO no DER)
+
+    'NOME = "valor"' define uma opção
     """
 
     CLIENTE = "cliente"
@@ -58,9 +60,7 @@ class StatusPedido(Enum):
         """
         garantir(
             self.podeIrPara(destino),
-            TransicaoStatusError(
-                f"Não é possível mudar o pedido de '{self.value}' para '{destino.value}'"
-            ),
+            TransicaoStatusError(f"Não é possível mudar o pedido de '{self.value}' para '{destino.value}'")
         )
 
     def exigeMotivo(self) -> bool:
@@ -75,9 +75,7 @@ class StatusPedido(Enum):
 _TRANSICOES = {
     StatusPedido.SOLICITADO: frozenset({StatusPedido.ORCAMENTO}),
     StatusPedido.ORCAMENTO: frozenset({StatusPedido.CONFIRMADO}),
-    StatusPedido.CONFIRMADO: frozenset(
-        {StatusPedido.EM_PRODUCAO, StatusPedido.CANCELADO}
-    ),
+    StatusPedido.CONFIRMADO: frozenset({StatusPedido.EM_PRODUCAO, StatusPedido.CANCELADO}),
     StatusPedido.EM_PRODUCAO: frozenset({StatusPedido.PRONTO, StatusPedido.CANCELADO}),
     StatusPedido.PRONTO: frozenset({StatusPedido.ENTREGUE, StatusPedido.CANCELADO}),
     StatusPedido.ENTREGUE: frozenset({StatusPedido.FINALIZADO}),
@@ -118,6 +116,11 @@ class FormaPagamento(Enum):
 class TipoMovimentacao(Enum):
     """
     MOVIMENTACAO_ESTOQUE.tipo
+
+    entrada: soma ao saldo (compra recebida)            qtd positiva
+    consumo: subtrai do saldo (produção de um pedido)   qtd positiva
+    perda:   subtrai do saldo (desperdício)             qtd positiva; exige motivo
+    ajuste:  correção manual do saldo                   qtd com sinal (+ soma, - subtrai); exige motivo
     """
 
     ENTRADA = "entrada"
@@ -125,6 +128,42 @@ class TipoMovimentacao(Enum):
     PERDA = "perda"
     AJUSTE = "ajuste"
 
+    def validarQuantidade(self, quantidade) -> Decimal:
+        """
+        Valida e normaliza a quantidade conforme o tipo
+
+        Consulta a tabela _VALIDADORES_QUANTIDADE
+        """
+        return _VALIDADORES_QUANTIDADE[self](quantidade, "quantidade")
+
+    def variacao(self, quantidade: Decimal) -> Decimal:
+        """
+        Quanto o saldo muda
+
+        Exemplo: CONSUMO com quantidade 2 -> -2; ENTRADA com 5 -> +5; AJUSTE com -1 -> -1 (o sinal já vem na quantidade)
+        """
+        return quantidade * _SINAIS_MOVIMENTACAO[self]
+
+    def exigeMotivo(self) -> bool:
+        """
+        Perda e ajuste precisam ser justificados
+        """
+        return self in _TIPOS_QUE_EXIGEM_MOTIVO
+
+# Tabelas do TipoMovimentacaoEstoque
+_VALIDADORES_QUANTIDADE = {
+    TipoMovimentacao.ENTRADA: Validador.quantidadePositiva,
+    TipoMovimentacao.CONSUMO: Validador.quantidadePositiva,
+    TipoMovimentacao.PERDA: Validador.quantidadePositiva,
+    TipoMovimentacao.AJUSTE: Validador.quantidadeAjuste,
+}
+_SINAIS_MOVIMENTACAO = {
+    TipoMovimentacao.ENTRADA: 1,
+    TipoMovimentacao.CONSUMO: -1,
+    TipoMovimentacao.PERDA: -1,
+    TipoMovimentacao.AJUSTE: 1,  # o sinal do ajuste já está na própria quantidade
+}
+_TIPOS_QUE_EXIGEM_MOTIVO = frozenset({TipoMovimentacao.PERDA, TipoMovimentacao.AJUSTE})
 
 class StatusCompra(Enum):
     """
