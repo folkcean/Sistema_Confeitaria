@@ -75,4 +75,6 @@ class ValidadorSenha:
         garantir(
             not problemas, SenhaFracaError("A senha deve " + ", ".join(problemas) + ".")
         )
-        garantir(not problemas, SenhaFracaError("A senha deve " + ", ".join(problemas) + "."))
+        garantir(
+            not problemas, SenhaFracaError("A senha deve " + ", ".join(problemas) + ".")
+        )
