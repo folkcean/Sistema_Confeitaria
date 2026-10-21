@@ -238,8 +238,8 @@ class Validador:
         garantir(
             numero >= 0,
             ValidacaoError(f"O campo '{campo}', não pode ser negativo")
-
         )
+        return numero
 
     @classmethod
     def dinheiro(cls, valor, campo: str) -> Decimal:
@@ -297,7 +297,8 @@ class Validador:
             valor >= 1,
             ValidacaoError(f"O campo '{campo}' deve ser maior que zero")
         )
-
+        return valor
+    
     @staticmethod
     def opcionalSeInformado(validador, valor, *argumentos):
         """
@@ -310,7 +311,7 @@ class Validador:
         """
         tratamentos={
             True: lambda: None,
-            False: lambda: validador[valor, *argumentos]
+            False: lambda: validador(valor, *argumentos)
         }
         return tratamentos[valor is None]()
 
