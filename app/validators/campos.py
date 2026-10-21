@@ -71,7 +71,9 @@ class Validador:
         # `valor or ""` transforma None em ""
         # str() garante que é texto e strip() remove espações e quebras de linha no começo e no fim
         limpo = str(valor or "").strip()
+
         garantir(limpo, ValidacaoError(f"O campo '{campo}' é obrigatório"))
+
         garantir(
             len(limpo) <= max_len,
             ValidacaoError(
