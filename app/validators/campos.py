@@ -59,6 +59,12 @@ class Validador:
         str: date.fromisoformat,
     }
 
+    _MILESIMOS = Decimal("0.001")
+    _DECIMILESIMOS = Decimal("0.0001")
+    # numeric(10,3) comporta até 9.999.999,999 e numeric(10,4) até 999.999,9999.
+    _LIMITE_QUANTIDADE = Decimal("10000000")
+    _LIMITE_CUSTO_UNITARIO = Decimal("1000000")
+
     # @staticmethod -> não tem acesso ao estado da classe, usado em funções utilitárias
     # @classmethod -> tem acesso ao estado da classe
 
@@ -208,21 +214,32 @@ class Validador:
 
     # NÚMEROS
     @staticmethod
-    def _decimalNaoNegativo(valor, campo: str) -> Decimal:
+    def _decimal(valor, campo: str) -> Decimal:
         """
-        Converte para Decimal (evita erros de float) e rejeita texto, not a number (NaN), infinito e negativos
+        Converte para decimal e rejeita texto não numérico, not a number (NaN) e infinito
         """
         try:
             numero = Decimal(str(valor))
         except InvalidOperation as erro:
             raise ValidacaoError(f"O campo '{campo}' deve ser um número") from erro
+        # Decimal aceita NaN e infinito, is_finite rejeita os dois
         garantir(
-            numero.is_finite(), ValidacaoError(f"O campo '{campo}' deve ser um número")
-        )
-        garantir(
-            numero >= 0, ValidacaoError(f"O campo '{campo}' não pode ser negativo")
+            numero.is_finite,
+            ValidacaoError(f"O campo '{campo}' deve ser um número")
         )
         return numero
+
+    @staticmethod
+    def _decimalNaoNegativo(valor, campo: str) -> Decimal:
+        """
+        Converte para Decimal (evita erros de float) e rejeita texto, not a number (NaN), infinito e negativos
+        """
+        numero = Validador._decimal(valor, campo)
+        garantir(
+            numero >= 0,
+            ValidacaoError(f"O campo '{campo}', não pode ser negativo")
+
+        )
 
     @classmethod
     def dinheiro(cls, valor, campo: str) -> Decimal:
@@ -254,11 +271,117 @@ class Validador:
     @staticmethod
     def inteiroNaoNegativo(valor, campo: str) -> int:
         """
-        Inteiro >= 0. `type(...) is int` também rejeita True/False, que em Python são int
+        Inteiro >= 0. Rejeita True/False
         """
         garantir(
             type(valor) is int,
             ValidacaoError(f"O campo '{campo}' deve ser um número inteiro"),
         )
-        garantir(valor >= 0, ValidacaoError(f"O campo '{campo}' não pode ser negativo"))
+        garantir(
+            valor >= 0, 
+            ValidacaoError(f"O campo '{campo}' não pode ser negativo")
+        )
         return valor
+
+    # MÓDULO ESTOQUE
+    @staticmethod
+    def inteiroPositivo(valor, campo:str) -> int:
+        """
+        Inteiro >= 1. Rejeita True/False
+        """
+        garantir(
+            type(valor) is int,
+            ValidacaoError(f"O campo '{campo}' deve ser um número inteiro")
+        )
+        garantir(
+            valor >= 1,
+            ValidacaoError(f"O campo '{campo}' deve ser maior que zero")
+        )
+
+    @staticmethod
+    def opcionalSeInformado(validador, valor, *argumentos):
+        """
+        Parecido com 'opcional' mas só None é "ausente", 0 e " " são validados normalmente
+
+        Razão de existência: 'opcional' usa falso=ausente, e 0 é tido como falso
+        Para casos como custo de R$0,00 isso daria resultado errado
+
+        O dicionário escolhe o caminho pelo resultado de 'valor is None', cada valor é um lambda
+        """
+        tratamentos={
+            True: lambda: None,
+            False: lambda: validador[valor, *argumentos]
+        }
+        return tratamentos[valor is None]()
+
+    @staticmethod
+    def opcaoDe(enumeracao, valor, campo: str):
+        """
+        Converte um texto em um membro do Enum, ou levanta ValidacaoError
+
+        Exemplo: Validador.opcaoDe(TipoInsumo, "embalagem", "tipo) -> TipoInsumo.EMBALAGEM
+
+        Chamar o Enum como função (ex: 'TipoInsumo("embalagem")') procura a opção pelo valor e levanta erro se não existir
+        """
+        try:
+            return enumeracao(valor)
+        except ValueError as erro:
+            raise ValidacaoError(f"O campo '{campo}  tem um valor inválido: {valor!r}") from erro
+
+    # quantidades e custos de estoque
+    @classmethod
+    def quantidade(cls, valor, campo: str) -> Decimal:
+        """
+        Quantidade >= 0 com 3 casas decimais (DER: numeric(10,3))
+        """
+        numero = cls._decimalNaoNegativo(valor, campo)
+        garantir(
+            numero < cls._LIMITE_QUANTIDADE,
+            ValidacaoError(f"O campo '{campo}' excede o valor máximo permitido")
+        )
+        return numero.quantidade(cls._MILESIMOS, rounding=ROUND_HALF_UP)
+
+    @classmethod
+    def quantidadePositiva(cls, valor, campo: str) -> Decimal:
+        """
+        Quantidade > 0 (fatores de conversão, consumos, entradas)
+        """
+        numero = cls.quantidade(valor, campo)
+        garantir(
+            numero > 0, 
+            ValidacaoError(f"O campo '{campo}' deve ser maior que zero")
+            )
+        return numero
+ 
+    @classmethod
+    def quantidadeAjuste(cls, valor, campo: str) -> Decimal:
+        """
+        Variação de um ajuste manual: pode ser negativa (tirou do estoque) ou positiva (acrescentou), mas nunca zero
+ 
+        `abs(x)` é o valor absoluto (sem sinal): -5 vira 5. Serve para aplicar o mesmo limite aos dois lados
+        """
+        numero = cls._decimal(valor, campo)
+        garantir(
+            abs(numero) < cls._LIMITE_QUANTIDADE,
+            ValidacaoError(f"O campo '{campo}' excede o valor máximo permitido")
+        )
+        numero = numero.quantize(cls._MILESIMOS, rounding=ROUND_HALF_UP)
+        garantir(
+            numero != 0,
+            ValidacaoError(f"O campo '{campo}' não pode ser zero")
+        )
+        return numero
+ 
+    @classmethod
+    def custoUnitario(cls, valor, campo: str) -> Decimal:
+        """
+        Custo por unidade >= 0 com 4 casas decimais (numeric(10,4) no DER)
+        
+        Mais casas que o dinheiro comum porque o custo de um grama de insumo é uma fração de centavo
+        """
+        numero = cls._decimalNaoNegativo(valor, campo)
+        garantir(
+            numero < cls._LIMITE_CUSTO_UNITARIO,
+            ValidacaoError(f"O campo '{campo}' excede o valor máximo permitido")
+            )
+        return numero.quantize(cls._DECIMILESIMOS, rounding=ROUND_HALF_UP)
