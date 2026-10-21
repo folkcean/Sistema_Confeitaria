@@ -14,6 +14,7 @@ from app.validators.campos import Validador, garantir
 from .contratos import ClienteConsultavel, Estoque, PedidoAvancavel
 from .enums import Perfil, StatusPedido
 from .usuario import Usuario
+from .estoque import Estoque
 
 
 class Funcionario(Usuario):
@@ -87,7 +88,7 @@ class Funcionario(Usuario):
         return self._data_contratacao
 
     # Ações do dia a dia
-    # Pedido e Estoque ainda serão implementados
+    # Pedido ainda será implementado
     def atualizarStatusPedido(
         self, pedido: PedidoAvancavel, novo_status: StatusPedido
     ) -> None:

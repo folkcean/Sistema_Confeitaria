@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from .enums import StatusPedido
-
+from .estoque import Estoque
 
 # '...'
 # Em um Protocol o método só descreve a assinatura, sem implementar, então o corpo fica sendo '...'
@@ -30,25 +30,6 @@ class PedidoAvancavel(Protocol):
         Muda o status do pedido, validando a transição
         """
         ...
-
-
-class Estoque(Protocol):
-    """
-    Estoque que pode ser consultado e ajustado
-    """
-
-    def resumo(self) -> list[dict]:
-        """
-        Devolve a situação atual de cada ingrediente
-        """
-        ...
-
-    def ajustarManual(self, ingrediente, nova_quantidade: float, motivo: str) -> None:
-        """
-        Ajusta a quantidade de um ingrediente (MOVIMENTACAO_ESTOQUE do tipo 'ajuste')
-        """
-        ...
-
 
 class Recomendador(Protocol):
     """
