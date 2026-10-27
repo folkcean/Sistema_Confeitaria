@@ -9,9 +9,12 @@ from __future__ import annotations
 from app.exceptions import AcessoNegadoError
 from app.validators.campos import Validador, garantir
 
-from .contratos import ClienteConsultavel, Estoque, Recomendador
+from .contratos import ClienteConsultavel, Recomendador
 from .enums import Perfil
 from .usuario import Usuario
+from .estoque import Estoque
+from .insumo import Insumo
+from .movimentacao_estoque import MovimentacaoEstoque
 
 
 class Administrador(Usuario):
@@ -68,13 +71,23 @@ class Administrador(Usuario):
         return self._acesso_financeiro
 
     # Ações exclusivas
-    def ajustarEstoque(
-        self, estoque: Estoque, ingrediente, nova_quantidade: float, motivo: str
-    ) -> None:
+    def ajustarEstoque(self, estoque: Estoque, ingrediente, nova_quantidade: float, motivo: str) -> None:
         """
-        Ajusta manualmente a quantidade de um ingrediente (o motivo fica registrado na movimentação)
+        Ajusta manualmente a quantidade de um ingrediente e devolve a movimentação registrada (o motivo fica registrado na movimentação)
         """
-        estoque.ajustarManual(ingrediente, nova_quantidade, motivo)
+        return estoque.ajustarManual(ingrediente, nova_quantidade, motivo)
+
+    def desfazerAjusteEstoque(self, estoque: Estoque, movimentacao: MovimentacaoEstoque) -> MovimentacaoEstoque:
+        """
+        Desfaz um ajuste manual registrando um ajuste contrário
+        """
+        return estoque.desfazerAjuste(movimentacao)
+
+    def consultarSugestaoDeCompras(self, estoque: Estoque) -> list[dict]:
+        """
+        Lista de copra sugerida: insumos que atingiram o estoque mínimo e o quanto falta para voltar a ele
+        """
+        return estoque.sugerirCompras()
 
     def consultarCpfCliente(self, cliente) -> str | None:
         """
@@ -82,16 +95,12 @@ class Administrador(Usuario):
         """
         return cliente.obterCpf(self)
 
-    def gerarRelatorioReposicao(
-        self, recomendador: Recomendador, estoque: Estoque, historico
-    ) -> list[dict]:
+    def gerarRelatorioReposicao(self, recomendador: Recomendador, estoque: Estoque, historico) -> list[dict]:
         """
         Aciona o módulo de recomendação de compras. Exige a permissão de acesso financeiro
         """
         garantir(
             self._acesso_financeiro,
-            AcessoNegadoError(
-                "Este administrador não possui acesso a relatórios financeiros"
-            ),
+            AcessoNegadoError("Este administrador não possui acesso a relatórios financeiros")
         )
         return recomendador.recomendar(estoque, historico)
