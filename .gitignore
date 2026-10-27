@@ -15,3 +15,10 @@ __pycache__/
 
 # Backups automaticos do Visual Paradigm
 *.vpp.bak_*
+
+.pytest_cache/
+# Python / testes
+venv/
+.venv/
+__pycache__/
+.pytest_cache/
