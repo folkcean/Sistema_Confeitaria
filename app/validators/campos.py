@@ -77,12 +77,13 @@ class Validador:
         # `valor or ""` transforma None em ""
         # str() garante que é texto e strip() remove espações e quebras de linha no começo e no fim
         limpo = str(valor or "").strip()
-        garantir(limpo, ValidacaoError(f"O campo '{campo}' é obrigatório"))
+        garantir(
+            limpo, 
+            ValidacaoError(f"O campo '{campo}' é obrigatório")
+        )
         garantir(
             len(limpo) <= max_len,
-            ValidacaoError(
-                f"O campo '{campo}' deve ter no máximo {max_len} caracteres"
-            ),
+            ValidacaoError(f"O campo '{campo}' deve ter no máximo {max_len} caracteres")
         )
         return limpo
 
@@ -94,9 +95,7 @@ class Validador:
         limpo = str(valor or "").strip()
         garantir(
             len(limpo) <= max_len,
-            ValidacaoError(
-                f"O campo '{campo}' deve ter no máximo {max_len} caracteres"
-            ),
+            ValidacaoError(f"O campo '{campo}' deve ter no máximo {max_len} caracteres")
         )
         # 'limpo or None' devolve 'limpo' se limpo for verdadeiro; senão devolve 'None'
         return limpo or None
@@ -134,7 +133,7 @@ class Validador:
         digitos = re.sub(r"\D", "", cls.texto(valor, "telefone"))
         garantir(
             len(digitos) in (10, 11),
-            ValidacaoError("Telefone inválido: informe DDD + número"),
+            ValidacaoError("Telefone inválido: informe DDD + número")
         )
         return digitos
 
@@ -153,7 +152,9 @@ class Validador:
         primeiro = cls._digitoVerificadorCpf(digitos[:9]) == int(digitos[9])
         # Para o segundo verificador, o recorte são os 10 primeiros
         segundo = cls._digitoVerificadorCpf(digitos[:10]) == int(digitos[10])
-        garantir(primeiro and segundo, ValidacaoError("CPF inválido"))
+        garantir(
+            primeiro and segundo, 
+            ValidacaoError("CPF inválido"))
         return digitos
 
     @staticmethod
@@ -178,7 +179,8 @@ class Validador:
         """
         digitos = re.sub(r"\D", "", str(valor or ""))
         garantir(
-            len(digitos) == 8, ValidacaoError("CEP inválido: deve conter 8 dígitos")
+            len(digitos) == 8,
+            ValidacaoError("CEP inválido: deve conter 8 dígitos")
         )
         return digitos
 
@@ -191,14 +193,14 @@ class Validador:
         # Procura o conversor pelo tipo exato do valor; tipo desconhecido -> None -> erro
         conversor = cls._CONVERSORES_DATA.get(type(valor))
         garantir(
-            conversor, ValidacaoError(f"O campo '{campo}' deve ser uma data válida")
+            conversor, 
+            ValidacaoError(f"O campo '{campo}' deve ser uma data válida")
         )
+        # Tenta executar, se der ValueError cai no except
         try:
             return conversor(valor)
         except ValueError as erro:
-            raise ValidacaoError(
-                f"O campo '{campo}' deve estar no formato AAAA-MM-DD"
-            ) from erro
+            raise ValidacaoError(f"O campo '{campo}' deve estar no formato AAAA-MM-DD") from erro
 
     @classmethod
     def dataNascimento(cls, valor) -> date:
@@ -208,7 +210,7 @@ class Validador:
         nascimento = cls.data(valor, "data de nascimento")
         garantir(
             nascimento <= date.today(),
-            ValidacaoError("A data de nascimento não pode estar no futuro"),
+            ValidacaoError("A data de nascimento não pode estar no futuro")
         )
         return nascimento
 
@@ -224,7 +226,7 @@ class Validador:
             raise ValidacaoError(f"O campo '{campo}' deve ser um número") from erro
         # Decimal aceita NaN e infinito, is_finite rejeita os dois
         garantir(
-            numero.is_finite,
+            numero.is_finite(),
             ValidacaoError(f"O campo '{campo}' deve ser um número")
         )
         return numero
@@ -237,7 +239,7 @@ class Validador:
         numero = Validador._decimal(valor, campo)
         garantir(
             numero >= 0,
-            ValidacaoError(f"O campo '{campo}', não pode ser negativo")
+            ValidacaoError(f"O campo '{campo}' não pode ser negativo")
         )
         return numero
 
@@ -246,12 +248,10 @@ class Validador:
         """
         Valor monetário >= 0, arredondado para 2 casas (numeric(10,2))
         """
-        numero = cls._decimalNaoNegativo(valor, campo).quantize(
-            cls._CENTAVOS, rounding=ROUND_HALF_UP
-        )
+        numero = cls._decimalNaoNegativo(valor, campo).quantize(cls._CENTAVOS, rounding=ROUND_HALF_UP)
         garantir(
             numero < cls._LIMITE_DINHEIRO,
-            ValidacaoError(f"O campo '{campo}' excede o valor máximo permitido"),
+            ValidacaoError(f"O campo '{campo}' excede o valor máximo permitido")
         )
         return numero
 
@@ -260,11 +260,10 @@ class Validador:
         """
         Percentual entre 0 e 100, com 2 casas (numeric(5,2), CHECK BETWEEN 0 AND 100)
         """
-        numero = cls._decimalNaoNegativo(valor, campo).quantize(
-            cls._CENTAVOS, rounding=ROUND_HALF_UP
-        )
+        numero = cls._decimalNaoNegativo(valor, campo).quantize(cls._CENTAVOS, rounding=ROUND_HALF_UP)
         garantir(
-            numero <= 100, ValidacaoError(f"O campo '{campo}' deve estar entre 0 e 100")
+            numero <= 100, 
+            ValidacaoError(f"O campo '{campo}' deve estar entre 0 e 100")
         )
         return numero
 
@@ -275,7 +274,7 @@ class Validador:
         """
         garantir(
             type(valor) is int,
-            ValidacaoError(f"O campo '{campo}' deve ser um número inteiro"),
+            ValidacaoError(f"O campo '{campo}' deve ser um número inteiro")
         )
         garantir(
             valor >= 0, 
@@ -327,7 +326,7 @@ class Validador:
         try:
             return enumeracao(valor)
         except ValueError as erro:
-            raise ValidacaoError(f"O campo '{campo}  tem um valor inválido: {valor!r}") from erro
+            raise ValidacaoError(f"O campo '{campo}'  tem um valor inválido: {valor!r}") from erro
 
     # quantidades e custos de estoque
     @classmethod
@@ -340,7 +339,7 @@ class Validador:
             numero < cls._LIMITE_QUANTIDADE,
             ValidacaoError(f"O campo '{campo}' excede o valor máximo permitido")
         )
-        return numero.quantidade(cls._MILESIMOS, rounding=ROUND_HALF_UP)
+        return numero.quantize(cls._MILESIMOS, rounding=ROUND_HALF_UP)
 
     @classmethod
     def quantidadePositiva(cls, valor, campo: str) -> Decimal:
