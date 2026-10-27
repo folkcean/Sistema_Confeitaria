@@ -20,7 +20,7 @@ class Entidade:
         """
         Construtor: roda quando o objeto é criado
         `id_entidade=None` é um valor padrão
-        None = "ainda não foi gravado no banco". Quando o banco gerar a PK, o repositório chama atribuirId()
+        None = "ainda não foi gravado no banco". Quando o banco gerar a PK, o repositório chama atribuirID()
         """
         # Atributo protegido: subclasses podem ler, mas código externo deve usar property id
         self._id = id_entidade
@@ -40,7 +40,6 @@ class Entidade:
         """
         garantir(
             self._id is None,
-            ValidacaoError("Esta entidade já possuoi um ID (não alterável)"),
+            ValidacaoError("Esta entidade já possui um ID (não alterável)"),
         )
-        garantir(self._id is None, ValidacaoError("Esta entidade já possuoi um ID (não alterável)"))
         self._id = novo_id
