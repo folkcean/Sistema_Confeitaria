@@ -2,7 +2,7 @@
 venv/
 env/
 ENV/
-
+.idea/
 # Arquivos de ambiente e sensíveis
 .env
 
