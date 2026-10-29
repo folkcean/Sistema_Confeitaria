@@ -1,0 +1,262 @@
+{#
+  painel/relatorios.html  (só administrador, entrevista 10.1 a 10.7)
+  Rota: painel.relatorios   GET /painel/relatorios
+
+  Parâmetros (GET):
+    aba       vendas | produtos | insumos
+    periodo   semana | semana_passada | mes   (atalhos; a rota calcula as datas)
+    inicio, fim   AAAA-MM-DD (período livre; a entrevista prefere semana, 10.3)
+
+  Variáveis:
+    aba, periodo
+    inicio, fim            date do período mostrado
+    resumo                 (aba vendas) faturamento, pedidos, ticket_medio, lucro_estimado
+    vendas_por_dia         (aba vendas) lista com dia (date) e total (Decimal)
+    mais_vendidos          (aba produtos) lista com nome e quantidade, do maior para o menor
+    menos_vendidos         (aba produtos) lista com nome e quantidade, do menor para o maior
+    maior_faturamento      (aba produtos) lista com nome, faturamento e lucro
+    insumos_consumidos     (aba insumos) lista com nome, quantidade, unidade (de compra) e custo
+
+  Exportar: painel.relatorioExportar com os mesmos parâmetros devolve um CSV
+  (o csv da biblioteca padrão do Python resolve, sem dependência nova).
+
+  Gráficos: só HTML + CSS. Cada barra recebe a altura/largura em "--v" (0 a 100),
+  calculada aqui a partir do maior valor. Embaixo de cada gráfico há a tabela
+  com os mesmos números.
+#}
+{% extends "painel/base.html" %}
+{% import "_icones.html" as i %}
+{% import "_macros.html" as m %}
+
+{% set menu_ativo = "relatorios" %}
+{% set aba_atual = aba|default("vendas", true) %}
+{% set periodo_atual = periodo|default("", true) %}
+{% set filtros = {
+  "periodo": periodo_atual or none,
+  "inicio": inicio.isoformat() if inicio is defined and inicio and not periodo_atual else none,
+  "fim": fim.isoformat() if fim is defined and fim and not periodo_atual else none,
+} %}
+
+{# R$ 1.250 -> "R$ 1,3 mil"; usado só nos rótulos do eixo #}
+{% macro moedaCurta(v) -%}
+{%- if v >= 1000 -%}R$ {{ m.numero(v / 1000, 1) }} mil{%- else -%}R$ {{ m.numero(v, 0) }}{%- endif -%}
+{%- endmacro %}
+
+{# Barras horizontais de uma série (ranking). campo = nome do valor em cada item #}
+{% macro barras(lista, campo, rotulo_tabela, dinheiro=false) -%}
+{%- set maior = lista|map(attribute=campo)|max -%}
+<figure class="grafico">
+  <ol class="barras">
+    {% for item in lista %}
+    {% set valor = item[campo] %}
+    <li class="barra" title="{{ item.nome }}">
+      <span class="barra__nome">{{ item.nome }}</span>
+      <span class="barra__trilho">
+        <span class="barra__preenchimento" style="--v: {{ ((valor|float) / (maior|float) * 100)|round(2) if maior else 0 }}"></span>
+        <span class="barra__valor">{{ m.moeda(valor) if dinheiro else m.numero(valor, 2) }}</span>
+      </span>
+    </li>
+    {% endfor %}
+  </ol>
+  <details class="grafico__tabela">
+    <summary>Ver os números</summary>
+    <table class="tabela tabela--compacta">
+      <thead><tr><th>Produto</th><th class="num">{{ rotulo_tabela }}</th>{% if lista[0].lucro is defined %}<th class="num">Lucro</th>{% endif %}</tr></thead>
+      <tbody>
+        {% for item in lista %}
+        <tr>
+          <td>{{ item.nome }}</td>
+          <td class="num">{{ m.moeda(item[campo]) if dinheiro else m.numero(item[campo], 2) }}</td>
+          {% if item.lucro is defined %}<td class="num">{{ m.moeda(item.lucro) }}</td>{% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </details>
+</figure>
+{%- endmacro %}
+
+{% block titulo %}Relatórios{% endblock %}
+
+{% block acoes %}
+<a class="botao botao--secundario" href="{{ url_for('painel.relatorioExportar', aba=aba_atual, **filtros) }}">{{ i.icone("baixar") }} Exportar CSV</a>
+{# ESPAÇO RESERVADO: exportar em PDF precisaria de uma biblioteca (ex.: WeasyPrint). Por enquanto, Ctrl+P imprime a página limpa. #}
+{% endblock %}
+
+{% block conteudo %}
+<nav aria-label="Tipo de relatório">
+  <ul class="abas">
+    {% for valor, texto in [("vendas", "Vendas"), ("produtos", "Produtos"), ("insumos", "Insumos")] %}
+    <li><a href="{{ url_for('painel.relatorios', aba=valor, **filtros) }}"{% if aba_atual == valor %} aria-current="page"{% endif %}>{{ texto }}</a></li>
+    {% endfor %}
+  </ul>
+</nav>
+
+{# Filtro de período: uma linha só, acima de tudo o que ele filtra #}
+<form class="ferramentas" method="get">
+  <input type="hidden" name="aba" value="{{ aba_atual }}">
+  <div class="escolhas" role="group" aria-label="Atalhos de período">
+    {% for valor, texto in [("semana", "Esta semana"), ("semana_passada", "Semana passada"), ("mes", "Este mês")] %}
+    <a class="escolha{{ ' escolha--ativa' if periodo_atual == valor }}" href="{{ url_for('painel.relatorios', aba=aba_atual, periodo=valor) }}"
+       {%- if periodo_atual == valor %} aria-current="true"{% endif %}>{{ texto }}</a>
+    {% endfor %}
+  </div>
+  <div class="campo">
+    <label for="inicio">De</label>
+    <input id="inicio" name="inicio" type="date" value="{{ inicio.isoformat() if inicio is defined and inicio else '' }}">
+  </div>
+  <div class="campo">
+    <label for="fim">Até</label>
+    <input id="fim" name="fim" type="date" value="{{ fim.isoformat() if fim is defined and fim else '' }}">
+  </div>
+  <button class="botao botao--secundario" type="submit">Aplicar</button>
+</form>
+
+{% if inicio is defined and inicio and fim is defined and fim %}
+<p class="painel-saudacao">Período de {{ m.data(inicio) }} a {{ m.data(fim) }}.</p>
+{% endif %}
+
+{# ============================== VENDAS ============================== #}
+{% if aba_atual == "vendas" %}
+{% set r = resumo|default({}) %}
+<section class="indicadores" aria-label="Resumo de vendas">
+  <div class="indicador">
+    <span class="indicador__rotulo">Faturamento</span>
+    <span class="indicador__valor">{{ m.moeda(r.faturamento) }}</span>
+  </div>
+  <div class="indicador">
+    <span class="indicador__rotulo">Pedidos</span>
+    <span class="indicador__valor">{{ r.pedidos|default(0) }}</span>
+  </div>
+  <div class="indicador">
+    <span class="indicador__rotulo">Ticket médio</span>
+    <span class="indicador__valor">{{ m.moeda(r.ticket_medio) }}</span>
+  </div>
+  <div class="indicador">
+    <span class="indicador__rotulo">Lucro estimado</span>
+    <span class="indicador__valor">{{ m.moeda(r.lucro_estimado) }}</span>
+    <span class="indicador__nota">Faturamento menos o custo dos produtos</span>
+  </div>
+</section>
+
+{% set serie = vendas_por_dia|default([]) %}
+<section class="bloco" aria-labelledby="titulo-vendas-dia">
+  <div class="bloco__topo">
+    <h2 id="titulo-vendas-dia">Vendas por dia</h2>
+    <p>Pedidos confirmados, pela data de entrega ou retirada.</p>
+  </div>
+  {% if serie %}
+  {# Escala "redonda" logo acima do maior valor (842 -> 850; 1.250 -> 1.500) #}
+  {% set maior = serie|map(attribute="total")|max %}
+  {% set digitos = (maior|int|string)|length %}
+  {% set base = 10 ** (digitos - 1) %}
+  {% set escala = (((maior|float) / base * 2)|round(0, "ceil") / 2 * base) if maior > 0 else 1 %}
+  {% set passo = ((serie|length / 8)|round(0, "ceil"))|int if serie|length > 10 else 1 %}
+  <figure class="grafico">
+    <div class="colunas">
+      <ul class="colunas__eixo" aria-hidden="true">
+        <li class="colunas__marca colunas__marca--topo">{{ moedaCurta(escala) }}</li>
+        <li class="colunas__marca colunas__marca--meio">{{ moedaCurta(escala / 2) }}</li>
+        <li class="colunas__marca colunas__marca--base">R$ 0</li>
+      </ul>
+      <div class="colunas__area">
+        {% for dia in serie %}
+        <div class="coluna{{ ' coluna--maior' if dia.total == maior and maior > 0 }}" tabindex="0"
+             style="--v: {{ ((dia.total|float) / escala * 100)|round(2) }}"
+             aria-label="{{ m.data(dia.dia) }}: {{ m.moeda(dia.total) }}">
+          <span class="coluna__barra"></span>
+          <span class="coluna__valor">{{ m.moeda(dia.total) }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      <ul class="colunas__datas" aria-hidden="true">
+        {% for dia in serie %}<li>{{ m.diaMes(dia.dia) if loop.index0 % passo == 0 or loop.last else "" }}</li>{% endfor %}
+      </ul>
+    </div>
+    <details class="grafico__tabela">
+      <summary>Ver os números</summary>
+      <table class="tabela tabela--compacta">
+        <thead><tr><th>Dia</th><th class="num">Vendas</th></tr></thead>
+        <tbody>
+          {% for dia in serie %}<tr><td>{{ m.data(dia.dia) }}</td><td class="num">{{ m.moeda(dia.total) }}</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </details>
+  </figure>
+  {% else %}
+  {{ m.vazio("relatorios", "Sem vendas no período", "Escolha outro período ou aguarde os primeiros pedidos confirmados.") }}
+  {% endif %}
+</section>
+
+{# ============================= PRODUTOS ============================= #}
+{% elif aba_atual == "produtos" %}
+<div class="grade-painel grade-painel--metades">
+  <section class="bloco" aria-labelledby="titulo-mais-vendidos">
+    <div class="bloco__topo"><h2 id="titulo-mais-vendidos">Mais vendidos</h2><p>Unidades vendidas no período.</p></div>
+    {% if mais_vendidos %}{{ barras(mais_vendidos, "quantidade", "Unidades") }}
+    {% else %}<p class="texto-suave">Sem vendas no período.</p>{% endif %}
+  </section>
+
+  <section class="bloco" aria-labelledby="titulo-faturamento">
+    <div class="bloco__topo"><h2 id="titulo-faturamento">Maior faturamento</h2><p>Quanto cada produto trouxe no período.</p></div>
+    {% if maior_faturamento %}{{ barras(maior_faturamento, "faturamento", "Faturamento", dinheiro=true) }}
+    {% else %}<p class="texto-suave">Sem vendas no período.</p>{% endif %}
+  </section>
+</div>
+
+<section class="bloco bloco--tabela" aria-labelledby="titulo-menos">
+  <div class="bloco__topo"><h2 id="titulo-menos">Menos vendidos</h2><p>Candidatos a sair do cardápio ou a ganhar uma promoção.</p></div>
+  <div class="tabela-rolagem">
+    <table class="tabela">
+      <thead><tr><th>Produto</th><th class="num">Unidades</th></tr></thead>
+      <tbody>
+        {% for item in menos_vendidos|default([]) %}
+        <tr><td>{{ item.nome }}</td><td class="num">{{ m.numero(item.quantidade, 2) }}</td></tr>
+        {% else %}
+        <tr><td class="tabela__vazia" colspan="2">Sem dados no período.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{# ============================== INSUMOS ============================= #}
+{% elif aba_atual == "insumos" %}
+{% set lista = insumos_consumidos|default([]) %}
+<section class="bloco" aria-labelledby="titulo-insumos">
+  <div class="bloco__topo">
+    <h2 id="titulo-insumos">Insumos mais consumidos</h2>
+    <p>Comparados pelo custo do que foi usado, já que cada insumo tem uma unidade diferente.</p>
+  </div>
+  {% if lista %}
+  {% set maior = lista|map(attribute="custo")|max %}
+  <figure class="grafico">
+    <ol class="barras">
+      {% for item in lista %}
+      <li class="barra">
+        <span class="barra__nome">{{ item.nome }}<small class="texto-suave"> {{ m.quantidade(item.quantidade, item.unidade, 2) }}</small></span>
+        <span class="barra__trilho">
+          <span class="barra__preenchimento" style="--v: {{ ((item.custo|float) / (maior|float) * 100)|round(2) if maior else 0 }}"></span>
+          <span class="barra__valor">{{ m.moeda(item.custo) }}</span>
+        </span>
+      </li>
+      {% endfor %}
+    </ol>
+    <details class="grafico__tabela">
+      <summary>Ver os números</summary>
+      <table class="tabela tabela--compacta">
+        <thead><tr><th>Insumo</th><th class="num">Quantidade</th><th class="num">Custo</th></tr></thead>
+        <tbody>
+          {% for item in lista %}
+          <tr><td>{{ item.nome }}</td><td class="num">{{ m.quantidade(item.quantidade, item.unidade, 2) }}</td><td class="num">{{ m.moeda(item.custo) }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </details>
+  </figure>
+  {% else %}
+  {{ m.vazio("estoque", "Nenhum consumo no período", "O consumo aparece quando os pedidos são confirmados e dão baixa no estoque.") }}
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

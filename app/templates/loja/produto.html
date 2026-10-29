@@ -1,0 +1,95 @@
+{#
+  loja/produto.html  (detalhe do produto)
+  Rota: loja.produto   GET /loja/produtos/<int:id>
+
+  Variáveis:
+    produto   Produto (com produto.opcoes: lista de OpcaoPersonalizacao).
+              Só as opções ativas aparecem para o cliente.
+
+  O formulário faz POST em loja.carrinhoAdicionar com:
+    produto_id            id do produto
+    quantidade            quantas unidades
+    opcoes                lista de ids das opções marcadas  -> request.form.getlist("opcoes")
+    qtd_opcao_<id>        quantidade de cada opção marcada  -> vai para OPCAO_ESCOLHIDA.quantidade
+    observacoes           texto livre do item (ITEM_PEDIDO.observacoes)
+
+  O total final não é calculado aqui: o carrinho mostra o valor com as opções
+  (Produto.calcularPreco). Atualizar o preço enquanto marca opções exigiria JS.
+#}
+{% extends "loja/base.html" %}
+{% import "_icones.html" as i %}
+{% import "_macros.html" as m %}
+{% import "loja/_componentes.html" as c %}
+
+{% set menu_ativo = "cardapio" %}
+{% set pronta = c.ehProntaEntrega(produto)|length > 0 %}
+
+{% block titulo %}{{ produto.nome }}{% endblock %}
+
+{% block conteudo %}
+<a class="voltar" href="{{ url_for('loja.catalogo') }}">{{ i.icone("voltar") }} Cardápio</a>
+
+<div class="produto-detalhe">
+  {{ m.foto(produto, "produto-detalhe__foto", produto.nome) }}
+
+  <div class="produto-detalhe__info">
+    {{ m.selo(m.DISPONIBILIDADE, produto.disponibilidade) }}
+    <h1>{{ produto.nome }}</h1>
+    {{ c.preco(produto) }}
+    {% if produto.descricao %}<p class="produto-detalhe__descricao">{{ produto.descricao }}</p>{% endif %}
+
+    <dl class="fatos">
+      {% if produto.tamanho %}
+      <div><dt>Tamanho</dt><dd>{{ produto.tamanho }}</dd></div>
+      {% endif %}
+      {% if pronta %}
+      <div><dt>Prazo</dt><dd>No mesmo dia, até as 17h</dd></div>
+      {% else %}
+      <div><dt>Antecedência</dt><dd>{{ produto.antecedencia_horas }} horas</dd></div>
+      {% endif %}
+    </dl>
+
+    <form method="post" action="{{ url_for('loja.carrinhoAdicionar') }}">
+      {{ m.csrf() }}
+      <input type="hidden" name="produto_id" value="{{ produto.id }}">
+
+      {% set opcoes_ativas = produto.opcoes|selectattr("ativo")|list %}
+      {% if opcoes_ativas %}
+      <fieldset class="opcoes">
+        <legend>Personalize <small>(opcional)</small></legend>
+        {% for opcao in opcoes_ativas %}
+        <div class="opcao">
+          <input class="opcao__marcar" type="checkbox" id="opcao-{{ opcao.id }}" name="opcoes" value="{{ opcao.id }}"
+            {%- if opcao.id|string in request.form.getlist("opcoes") %} checked{% endif %}>
+          <label class="opcao__rotulo" for="opcao-{{ opcao.id }}">
+            <span class="opcao__nome">{{ opcao.nome }}</span>
+            {% if opcao.descricao %}<span class="opcao__descricao">{{ opcao.descricao }}</span>{% endif %}
+            <span class="opcao__preco">+ {{ m.moeda(opcao.custo_adicional) }}</span>
+          </label>
+          <div class="opcao__qtd">
+            <label for="qtd-opcao-{{ opcao.id }}">Quantidade</label>
+            <input type="number" id="qtd-opcao-{{ opcao.id }}" name="qtd_opcao_{{ opcao.id }}"
+              value="{{ request.form.get('qtd_opcao_' ~ opcao.id, 1) }}" min="1" max="999" inputmode="numeric">
+          </div>
+        </div>
+        {% endfor %}
+      </fieldset>
+      {% endif %}
+
+      <div class="campo campo-quantidade">
+        <label for="quantidade">Quantidade</label>
+        <input id="quantidade" name="quantidade" type="number" value="{{ request.form.get('quantidade', 1) }}"
+          min="1" max="999" inputmode="numeric" required>
+      </div>
+
+      <div class="campo">
+        <label for="observacoes">Observações <span class="campo__opcional">(opcional)</span></label>
+        <textarea id="observacoes" name="observacoes" rows="3" maxlength="255"
+          placeholder="Ex.: escrever “Feliz aniversário, Ana” no topo">{{ request.form.get('observacoes', '') }}</textarea>
+      </div>
+
+      <button class="botao botao--largo" type="submit">{{ i.icone("carrinho") }} Adicionar ao carrinho</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

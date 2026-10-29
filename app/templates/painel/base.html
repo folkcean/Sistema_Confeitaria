@@ -1,0 +1,108 @@
+{#
+  painel/base.html
+  Layout da área interna (funcionário e administrador): menu lateral + topo + conteúdo.
+
+  Variável global (context_processor):
+    usuario_atual   Funcionario ou Administrador logado
+
+  Blocos para as páginas filhas:
+    titulo     texto da aba E título da página (h1)
+    migalha    (opcional) link de volta acima do título, ex.: ‹ Pedidos
+    acoes      (opcional) botões à direita do título, ex.: + Novo produto
+    conteudo   a página
+
+  No topo da página filha:
+    {% set menu_ativo = "pedidos" %}    marca o item do menu
+
+  `eh_admin` fica disponível em todas as páginas do painel. As telas usam para
+  esconder o que é só da proprietária (custos, preços, clientes, relatórios).
+  A ROTA TAMBÉM PRECISA BLOQUEAR: esconder o botão não protege nada sozinho.
+#}
+{% extends "base.html" %}
+{% import "_icones.html" as i %}
+
+{% set menu_ativo = menu_ativo|default("") %}
+{% set perfil = (usuario_atual.perfil.value if usuario_atual.perfil.value is defined else usuario_atual.perfil) if usuario_atual is defined and usuario_atual else "" %}
+{% set eh_admin = perfil == "administrador" %}
+
+{# Itens do menu: (chave, endpoint, texto, ícone) #}
+{% set MENU_OPERACAO = [
+  ("inicio",   "painel.inicio",   "Início",   "inicio"),
+  ("pedidos",  "painel.pedidos",  "Pedidos",  "pedidos"),
+  ("estoque",  "painel.estoque",  "Estoque",  "estoque"),
+  ("receitas", "painel.receitas", "Receitas", "receitas"),
+  ("produtos", "painel.produtos", "Produtos", "bolo"),
+] %}
+{% set MENU_GESTAO = [
+  ("compras",      "painel.compras",      "Compras",      "compras"),
+  ("fornecedores", "painel.fornecedores", "Fornecedores", "entrega"),
+  ("clientes",     "painel.clientes",     "Clientes",     "clientes"),
+  ("funcionarios", "painel.funcionarios", "Funcionários", "equipe"),
+  ("relatorios",   "painel.relatorios",   "Relatórios",   "relatorios"),
+] %}
+
+{% macro itensMenu(lista) -%}
+<ul class="lateral__menu">
+  {% for chave, endpoint, texto, desenho in lista %}
+  <li>
+    <a href="{{ url_for(endpoint) }}"{% if menu_ativo == chave %} aria-current="page"{% endif %}>
+      {{ i.icone(desenho) }}<span>{{ texto }}</span>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{%- endmacro %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/painel.css') }}">
+{% endblock %}
+
+{% block classe_corpo %}painel{% endblock %}
+
+{% block corpo %}
+{# Checkbox que abre o menu no celular. Precisa vir antes do <aside> (ver painel.css) #}
+<input class="menu-alternar" type="checkbox" id="menu-alternar" aria-label="Abrir menu">
+
+<aside class="lateral" aria-label="Menu do painel">
+  <a class="marca" href="{{ url_for('painel.inicio') }}">
+    {{ i.logo() }}
+    <span class="marca__nome">Dolce Bea<small>Painel da confeitaria</small></span>
+  </a>
+
+  <nav aria-label="Seções do painel">
+    {{ itensMenu(MENU_OPERACAO) }}
+    {% if eh_admin %}
+    <p class="lateral__grupo">Gestão</p>
+    {{ itensMenu(MENU_GESTAO) }}
+    {% endif %}
+  </nav>
+
+  {% if usuario_atual is defined and usuario_atual %}
+  <div class="lateral__usuario">
+    <span class="lateral__avatar" aria-hidden="true">{{ usuario_atual.nome[:1]|upper }}</span>
+    <div>
+      <strong>{{ usuario_atual.nome }}</strong>
+      <small>{{ "Administração" if eh_admin else (usuario_atual.cargo or "Equipe") }}</small>
+    </div>
+    <a class="lateral__sair" href="{{ url_for('acesso.sair') }}">{{ i.icone("sair", "Sair") }}</a>
+  </div>
+  {% endif %}
+</aside>
+<label class="lateral__fundo" for="menu-alternar"><span class="visualmente-oculto">Fechar menu</span></label>
+
+<div class="painel-area">
+  <header class="painel-topo">
+    <label class="painel-topo__menu" for="menu-alternar">{{ i.icone("menu", "Abrir menu") }}</label>
+    <div class="painel-topo__titulo">
+      {% block migalha %}{% endblock %}
+      <h1>{{ self.titulo() }}</h1>
+    </div>
+    <div class="painel-topo__acoes">{% block acoes %}{% endblock %}</div>
+  </header>
+
+  <main class="painel-conteudo">
+    {% include "_mensagens.html" %}
+    {% block conteudo %}{% endblock %}
+  </main>
+</div>
+{% endblock %}

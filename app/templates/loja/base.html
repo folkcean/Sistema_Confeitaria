@@ -1,0 +1,74 @@
+{#
+  loja/base.html
+  Layout da área do cliente: topo com a marca e o carrinho, menu principal e
+  conteúdo. No celular o menu fica preso embaixo da tela; no computador, no topo.
+
+  Variáveis globais (sugestão: um @app.context_processor que injete em todas as páginas):
+    usuario_atual   cliente logado (objeto Cliente) ou None
+    qtd_carrinho    número de itens no carrinho (int)
+
+  Blocos para as páginas filhas:
+    titulo     texto da aba do navegador
+    conteudo   a página
+
+  Para marcar o item ativo do menu, a página filha define no topo:
+    {% set menu_ativo = "cardapio" %}     (inicio | cardapio | pedidos | perfil | carrinho)
+#}
+{% extends "base.html" %}
+{% import "_icones.html" as i %}
+
+{% set menu_ativo = menu_ativo|default("") %}
+{% set logado = usuario_atual is defined and usuario_atual %}
+{# Nome curto para saudações: apelido do cliente (ou o nome, se não houver) #}
+{% set nome_cliente = (usuario_atual.apelido or usuario_atual.nome) if logado else "" %}
+{% set qtd = qtd_carrinho|default(0) %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/loja.css') }}">
+{% endblock %}
+
+{% block classe_corpo %}loja{% endblock %}
+
+{% block corpo %}
+<header class="loja-topo">
+  <div class="loja-topo__interno">
+    <a class="marca" href="{{ url_for('loja.home') }}" aria-label="Dolce Bea, início">
+      {{ i.logo() }}
+      <span class="marca__nome">Dolce Bea</span>
+    </a>
+
+    <nav class="loja-menu" aria-label="Menu principal">
+      <a href="{{ url_for('loja.home') }}"{% if menu_ativo == "inicio" %} aria-current="page"{% endif %}>
+        {{ i.icone("inicio") }}<span>Início</span>
+      </a>
+      <a href="{{ url_for('loja.catalogo') }}"{% if menu_ativo == "cardapio" %} aria-current="page"{% endif %}>
+        {{ i.icone("cardapio") }}<span>Cardápio</span>
+      </a>
+      <a href="{{ url_for('loja.pedidos') }}"{% if menu_ativo == "pedidos" %} aria-current="page"{% endif %}>
+        {{ i.icone("pedidos") }}<span>Pedidos</span>
+      </a>
+      {% if logado %}
+      <a href="{{ url_for('loja.perfil') }}"{% if menu_ativo == "perfil" %} aria-current="page"{% endif %}>
+        {{ i.icone("perfil") }}<span>Perfil</span>
+      </a>
+      {% else %}
+      <a href="{{ url_for('acesso.login') }}">
+        {{ i.icone("perfil") }}<span>Entrar</span>
+      </a>
+      {% endif %}
+    </nav>
+
+    <a class="botao-carrinho" href="{{ url_for('loja.carrinho') }}"
+       aria-label="Carrinho, {{ qtd }} {{ 'item' if qtd == 1 else 'itens' }}"
+       {%- if menu_ativo == "carrinho" %} aria-current="page"{% endif %}>
+      {{ i.icone("carrinho") }}
+      {% if qtd %}<span class="contador" aria-hidden="true">{{ qtd }}</span>{% endif %}
+    </a>
+  </div>
+</header>
+
+<main class="loja-conteudo">
+  {% include "_mensagens.html" %}
+  {% block conteudo %}{% endblock %}
+</main>
+{% endblock %}

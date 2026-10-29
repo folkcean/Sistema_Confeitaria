@@ -1,0 +1,37 @@
+{#
+  _mensagens.html
+  Mostra as mensagens do flash() do Flask. Já é incluído pelos layouts.
+
+  Categorias aceitas (segundo parâmetro do flash):
+      flash("Produto salvo.", "sucesso")
+      flash("Não foi possível confirmar o pedido: falta leite condensado.", "erro")
+      flash("O pedido é para amanhã e ainda não entrou em produção.", "aviso")
+      flash("Orçamento enviado ao cliente.", "info")      (ou sem categoria)
+
+  Desfazer (requisito 11.7 da entrevista): use a categoria "desfazer:<url>".
+  A mensagem ganha um botão "Desfazer" que faz POST nessa URL:
+      flash("Produto desativado.", "desfazer:" + url_for("painel.produtoReativar", id=produto.id))
+#}
+{% import "_icones.html" as i %}
+{% import "_macros.html" as m %}
+{% with mensagens = get_flashed_messages(with_categories=true) %}
+{% if mensagens %}
+<div class="mensagens" role="status" aria-live="polite">
+  {% for categoria, texto in mensagens %}
+  {% set tipo, separador, url_desfazer = categoria.partition(":") %}
+  {% set tipo = tipo if tipo in ("sucesso", "erro", "aviso", "info", "desfazer") else "info" %}
+  {% set desenho = {"sucesso": "ok", "erro": "alerta", "aviso": "alerta", "info": "info", "desfazer": "ok"}[tipo] %}
+  <div class="mensagem mensagem--{{ tipo }}">
+    {{ i.icone(desenho) }}
+    <p>{{ texto }}</p>
+    {% if tipo == "desfazer" and url_desfazer %}
+    <form method="post" action="{{ url_desfazer }}">
+      {{ m.csrf() }}
+      <button class="botao botao--fantasma botao--pequeno" type="submit">{{ i.icone("desfazer") }} Desfazer</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endwith %}

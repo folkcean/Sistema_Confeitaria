@@ -1,0 +1,68 @@
+{#
+  loja/enderecos.html  (endereços do cliente)
+  Rota: loja.enderecos   GET /loja/perfil/enderecos
+
+  Variáveis:
+    enderecos   lista de Endereco do cliente logado (usa id, apelido e formatado())
+
+  Ações:
+    loja.enderecoAdicionar   POST: apelido, cep, logradouro, numero, complemento, bairro, cidade
+    loja.enderecoRemover     GET mostra confirmar.html, POST remove
+  O Endereco é imutável no model: para "editar", remove e cadastra outro.
+#}
+{% extends "loja/base.html" %}
+{% import "_icones.html" as i %}
+{% import "_macros.html" as m %}
+{% import "_formularios.html" as f with context %}
+
+{% set menu_ativo = "perfil" %}
+
+{% block titulo %}Endereços{% endblock %}
+
+{% block conteudo %}
+<div class="conteudo-estreito">
+  <a class="voltar" href="{{ url_for('loja.perfil') }}">{{ i.icone("voltar") }} Perfil</a>
+  <div class="titulo-pagina">
+    <h1>Endereços</h1>
+  </div>
+
+  {% if enderecos %}
+  <ul class="lista-enderecos">
+    {% for endereco in enderecos %}
+    <li class="cartao-endereco">
+      {{ i.icone("local") }}
+      <div>
+        <strong>{{ endereco.apelido or "Endereço " ~ loop.index }}</strong>
+        <p>{{ endereco.formatado() }}</p>
+      </div>
+      <a class="botao botao--fantasma botao--icone botao--pequeno"
+         href="{{ url_for('loja.enderecoRemover', id=endereco.id) }}">{{ i.icone("lixeira", "Remover endereço") }}</a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  {{ m.vazio("local", "Nenhum endereço salvo", "Cadastre onde você quer receber os pedidos. Dá para salvar mais de um.") }}
+  {% endif %}
+
+  <details class="expansivel"{% if not enderecos or request.method == "POST" %} open{% endif %}>
+    <summary>{{ i.icone("mais") }} Adicionar endereço</summary>
+    <form method="post" action="{{ url_for('loja.enderecoAdicionar') }}" class="expansivel__conteudo">
+      {{ m.csrf() }}
+      {{ f.campo("apelido", "Nome do endereço", opcional=true, placeholder="Ex.: Casa, Trabalho") }}
+      <div class="grade-campos">
+        {{ f.campo("cep", "CEP", inputmode="numeric", autocomplete="postal-code", placeholder="28000-000", maxlength=9) }}
+        {{ f.campo("cidade", "Cidade", autocomplete="address-level2") }}
+      </div>
+      {{ f.campo("logradouro", "Rua", autocomplete="address-line1") }}
+      <div class="grade-campos">
+        {{ f.campo("numero", "Número", inputmode="numeric") }}
+        {{ f.campo("complemento", "Complemento", opcional=true, placeholder="Apto, bloco, referência") }}
+      </div>
+      {{ f.campo("bairro", "Bairro") }}
+      <div class="formulario__acoes">
+        <button class="botao" type="submit">Salvar endereço</button>
+      </div>
+    </form>
+  </details>
+</div>
+{% endblock %}

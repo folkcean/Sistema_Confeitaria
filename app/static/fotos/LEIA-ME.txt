@@ -1,0 +1,5 @@
+Fotos dos produtos.
+
+Salve aqui as imagens e grave na coluna PRODUTO.caminho_foto o caminho com ou sem o
+"static/" na frente (ex.: "static/fotos/produto_01.jpg" ou "fotos/produto_01.jpg").
+Enquanto a foto não existir, as telas mostram a inicial do nome do produto.

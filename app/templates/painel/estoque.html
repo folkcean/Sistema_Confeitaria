@@ -1,0 +1,116 @@
+{#
+  painel/estoque.html  (insumos: ingredientes, embalagens e decoração)
+  Rota: painel.estoque   GET /painel/estoque
+
+  Filtros (GET): filtro = "" | ingrediente | embalagem | decoracao | baixo | inativos ;  q = nome
+  Variáveis:
+    insumos   lista de Insumo já filtrada. Usa: id, nome, tipo, quantidade_atual,
+              estoque_minimo, unidade_receita, unidade_medida, fator_conversao,
+              data_atualizacao, ativo
+    filtro, busca
+
+  Unidades: quantidade_atual e estoque_minimo ficam na unidade da RECEITA (g, un, ml),
+  como no DB_fill.sql. A tela mostra também na unidade de COMPRA (kg, lata, dúzia),
+  dividindo pelo fator_conversao.
+
+  Quem ajusta à mão: o model só deixa o Administrador (ajustarEstoque), então os
+  botões aparecem só para ele. A entrevista se contradiz aqui (6.15 x 9.5).
+#}
+{% extends "painel/base.html" %}
+{% import "_icones.html" as i %}
+{% import "_macros.html" as m %}
+
+{% set menu_ativo = "estoque" %}
+{% set filtro_atual = filtro|default("", true) %}
+{% set abas = [("", "Todos"), ("ingrediente", "Ingredientes"), ("embalagem", "Embalagens"), ("decoracao", "Decoração"), ("baixo", "No mínimo")] %}
+
+{% block titulo %}Estoque{% endblock %}
+
+{% block acoes %}
+<a class="botao botao--secundario" href="{{ url_for('painel.listaCompras') }}">{{ i.icone("compras") }} Lista de compras</a>
+{% if eh_admin %}
+<a class="botao" href="{{ url_for('painel.insumoNovo') }}">{{ i.icone("mais") }} Novo insumo</a>
+{% endif %}
+{% endblock %}
+
+{% block conteudo %}
+{# eh_admin vem do layout, por isso a aba extra é decidida aqui dentro do bloco #}
+{% set abas = abas + [("inativos", "Inativos")] if eh_admin else abas %}
+<nav aria-label="Filtrar estoque">
+  <ul class="abas">
+    {% for valor, texto in abas %}
+    <li><a href="{{ url_for('painel.estoque', filtro=valor or none, q=busca or none) }}"{% if filtro_atual == valor %} aria-current="page"{% endif %}>{{ texto }}</a></li>
+    {% endfor %}
+  </ul>
+</nav>
+
+<form class="ferramentas" method="get" role="search">
+  {% if filtro_atual %}<input type="hidden" name="filtro" value="{{ filtro_atual }}">{% endif %}
+  <div class="campo ferramentas__busca">
+    <label for="q">Insumo</label>
+    {{ i.icone("busca") }}
+    <input id="q" name="q" type="search" value="{{ busca|default('', true) }}" placeholder="Buscar pelo nome">
+  </div>
+  <button class="botao botao--secundario" type="submit">Buscar</button>
+</form>
+
+<section class="bloco bloco--tabela">
+  <div class="tabela-rolagem">
+    <table class="tabela">
+      <thead>
+        <tr>
+          <th>Insumo</th>
+          <th class="num">Em estoque</th>
+          <th class="num opcional-celular">Mínimo</th>
+          <th>Situação</th>
+          <th class="opcional-celular">Atualizado em</th>
+          {% if eh_admin %}<th><span class="visualmente-oculto">Ações</span></th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for insumo in insumos %}
+        {% set baixo = insumo.quantidade_atual <= insumo.estoque_minimo %}
+        <tr class="{{ 'linha-inativa' if not insumo.ativo }}{{ ' linha-alerta' if baixo and insumo.ativo }}">
+          <td>
+            <span class="tabela__principal">{{ insumo.nome }}</span>
+            <small>{{ m.rotulo(m.TIPO_INSUMO, insumo.tipo) }}</small>
+          </td>
+          <td class="num">
+            {{ m.quantidade(insumo.quantidade_atual / insumo.fator_conversao, insumo.unidade_medida, 2) }}
+            {% if insumo.unidade_medida != insumo.unidade_receita %}<small>{{ m.quantidade(insumo.quantidade_atual, insumo.unidade_receita) }}</small>{% endif %}
+          </td>
+          <td class="num opcional-celular">{{ m.quantidade(insumo.estoque_minimo / insumo.fator_conversao, insumo.unidade_medida, 2) }}</td>
+          <td>
+            {% if not insumo.ativo %}<span class="selo">Inativo</span>
+            {% elif baixo %}<span class="selo selo--aviso">Baixo</span>
+            {% else %}<span class="selo selo--sucesso">Normal</span>{% endif %}
+          </td>
+          <td class="opcional-celular">{{ m.dataHora(insumo.data_atualizacao) }}</td>
+          {% if eh_admin %}
+          <td class="tabela__acoes">
+            <a class="botao botao--secundario botao--pequeno" href="{{ url_for('painel.insumoAjustar', id=insumo.id) }}">Ajustar</a>
+            <a class="botao botao--fantasma botao--icone botao--pequeno" href="{{ url_for('painel.insumoEditar', id=insumo.id) }}">{{ i.icone("editar", "Editar " ~ insumo.nome) }}</a>
+            {% if insumo.ativo %}
+            <a class="botao botao--fantasma botao--pequeno" href="{{ url_for('painel.insumoDesativar', id=insumo.id) }}">Desativar</a>
+            {% else %}
+            <form method="post" action="{{ url_for('painel.insumoReativar', id=insumo.id) }}">
+              {{ m.csrf() }}
+              <button class="botao botao--fantasma botao--pequeno" type="submit">Reativar</button>
+            </form>
+            {% endif %}
+          </td>
+          {% endif %}
+        </tr>
+        {% else %}
+        <tr>
+          <td class="tabela__vazia" colspan="6">
+            {% if filtro_atual == "baixo" %}Nenhum insumo no estoque mínimo. Tudo em dia.
+            {% else %}Nenhum insumo nesta lista.{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

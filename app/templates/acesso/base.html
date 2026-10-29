@@ -1,0 +1,36 @@
+{#
+  acesso/base.html
+  Layout das telas de entrada (inicio, login, cadastro): capa com a marca + formulário.
+
+  Blocos para as páginas filhas:
+    titulo     texto da aba do navegador
+    variante   classe extra no contêiner (ex.: "acesso--inicio")
+    conteudo   o formulário/texto da página
+#}
+{% extends "base.html" %}
+{% import "_icones.html" as i %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/acesso.css') }}">
+{% endblock %}
+
+{% block classe_corpo %}area-acesso{% endblock %}
+
+{% block corpo %}
+<div class="acesso {% block variante %}{% endblock %}">
+  <header class="acesso__capa borda-renda">
+    <a class="acesso__marca" href="{{ url_for('acesso.inicio') }}" aria-label="Dolce Bea Confeitaria, página inicial">
+      {{ i.logo("acesso__logo") }}
+      <span class="acesso__nome">Dolce Bea</span>
+      <span class="acesso__subtitulo">Confeitaria</span>
+    </a>
+  </header>
+
+  <main class="acesso__conteudo">
+    <div class="acesso__caixa">
+      {% include "_mensagens.html" %}
+      {% block conteudo %}{% endblock %}
+    </div>
+  </main>
+</div>
+{% endblock %}

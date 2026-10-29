@@ -1,0 +1,65 @@
+{#
+  acesso/cadastro.html  (cadastro do cliente)
+  Rota: acesso.cadastro   GET e POST /cadastro
+
+  Campos enviados no POST (mesmos nomes do model Cliente / DER):
+    nome, apelido, telefone, email, data_nascimento, senha, confirmar_senha
+
+  Variáveis (opcionais):
+    regras_senha   lista de textos das regras. Sugestão para a rota:
+                   [regra.descricao for regra in ValidadorSenha.REGRAS]
+                   Assim a tela mostra exatamente o que o validador cobra.
+
+  Se der ValidacaoError/SenhaFracaError: flash(str(erro), "erro") e renderizar
+  de novo. Os campos voltam preenchidos (menos a senha).
+#}
+{% extends "acesso/base.html" %}
+{% import "_macros.html" as m %}
+{% import "_formularios.html" as f with context %}
+
+{% set regras = regras_senha|default([
+  "ter entre 8 e 128 caracteres",
+  "conter letras",
+  "conter números",
+  "conter ao menos um caractere especial (ex.: @, #, !)",
+]) %}
+
+{% block titulo %}Criar conta{% endblock %}
+
+{% block conteudo %}
+<h1>Criar conta</h1>
+<p class="acesso__intro">Com a conta você faz pedidos, salva seus endereços e acompanha cada entrega.</p>
+
+<form method="post">
+  {{ m.csrf() }}
+
+  {{ f.campo("nome", "Nome completo", autocomplete="name", placeholder="Digite seu nome") }}
+  {{ f.campo("apelido", "Como prefere ser chamado(a)?", opcional=true, autocomplete="nickname",
+             dica="É assim que vamos te chamar nos pedidos.") }}
+  {{ f.campo("telefone", "WhatsApp", tipo="tel", autocomplete="tel", inputmode="tel",
+             placeholder="(22) 99999-0000", dica="Com DDD. É por ele que identificamos o seu cadastro.") }}
+  {{ f.campo("email", "E-mail", tipo="email", autocomplete="email", inputmode="email",
+             placeholder="voce@email.com", dica="Você vai usar o e-mail para entrar.") }}
+  {{ f.campo("data_nascimento", "Data de nascimento", tipo="date", opcional=true,
+             dica="Para lembrarmos do seu aniversário.") }}
+
+  <div class="campo">
+    <label for="senha">Senha</label>
+    <input id="senha" name="senha" type="password" required minlength="8" maxlength="128"
+      autocomplete="new-password" aria-describedby="senha-regras"
+      pattern="(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,128}"
+      title="A senha deve {{ regras|join(', ') }}.">
+    <div id="senha-regras" class="campo__dica">
+      A senha deve:
+      <ul class="regras">
+        {% for regra in regras %}<li>{{ regra }}</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  {{ f.campo("confirmar_senha", "Confirme a senha", tipo="password", autocomplete="new-password") }}
+
+  <button class="botao botao--largo" type="submit">Criar conta</button>
+</form>
+
+<p class="acesso__rodape">Já tem conta? <a href="{{ url_for('acesso.login') }}">Entrar</a></p>
+{% endblock %}

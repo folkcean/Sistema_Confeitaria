@@ -1,0 +1,157 @@
+{#
+  _formularios.html
+  Macros de campos de formulário (rótulo + campo + dica, sempre no mesmo padrão).
+
+  Importe COM contexto, porque as macros leem request.form:
+      {% import "_formularios.html" as f with context %}
+
+  Exemplo:
+      {{ f.campo("preco_base", "Preço base (R$)", produto, tipo="number", step="0.01", min="0") }}
+
+  De onde vem o valor mostrado no campo, nesta ordem:
+    1. request.form: o que a pessoa acabou de digitar (a rota re-renderizou o
+       formulário porque deu erro de validação, então nada se perde);
+    2. o parâmetro `valor`;
+    3. o atributo de mesmo nome do `objeto` (objeto=produto, nome="preco_base"
+       -> produto.preco_base). Funciona com objeto ou dicionário;
+    4. vazio.
+  Por isso os nomes dos campos são os mesmos dos atributos dos models e das colunas do DER.
+
+  Parâmetros extras viram atributos HTML: placeholder, min, max, step,
+  autocomplete, inputmode, maxlength, minlength, pattern, accept...
+#}
+
+{# Descobre o valor atual de um campo (ver ordem acima) e devolve texto pronto para o HTML #}
+{% macro _atual(nome, objeto, valor, tipo="text") -%}
+{%- set digitado = request.form.get(nome) -%}
+{%- if digitado is not none -%}
+{{ digitado }}
+{%- else -%}
+{%- set v = valor if valor is not none else (objeto[nome] if objeto else none) -%}
+{%- set v = v if v is defined else none -%}
+{%- set v = v.value if v.value is defined else v -%}
+{%- if v is none -%}
+{%- elif v.strftime is defined and tipo == "datetime-local" -%}
+{{ v.strftime("%Y-%m-%dT%H:%M") }}
+{%- elif v.strftime is defined and tipo == "date" -%}
+{{ v.strftime("%Y-%m-%d") }}
+{%- elif v.strftime is defined and tipo == "time" -%}
+{{ v.strftime("%H:%M") }}
+{%- else -%}
+{{ v }}
+{%- endif -%}
+{%- endif -%}
+{%- endmacro %}
+
+{% macro _extras(atributos) -%}
+{%- for chave, v in atributos.items() if v is not none %} {{ chave }}="{{ v }}"{% endfor -%}
+{%- endmacro %}
+
+{% macro _rotulo(id_campo, rotulo, opcional) -%}
+<label for="{{ id_campo }}">{{ rotulo }}{% if opcional %} <span class="campo__opcional">(opcional)</span>{% endif %}</label>
+{%- endmacro %}
+
+{# Campo de uma linha (<input>) #}
+{% macro campo(nome, rotulo, objeto=none, valor=none, tipo="text", dica="", opcional=false, id=none, classe="") -%}
+{%- set id_campo = id or nome -%}
+<div class="campo {{ classe }}">
+  {{ _rotulo(id_campo, rotulo, opcional) }}
+  <input id="{{ id_campo }}" name="{{ nome }}" type="{{ tipo }}"
+    {%- if tipo != "password" and tipo != "file" %} value="{{ _atual(nome, objeto, valor, tipo) }}"{% endif %}
+    {%- if not opcional and tipo != "file" %} required{% endif %}
+    {%- if dica %} aria-describedby="{{ id_campo }}-dica"{% endif %}
+    {{- _extras(kwargs) }}>
+  {%- if dica %}
+  <p class="campo__dica" id="{{ id_campo }}-dica">{{ dica }}</p>
+  {%- endif %}
+  {{- caller() if caller is defined }}
+</div>
+{%- endmacro %}
+
+{# Texto longo (<textarea>) #}
+{% macro area(nome, rotulo, objeto=none, valor=none, linhas=4, dica="", opcional=false, id=none, classe="") -%}
+{%- set id_campo = id or nome -%}
+<div class="campo {{ classe }}">
+  {{ _rotulo(id_campo, rotulo, opcional) }}
+  <textarea id="{{ id_campo }}" name="{{ nome }}" rows="{{ linhas }}"
+    {%- if not opcional %} required{% endif %}
+    {%- if dica %} aria-describedby="{{ id_campo }}-dica"{% endif %}
+    {{- _extras(kwargs) }}>{{ _atual(nome, objeto, valor) }}</textarea>
+  {%- if dica %}
+  <p class="campo__dica" id="{{ id_campo }}-dica">{{ dica }}</p>
+  {%- endif %}
+</div>
+{%- endmacro %}
+
+{#
+  Lista de opções (<select>).
+  `opcoes` pode ser um dicionário {valor: texto} (ex.: m.TIPO_INSUMO)
+  ou uma lista de pares [(valor, texto), ...].
+  `vazio` é o texto da primeira opção sem valor (ex.: "Escolha um fornecedor").
+#}
+{% macro selecao(nome, rotulo, opcoes, objeto=none, valor=none, vazio=none, dica="", opcional=false, id=none, classe="") -%}
+{%- set id_campo = id or nome -%}
+{%- set atual = _atual(nome, objeto, valor)|string -%}
+{%- set pares = opcoes.items() if opcoes.items is defined else opcoes -%}
+<div class="campo {{ classe }}">
+  {{ _rotulo(id_campo, rotulo, opcional) }}
+  <select id="{{ id_campo }}" name="{{ nome }}"
+    {%- if not opcional %} required{% endif %}
+    {%- if dica %} aria-describedby="{{ id_campo }}-dica"{% endif %}
+    {{- _extras(kwargs) }}>
+    {%- if vazio is not none %}
+    <option value="">{{ vazio }}</option>
+    {%- endif %}
+    {%- for v, texto in pares %}
+    {%- set texto = texto.rotulo if texto.rotulo is defined else texto %}
+    <option value="{{ v }}"{% if v|string == atual %} selected{% endif %}>{{ texto }}</option>
+    {%- endfor %}
+  </select>
+  {%- if dica %}
+  <p class="campo__dica" id="{{ id_campo }}-dica">{{ dica }}</p>
+  {%- endif %}
+</div>
+{%- endmacro %}
+
+{#
+  Escolha única em "pílulas" (rádios estilizados). Mesmo formato de `opcoes` da selecao.
+#}
+{% macro escolhas(nome, rotulo, opcoes, objeto=none, valor=none, dica="", opcional=false) -%}
+{%- set atual = _atual(nome, objeto, valor)|string -%}
+{%- set pares = opcoes.items() if opcoes.items is defined else opcoes -%}
+<fieldset class="campo">
+  <legend class="rotulo">{{ rotulo }}{% if opcional %} <span class="campo__opcional">(opcional)</span>{% endif %}</legend>
+  <div class="escolhas">
+    {%- for v, texto in pares %}
+    {%- set texto = texto.rotulo if texto.rotulo is defined else texto %}
+    <input class="escolha__entrada" type="radio" id="{{ nome }}-{{ v }}" name="{{ nome }}" value="{{ v }}"
+      {%- if v|string == atual or (not atual and loop.first and not opcional) %} checked{% endif %}
+      {%- if not opcional %} required{% endif %}>
+    <label class="escolha" for="{{ nome }}-{{ v }}">{{ texto }}</label>
+    {%- endfor %}
+  </div>
+  {%- if dica %}
+  <p class="campo__dica">{{ dica }}</p>
+  {%- endif %}
+</fieldset>
+{%- endmacro %}
+
+{#
+  Caixa de seleção (verdadeiro/falso), ex.: ativo, cliente_vip.
+  Atenção: checkbox desmarcado não é enviado no POST. Na rota, use
+  `"ativo" in request.form` para saber se ficou marcado.
+#}
+{% macro caixa(nome, rotulo, objeto=none, marcado=none, dica="", id=none) -%}
+{%- set id_campo = id or nome -%}
+{%- if request.method == "POST" and request.form -%}
+{%- set ligado = nome in request.form -%}
+{%- elif marcado is not none -%}
+{%- set ligado = marcado -%}
+{%- else -%}
+{%- set ligado = (objeto[nome] if objeto else false) -%}
+{%- endif -%}
+<label class="caixa" for="{{ id_campo }}">
+  <input type="checkbox" id="{{ id_campo }}" name="{{ nome }}" value="1"{% if ligado %} checked{% endif %}{{ _extras(kwargs) }}>
+  <span>{{ rotulo }}{% if dica %}<small>{{ dica }}</small>{% endif %}</span>
+</label>
+{%- endmacro %}

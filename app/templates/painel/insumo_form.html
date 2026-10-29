@@ -1,0 +1,70 @@
+{#
+  painel/insumo_form.html  (novo insumo / editar insumo, só administrador)
+  Rotas:
+    painel.insumoNovo     GET e POST /painel/estoque/novo
+    painel.insumoEditar   GET e POST /painel/estoque/<int:id>/editar
+
+  Variáveis:
+    insumo   Insumo ou None
+
+  Campos (nomes = colunas da tabela INSUMO):
+    nome, tipo, unidade_medida, unidade_receita, fator_conversao,
+    estoque_minimo, custo_por_unidade, quantidade_atual (só no cadastro)
+  Para mudar a quantidade de um insumo que já existe, use o ajuste
+  (gera MOVIMENTACAO_ESTOQUE do tipo "ajuste" com motivo).
+#}
+{% extends "painel/base.html" %}
+{% import "_icones.html" as i %}
+{% import "_macros.html" as m %}
+{% import "_formularios.html" as f with context %}
+
+{% set menu_ativo = "estoque" %}
+{% set novo = not insumo %}
+
+{% block titulo %}{{ "Novo insumo" if novo else insumo.nome }}{% endblock %}
+
+{% block migalha %}
+<a class="migalha" href="{{ url_for('painel.estoque') }}">{{ i.icone("voltar") }} Estoque</a>
+{% endblock %}
+
+{% block conteudo %}
+<form class="formulario" method="post">
+  {{ m.csrf() }}
+
+  <section class="bloco">
+    <h2>Insumo</h2>
+    {{ f.campo("nome", "Nome", insumo, maxlength=255, placeholder="Ex.: Leite condensado (395 g)") }}
+    {{ f.escolhas("tipo", "Tipo", m.TIPO_INSUMO, insumo) }}
+  </section>
+
+  <section class="bloco">
+    <h2>Unidades</h2>
+    <p class="bloco__nota">Compra em uma unidade e usa em outra? O fator faz a conversão (entrevista 6.3 e 6.4).</p>
+    <div class="grade-campos grade-campos--3">
+      {{ f.campo("unidade_medida", "Unidade de compra", insumo, maxlength=255, placeholder="kg, lata, dúzia") }}
+      {{ f.campo("unidade_receita", "Unidade na receita", insumo, maxlength=20, placeholder="g, un, ml") }}
+      {{ f.campo("fator_conversao", "Fator de conversão", insumo, valor=(none if insumo else 1), tipo="number", min="0.001", step="0.001",
+                 inputmode="decimal", dica="Quanto 1 unidade de compra vale na receita. Ex.: 1 kg = 1000 g; 1 dúzia = 12 un.") }}
+    </div>
+  </section>
+
+  <section class="bloco">
+    <h2>Estoque e custo</h2>
+    <div class="grade-campos grade-campos--3">
+      {% if novo %}
+      {{ f.campo("quantidade_atual", "Quantidade inicial", valor=0, tipo="number", min=0, step="0.001", inputmode="decimal",
+                 dica="Na unidade da receita.") }}
+      {% endif %}
+      {{ f.campo("estoque_minimo", "Estoque mínimo", insumo, valor=(none if insumo else 0), tipo="number", min=0, step="0.001", inputmode="decimal",
+                 dica="Na unidade da receita. Ao chegar nele, o insumo entra na lista de compras.") }}
+      {{ f.campo("custo_por_unidade", "Custo por unidade de compra (R$)", insumo, tipo="number", min=0, step="0.0001", inputmode="decimal",
+                 opcional=true, dica="Usado no custo dos produtos. Sem custo, o preço sugerido fica incompleto.") }}
+    </div>
+  </section>
+
+  <div class="formulario__acoes">
+    <a class="botao botao--secundario" href="{{ url_for('painel.estoque') }}">Cancelar</a>
+    <button class="botao" type="submit">{{ "Cadastrar insumo" if novo else "Salvar insumo" }}</button>
+  </div>
+</form>
+{% endblock %}

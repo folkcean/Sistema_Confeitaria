@@ -1,0 +1,46 @@
+{#
+  acesso/login.html
+  Rota: acesso.login   GET e POST /entrar
+  Serve para os três perfis: depois do login, a rota olha usuario.perfil e
+  redireciona (cliente -> loja.home; funcionário/administrador -> painel.inicio).
+
+  Campos enviados no POST:
+    email     e-mail (o service Autenticacao faz login só por e-mail)
+    senha     senha digitada
+    lembrar   presente só se a caixa foi marcada ("lembrar" in request.form)
+    proximo   (oculto) página para voltar depois do login, se houver
+
+  Variáveis (opcionais):
+    proximo   URL que a pessoa tentou abrir antes de precisar entrar
+
+  Erro de login: flash(Autenticacao.MENSAGEM_FALHA, "erro") e renderizar de novo.
+#}
+{% extends "acesso/base.html" %}
+{% import "_macros.html" as m %}
+{% import "_formularios.html" as f with context %}
+
+{% block titulo %}Entrar{% endblock %}
+
+{% block conteudo %}
+<p class="acesso__chamada">Feito com carinho</p>
+<h1>Bem-vindo(a)!</h1>
+<p class="acesso__intro">Entre para pedir seus doces favoritos e acompanhar cada etapa do seu pedido.</p>
+
+<form method="post">
+  {{ m.csrf() }}
+  {% if proximo %}<input type="hidden" name="proximo" value="{{ proximo }}">{% endif %}
+
+  {{ f.campo("email", "E-mail", tipo="email", autocomplete="username", placeholder="Digite seu e-mail", inputmode="email") }}
+  {{ f.campo("senha", "Senha", tipo="password", autocomplete="current-password", placeholder="Digite sua senha") }}
+
+  <div class="acesso__opcoes">
+    {{ f.caixa("lembrar", "Lembrar de mim") }}
+    {# ESPAÇO RESERVADO: link "Esqueci minha senha" quando existir a recuperação de senha #}
+  </div>
+
+  <button class="botao botao--largo" type="submit">Entrar</button>
+</form>
+
+<div class="separador">ou</div>
+<a class="botao botao--secundario botao--largo" href="{{ url_for('acesso.cadastro') }}">Criar minha conta</a>
+{% endblock %}

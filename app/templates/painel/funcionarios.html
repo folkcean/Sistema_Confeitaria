@@ -1,0 +1,64 @@
+{#
+  painel/funcionarios.html  (equipe, só administrador)
+  Rota: painel.funcionarios   GET /painel/funcionarios
+
+  Variáveis:
+    funcionarios   lista de Funcionario (id, nome, email, telefone, cargo, data_contratacao, ativo)
+#}
+{% extends "painel/base.html" %}
+{% import "_icones.html" as i %}
+{% import "_macros.html" as m %}
+
+{% set menu_ativo = "funcionarios" %}
+
+{% block titulo %}Funcionários{% endblock %}
+
+{% block acoes %}
+<a class="botao" href="{{ url_for('painel.funcionarioNovo') }}">{{ i.icone("mais") }} Novo funcionário</a>
+{% endblock %}
+
+{% block conteudo %}
+<section class="bloco bloco--tabela">
+  <div class="tabela-rolagem">
+    <table class="tabela">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Cargo</th>
+          <th class="opcional-celular">Telefone</th>
+          <th class="opcional-celular">Na equipe desde</th>
+          <th class="opcional-celular">Situação</th>
+          <th><span class="visualmente-oculto">Ações</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for funcionario in funcionarios %}
+        <tr{% if not funcionario.ativo %} class="linha-inativa"{% endif %}>
+          <td>
+            <a class="tabela__principal" href="{{ url_for('painel.funcionarioEditar', id=funcionario.id) }}">{{ funcionario.nome }}</a>
+            <small>{{ funcionario.email or "sem e-mail (não consegue entrar)" }}</small>
+          </td>
+          <td>{{ funcionario.cargo }}</td>
+          <td class="opcional-celular">{{ m.telefone(funcionario.telefone) }}</td>
+          <td class="opcional-celular">{{ m.data(funcionario.data_contratacao) }}</td>
+          <td class="opcional-celular">{{ m.seloAtivo(funcionario.ativo, "Ativo", "Desligado") }}</td>
+          <td class="tabela__acoes">
+            <a class="botao botao--fantasma botao--icone botao--pequeno" href="{{ url_for('painel.funcionarioEditar', id=funcionario.id) }}">{{ i.icone("editar", "Editar " ~ funcionario.nome) }}</a>
+            {% if funcionario.ativo %}
+            <a class="botao botao--fantasma botao--pequeno" href="{{ url_for('painel.funcionarioDesativar', id=funcionario.id) }}">Desativar</a>
+            {% else %}
+            <form method="post" action="{{ url_for('painel.funcionarioReativar', id=funcionario.id) }}">
+              {{ m.csrf() }}
+              <button class="botao botao--fantasma botao--pequeno" type="submit">Reativar</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td class="tabela__vazia" colspan="6">Ninguém na equipe ainda. <a href="{{ url_for('painel.funcionarioNovo') }}">Cadastrar funcionário</a></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

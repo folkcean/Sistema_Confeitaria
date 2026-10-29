@@ -1,0 +1,46 @@
+{#
+  painel/pedido_cancelar.html  (cancelar pedido, só administrador)
+  Rota: painel.pedidoCancelar   GET e POST /painel/pedidos/<int:id>/cancelar
+
+  Esta página já é a confirmação (requisito 11.6): pede o motivo, que é
+  obrigatório (StatusPedido.CANCELADO.exigeMotivo()).
+
+  Variáveis:
+    pedido   Pedido
+  Campo enviado: motivo_cancelamento
+#}
+{% extends "painel/base.html" %}
+{% import "_icones.html" as i %}
+{% import "_macros.html" as m %}
+{% import "_formularios.html" as f with context %}
+
+{% set menu_ativo = "pedidos" %}
+
+{% block titulo %}Cancelar pedido nº&nbsp;{{ pedido.id }}{% endblock %}
+
+{% block migalha %}
+<a class="migalha" href="{{ url_for('painel.pedido', id=pedido.id) }}">{{ i.icone("voltar") }} Pedido nº&nbsp;{{ pedido.id }}</a>
+{% endblock %}
+
+{% block conteudo %}
+<form class="bloco bloco--estreito" method="post">
+  {{ m.csrf() }}
+  <p>
+    Pedido de <strong>{{ pedido.cliente.apelido }}</strong> para
+    {{ m.dataHora(pedido.data_entrega_ou_retirada) }}, no valor de {{ m.moeda(pedido.valor_total) }}.
+  </p>
+
+  <div class="chamada chamada--espaco">
+    {{ i.icone("alerta") }}
+    <p>Pedido confirmado e cancelado não devolve o sinal pago (regra combinada com a confeitaria). Depois de cancelado, o pedido não volta a andar.</p>
+  </div>
+
+  {{ f.area("motivo_cancelamento", "Motivo do cancelamento", linhas=3, maxlength=255,
+            dica="Fica salvo no pedido e o cliente vê esse texto ao acompanhar o pedido.") }}
+
+  <div class="formulario__acoes">
+    <a class="botao botao--secundario" href="{{ url_for('painel.pedido', id=pedido.id) }}">Voltar sem cancelar</a>
+    <button class="botao botao--perigo" type="submit">Cancelar pedido</button>
+  </div>
+</form>
+{% endblock %}

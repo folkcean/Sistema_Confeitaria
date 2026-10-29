@@ -1,0 +1,29 @@
+{#
+  erro.html
+  Página de erro (404, 403, 500...). Use com @app.errorhandler:
+
+      @app.errorhandler(404)
+      def naoEncontrado(erro):
+          return render_template("erro.html", codigo=404,
+                                 titulo="Página não encontrada",
+                                 mensagem="O endereço pode ter mudado. Volte ao início e tente de novo."), 404
+
+  Variáveis: codigo, titulo, mensagem, voltar (opcional: URL do botão), rotulo_voltar (opcional)
+#}
+{% extends "base.html" %}
+{% import "_icones.html" as i %}
+
+{% block titulo %}{{ titulo|default("Erro") }}{% endblock %}
+
+{% block corpo %}
+<main class="pagina-centro">
+  <div class="cartao-centro">
+    {% if codigo %}<span class="cartao-centro__codigo" aria-hidden="true">{{ codigo }}</span>{% endif %}
+    <h1>{{ titulo|default("Algo deu errado") }}</h1>
+    <p>{{ mensagem|default("Não foi possível abrir esta página agora. Volte ao início e tente de novo.") }}</p>
+    <div class="acoes">
+      <a class="botao" href="{{ voltar|default(url_for('acesso.inicio')) }}">{{ rotulo_voltar|default("Voltar ao início") }}</a>
+    </div>
+  </div>
+</main>
+{% endblock %}

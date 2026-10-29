@@ -1,0 +1,209 @@
+/*
+  static/css/acesso.css
+
+  Telas de entrada: tela inicial, login e cadastro (templates/acesso/).
+  No celular: capa em cima e formulário embaixo.
+  A partir de 900px: capa à esquerda e formulário à direita.
+*/
+
+.acesso {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--papel);
+}
+
+/* Capa com a marca ---------------------------------------------------------- */
+.acesso__capa {
+  /*
+    ESPAÇO PARA FOTO: coloque uma foto em static/img/capa.jpg e troque a
+    linha abaixo por:  --foto-capa: url("../img/capa.jpg");
+    Sem foto, aparece o fundo vinho com bolinhas.
+  */
+  --foto-capa: none;
+
+  display: grid;
+  place-items: center;
+  min-height: 230px;
+  padding: 32px 20px 44px;
+  color: #fff;
+  text-align: center;
+  background:
+    linear-gradient(0deg, rgb(67 36 42 / 0.74), rgb(67 36 42 / 0.1)),
+    var(--foto-capa) center 55% / cover no-repeat,
+    radial-gradient(circle, rgb(255 255 255 / 0.13) 1.4px, transparent 1.9px) 0 0 / 22px 22px,
+    var(--vinho);
+}
+
+.acesso__marca {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  color: #fff;
+  text-decoration: none;
+  text-shadow: 0 2px 12px rgb(74 34 42 / 0.4);
+}
+
+.acesso__marca:hover {
+  text-decoration: none;
+}
+
+.acesso__logo {
+  width: 46px;
+  height: 39px;
+}
+
+.acesso__nome {
+  font-family: var(--fonte-marca);
+  font-style: italic;
+  font-size: 2rem;
+  line-height: 1.1;
+}
+
+.acesso__subtitulo {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+/* Conteúdo (formulário) ----------------------------------------------------- */
+.acesso__conteudo {
+  flex: 1;
+  padding: 26px 22px 32px;
+}
+
+.acesso__caixa {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.acesso__chamada {
+  margin-bottom: 4px;
+  color: var(--rosa-texto);
+  font-family: var(--fonte-marca);
+  font-style: italic;
+  font-size: 1rem;
+}
+
+.acesso__caixa h1 {
+  margin-bottom: 8px;
+}
+
+.acesso__intro {
+  margin-bottom: 24px;
+  color: var(--suave);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.acesso__opcoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: -2px 0 20px;
+  font-size: 0.8125rem;
+}
+
+.acesso__opcoes .caixa {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--suave);
+}
+
+.acesso__opcoes .caixa input {
+  width: 16px;
+  height: 16px;
+}
+
+/* Separador "ou" entre os dois botões */
+.separador {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  color: #b19fa2;
+  font-size: 0.75rem;
+}
+
+.separador::before,
+.separador::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--linha);
+}
+
+.acesso__rodape {
+  margin-top: 22px;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--suave);
+}
+
+/* Tela inicial (splash) ------------------------------------------------------ */
+.acesso--inicio .acesso__capa {
+  min-height: 52vh;
+}
+
+.acesso--inicio .acesso__logo {
+  width: 64px;
+  height: 54px;
+}
+
+.acesso--inicio .acesso__nome {
+  font-size: 2.75rem;
+}
+
+.acesso--inicio .acesso__caixa h1 {
+  font-size: 1.625rem;
+}
+
+.acesso--inicio .botao + .botao {
+  margin-top: 10px;
+}
+
+/* Lado a lado a partir de 900px -------------------------------------------- */
+@media (min-width: 900px) {
+  .acesso {
+    flex-direction: row;
+  }
+
+  .acesso__capa,
+  .acesso--inicio .acesso__capa {
+    position: sticky;
+    top: 0;
+    flex: 1.15;
+    height: 100vh;
+    min-height: 560px;
+    padding: 48px;
+  }
+
+  /* No computador a renda vai para a borda direita da capa */
+  .acesso__capa.borda-renda {
+    -webkit-mask:
+      linear-gradient(#000 0 0) left / calc(100% - var(--renda)) 100% no-repeat,
+      radial-gradient(circle at 0 50%, #000 calc(var(--renda) - 0.5px), #0000 var(--renda)) right / var(--renda) calc(var(--renda) * 2) repeat-y;
+    mask:
+      linear-gradient(#000 0 0) left / calc(100% - var(--renda)) 100% no-repeat,
+      radial-gradient(circle at 0 50%, #000 calc(var(--renda) - 0.5px), #0000 var(--renda)) right / var(--renda) calc(var(--renda) * 2) repeat-y;
+  }
+
+  .acesso__logo {
+    width: 64px;
+    height: 54px;
+  }
+
+  .acesso__nome {
+    font-size: 2.75rem;
+  }
+
+  .acesso__conteudo {
+    display: grid;
+    place-items: center;
+    flex: 1;
+    padding: 56px 48px;
+  }
+}

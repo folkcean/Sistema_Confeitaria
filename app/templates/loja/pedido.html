@@ -1,0 +1,110 @@
+{#
+  loja/pedido.html  (acompanhar pedido)
+  Rota: loja.pedido   GET /loja/pedidos/<int:id>   (só o dono do pedido pode abrir)
+
+  Variáveis:
+    pedido    Pedido com: id, status, status_pagamento, tipo_entrega, data_criacao,
+              data_entrega_ou_retirada, nome_recebedor, observacoes, motivo_cancelamento,
+              forma_pagamento_sinal, forma_pagamento_restante,
+              endereco (Endereco ou None) e itens (produto, quantidade, opcoes, observacoes, subtotal)
+    valores   dicionário montado pela rota com os métodos do Pedido:
+                subtotal, taxa_entrega, total, sinal (50%), pago, restante
+              A conta fica no model (regra de negócio), a tela só mostra.
+#}
+{% extends "loja/base.html" %}
+{% import "_icones.html" as i %}
+{% import "_macros.html" as m %}
+
+{% set menu_ativo = "pedidos" %}
+{% set status = m.valor(pedido.status)|string %}
+{% set pagamento = m.valor(pedido.status_pagamento)|string %}
+
+{% block titulo %}Pedido nº&nbsp;{{ pedido.id }}{% endblock %}
+
+{% block conteudo %}
+<a class="voltar" href="{{ url_for('loja.pedidos') }}">{{ i.icone("voltar") }} Meus pedidos</a>
+
+<div class="titulo-pagina">
+  <h1>Pedido nº&nbsp;{{ pedido.id }}</h1>
+  {{ m.selo(m.STATUS_PEDIDO, pedido.status) }}
+  <p>Feito em {{ m.data(pedido.data_criacao) }}. {{ m.rotulo(m.TIPO_ENTREGA, pedido.tipo_entrega) }} em {{ m.dataHora(pedido.data_entrega_ou_retirada) }}.</p>
+</div>
+
+{% if status == "orcamento" and pagamento == "aguardando_sinal" %}
+<div class="chamada-sinal" role="note">
+  {{ i.icone("pagamento") }}
+  <div>
+    <strong>Pague o sinal de {{ m.moeda(valores.sinal) }} para confirmar</strong>
+    O orçamento está pronto. Assim que o sinal (50% do valor) for recebido, o pedido entra na agenda de produção.
+  </div>
+</div>
+{% endif %}
+
+<div class="pedido-grade">
+  <section class="painel-claro" aria-labelledby="titulo-andamento">
+    <h2 id="titulo-andamento">Andamento</h2>
+    {% if status == "cancelado" %}
+    <div class="cancelado">
+      <strong>Pedido cancelado</strong>
+      {% if pedido.motivo_cancelamento %}Motivo: {{ pedido.motivo_cancelamento }}{% endif %}
+    </div>
+    {% else %}
+    {{ m.etapasPedido(pedido.status) }}
+    {% endif %}
+  </section>
+
+  <div>
+    <section class="painel-claro" aria-labelledby="titulo-itens">
+      <h2 id="titulo-itens">Itens</h2>
+      <ul class="itens-pedido">
+        {% for item in pedido.itens %}
+        <li>
+          <div>
+            {{ item.quantidade }}× {{ item.produto.nome }}
+            {% for opcao in item.opcoes %}<small>{{ opcao.nome }}{% if opcao.quantidade and opcao.quantidade > 1 %} ×{{ opcao.quantidade }}{% endif %}</small>{% endfor %}
+            {% if item.observacoes %}<small>“{{ item.observacoes }}”</small>{% endif %}
+          </div>
+          <span class="num">{{ m.moeda(item.subtotal) }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="painel-claro" aria-labelledby="titulo-pagamento">
+      <h2 id="titulo-pagamento">Pagamento</h2>
+      <dl class="dados dados--linhas">
+        <div><dt>Subtotal</dt><dd>{{ m.moeda(valores.subtotal) }}</dd></div>
+        <div><dt>Taxa de entrega</dt><dd>{{ m.moeda(valores.taxa_entrega) }}</dd></div>
+        <div class="dados__total"><dt>Total</dt><dd>{{ m.moeda(valores.total) }}</dd></div>
+        <div><dt>Sinal (50%)</dt><dd>{{ m.moeda(valores.sinal) }}</dd></div>
+        <div><dt>Já pago</dt><dd>{{ m.moeda(valores.pago) }}</dd></div>
+        {% if status != "cancelado" %}
+        <div><dt><strong>Falta pagar</strong></dt><dd><strong>{{ m.moeda(valores.restante) }}</strong></dd></div>
+        {% endif %}
+      </dl>
+      <div class="pagamento-situacao">
+        {{ m.selo(m.STATUS_PAGAMENTO, pedido.status_pagamento) }}
+        {% if pedido.forma_pagamento_sinal %}
+        <span class="texto-suave texto-pequeno">Sinal via {{ m.rotulo(m.FORMA_PAGAMENTO, pedido.forma_pagamento_sinal) }}</span>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="painel-claro" aria-labelledby="titulo-entrega">
+      <h2 id="titulo-entrega">{{ m.rotulo(m.TIPO_ENTREGA, pedido.tipo_entrega) }}</h2>
+      <dl class="dados">
+        <div><dt>Data e horário</dt><dd>{{ m.dataHora(pedido.data_entrega_ou_retirada) }}</dd></div>
+        {% if pedido.endereco %}
+        <div><dt>Endereço</dt><dd>{{ pedido.endereco.formatado() }}</dd></div>
+        {% endif %}
+        {% if pedido.nome_recebedor %}
+        <div><dt>Quem recebe</dt><dd>{{ pedido.nome_recebedor }}</dd></div>
+        {% endif %}
+        {% if pedido.observacoes %}
+        <div><dt>Observações</dt><dd>{{ pedido.observacoes }}</dd></div>
+        {% endif %}
+      </dl>
+    </section>
+  </div>
+</div>
+{% endblock %}

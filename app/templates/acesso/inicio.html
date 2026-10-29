@@ -1,0 +1,27 @@
+{#
+  acesso/inicio.html  (tela inicial / splash)
+  Rota: acesso.inicio   GET /
+  Variáveis: nenhuma.
+
+  Dica para a rota: se já houver alguém logado, redirecionar direto para
+  loja.home (cliente) ou painel.inicio (funcionário/administrador).
+#}
+{% extends "acesso/base.html" %}
+
+{% block titulo %}Bem-vindo(a){% endblock %}
+{% block variante %}acesso--inicio{% endblock %}
+
+{% block conteudo %}
+<p class="acesso__chamada">Confeitaria afetiva</p>
+<h1>Bolos, tortas e doces feitos com carinho</h1>
+<p class="acesso__intro">
+  Encomende com 48 horas de antecedência ou peça da pronta entrega até as 17h.
+</p>
+
+<a class="botao botao--largo" href="{{ url_for('loja.catalogo') }}">Ver o cardápio</a>
+<a class="botao botao--secundario botao--largo" href="{{ url_for('acesso.login') }}">Entrar</a>
+
+<p class="acesso__rodape">
+  Primeira vez aqui? <a href="{{ url_for('acesso.cadastro') }}">Criar conta</a>
+</p>
+{% endblock %}
