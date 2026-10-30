@@ -7,7 +7,7 @@ Fábrica do app: cria e configura o Flask
 from flask import Flask, render_template
 
 from app.config import Config
-from app.repositories.conexao import fecharConexao
+from app.repositories.conexao_rep import fecharConexao
 
 
 def paginaNaoEncontrada(erro):
