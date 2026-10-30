@@ -1,0 +1,190 @@
+{#
+  loja/carrinho.html  (carrinho + envio do pedido)
+  Rota: loja.carrinho   GET /loja/carrinho
+
+  Variáveis:
+    carrinho        objeto ou dicionário com:
+                      itens      lista de itens, cada um com:
+                                   produto       Produto
+                                   quantidade    int
+                                   opcoes        lista com nome, quantidade e custo de cada opção escolhida
+                                   observacoes   texto (ou vazio)
+                                   subtotal      Decimal (preço com opções x quantidade)
+                      subtotal   Decimal (soma dos itens)
+    enderecos       lista de Endereco do cliente logado
+    data_minima     (opcional) texto "AAAA-MM-DDTHH:MM" com a primeira data/hora aceita,
+                    calculada pela rota a partir da maior antecedência dos produtos
+
+  Ações (todas POST):
+    loja.carrinhoAtualizar(indice)   campo "quantidade" (0 remove o item)
+    loja.carrinhoRemover(indice)
+    loja.pedidoEnviar                campos: tipo_entrega, id_endereco_entrega, nome_recebedor,
+                                      data_entrega_ou_retirada, forma_pagamento_sinal, observacoes
+  `indice` é a posição do item na lista (loop.index0).
+
+  O pedido nasce como "solicitado". A taxa de entrega (por distância) e o valor
+  final chegam no orçamento; o pedido só é confirmado com o sinal de 50%.
+#}
+{% extends "loja/base.html" %}
+{% import "/_icones.html" as i %}
+{% import "/_macros.html" as m %}
+{% import "/_formularios.html" as f with context %}
+
+{% set menu_ativo = "carrinho" %}
+{% set itens = carrinho.itens if carrinho is defined and carrinho else [] %}
+{% set tipo_atual = request.form.get("tipo_entrega", "entrega") %}
+
+{% block titulo %}Carrinho{% endblock %}
+
+{% block conteudo %}
+    <div class="titulo-pagina">
+        <h1>Carrinho</h1>
+    </div>
+
+    {% if not itens %}
+        {{ m.vazio("carrinho", "Seu carrinho está vazio", "Escolha um bolo, uma torta ou alguns docinhos no cardápio.", url_for('loja.catalogo'), "Ver o cardápio") }}
+    {% else %}
+        <div class="carrinho">
+            <div class="carrinho__principal">
+                <ul class="itens-carrinho">
+                    {% for item in itens %}
+                        <li class="item-carrinho">
+                            {{ m.foto(item.produto, "item-carrinho__foto") }}
+                            <div class="item-carrinho__texto">
+                                <h2>{{ item.produto.nome }}</h2>
+                                {% if item.opcoes %}
+                                    <ul>
+                                        {% for opcao in item.opcoes %}
+                                            <li>{{ opcao.nome }}{% if opcao.quantidade and opcao.quantidade > 1 %} ×
+                                                {{ opcao.quantidade }}{% endif %}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                                {% if item.observacoes %}
+                                    <p class="item-carrinho__obs">“{{ item.observacoes }}”</p>{% endif %}
+                            </div>
+                            <p class="preco">{{ m.moeda(item.subtotal) }}</p>
+
+                            <div class="item-carrinho__acoes">
+                                <form method="post"
+                                      action="{{ url_for('loja.carrinhoAtualizar', indice=loop.index0) }}">
+                                    {{ m.csrf() }}
+                                    <div class="passos">
+                                        <button type="submit" name="quantidade" value="{{ item.quantidade - 1 }}"
+                                                aria-label="Diminuir quantidade de {{ item.produto.nome }}">{{ i.icone("menos") }}</button>
+                                        <output aria-label="Quantidade">{{ item.quantidade }}</output>
+                                        <button type="submit" name="quantidade" value="{{ item.quantidade + 1 }}"
+                                                aria-label="Aumentar quantidade de {{ item.produto.nome }}">{{ i.icone("mais") }}</button>
+                                    </div>
+                                </form>
+                                <form method="post" action="{{ url_for('loja.carrinhoRemover', indice=loop.index0) }}">
+                                    {{ m.csrf() }}
+                                    <button class="botao botao--fantasma botao--pequeno"
+                                            type="submit">{{ i.icone("lixeira") }} Remover
+                                    </button>
+                                </form>
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+
+                {% if logado %}
+                    <form id="form-pedido" method="post" action="{{ url_for('loja.pedidoEnviar') }}"
+                          class="painel-claro form-pedido">
+                        {{ m.csrf() }}
+                        <h2>Entrega ou retirada</h2>
+
+                        {# Os dois rádios precisam ficar aqui, soltos no form, antes das seções (ver loja.css) #}
+                        <input class="tipo-entrega" type="radio" id="tipo-entrega" name="tipo_entrega" value="entrega"
+                                {% if tipo_atual == "entrega" %} checked{% endif %}>
+                        <input class="tipo-entrega" type="radio" id="tipo-retirada" name="tipo_entrega" value="retirada"
+                                {% if tipo_atual == "retirada" %} checked{% endif %}>
+                        <div class="segmentado">
+                            <label for="tipo-entrega">{{ i.icone("entrega") }} Entrega</label>
+                            <label for="tipo-retirada">{{ i.icone("loja") }} Retirada</label>
+                        </div>
+
+                        <div class="so-entrega">
+                            {% if enderecos %}
+                                <div class="campo">
+                                    <label for="id_endereco_entrega">Endereço de entrega</label>
+                                    {# Sem "required": quando a pessoa escolhe retirada este campo some, e a rota confere #}
+                                    <select id="id_endereco_entrega" name="id_endereco_entrega">
+                                        {% for endereco in enderecos %}
+                                            <option value="{{ endereco.id }}"
+                                                    {% if request.form.get('id_endereco_entrega') == endereco.id|string %}
+                                                    selected{% endif %}>
+                                                {{ endereco.apelido ~ ": " if endereco.apelido }}{{ endereco.formatado() }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                    <p class="campo__dica"><a href="{{ url_for('loja.enderecos') }}">Cadastrar outro
+                                        endereço</a></p>
+                                </div>
+                            {% else %}
+                                <div class="aviso-retirada">
+                                    {{ i.icone("local") }}
+                                    <p>Você ainda não tem endereço salvo. <a href="{{ url_for('loja.enderecos') }}">Cadastre
+                                        um endereço</a> para receber em casa.</p>
+                                </div>
+                            {% endif %}
+                            <p class="campo__dica nota-entrega">A taxa de entrega é calculada pela distância e vem no
+                                orçamento.</p>
+                        </div>
+
+                        <div class="so-retirada">
+                            <div class="aviso-retirada">
+                                {{ i.icone("loja") }}
+                                <p>Retire o pedido na confeitaria no dia e horário escolhidos. Sem taxa de entrega.</p>
+                            </div>
+                        </div>
+
+                        {{ f.campo("nome_recebedor", "Quem vai receber", valor=nome_cliente,
+                 autocomplete="name", dica="Nome de quem vai receber ou retirar o pedido.") }}
+
+                        {{ f.campo("data_entrega_ou_retirada", "Data e horário", tipo="datetime-local", min=data_minima|default(none),
+                 dica="Encomendas: no mínimo 48 horas de antecedência. Pronta entrega: pedidos até as 17h para o mesmo dia.") }}
+
+                        {{ f.escolhas("forma_pagamento_sinal", "Como vai pagar o sinal", m.FORMA_PAGAMENTO) }}
+
+                        {{ f.area("observacoes", "Observações do pedido", opcional=true, linhas=3, maxlength=255,
+                placeholder="Ex.: interfone com defeito, ligar ao chegar") }}
+                    </form>
+                {% endif %}
+            </div>
+
+            <aside class="carrinho__lateral">
+                <div class="painel-claro resumo">
+                    <h2>Resumo</h2>
+                    <dl class="dados dados--linhas">
+                        <div>
+                            <dt>Subtotal</dt>
+                            <dd>{{ m.moeda(carrinho.subtotal) }}</dd>
+                        </div>
+                        <div>
+                            <dt>Taxa de entrega</dt>
+                            <dd class="texto-suave">no orçamento</dd>
+                        </div>
+                        <div class="dados__total">
+                            <dt>Total estimado</dt>
+                            <dd>{{ m.moeda(carrinho.subtotal) }}</dd>
+                        </div>
+                    </dl>
+
+                    {% if logado %}
+                        <button class="botao botao--largo" type="submit" form="form-pedido">Enviar pedido</button>
+                    {% else %}
+                        <a class="botao botao--largo"
+                           href="{{ url_for('acesso.login', proximo=url_for('loja.carrinho')) }}">Entrar para enviar o
+                            pedido</a>
+                    {% endif %}
+
+                    <p class="resumo__nota">
+                        Depois do envio, a confeitaria manda o orçamento com o valor final.
+                        O pedido é confirmado quando o sinal de 50% é pago.
+                    </p>
+                </div>
+            </aside>
+        </div>
+    {% endif %}
+{% endblock %}

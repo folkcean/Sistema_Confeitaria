@@ -1,0 +1,55 @@
+{#
+  painel/insumo_ajuste.html  (ajuste manual de estoque, só administrador)
+  Rota: painel.insumoAjustar   GET e POST /painel/estoque/<int:id>/ajustar
+
+  Variáveis:
+    insumo   Insumo
+
+  Campos: nova_quantidade (na unidade da receita), motivo, confirmo (caixa obrigatória)
+  A rota chama administrador.ajustarEstoque(estoque, insumo, nova_quantidade, motivo),
+  que registra a MOVIMENTACAO_ESTOQUE do tipo "ajuste".
+
+  Confirmação (11.6): a caixa "confirmo" é obrigatória no próprio formulário.
+  Desfazer (11.7): depois de salvar, a rota pode usar
+    flash("Estoque ajustado.", "desfazer:" + url_for(...rota que volta ao valor anterior...))
+#}
+{% extends "painel/base.html" %}
+{% import "/_icones.html" as i %}
+{% import "/_macros.html" as m %}
+{% import "/_formularios.html" as f with context %}
+
+{% set menu_ativo = "estoque" %}
+
+{% block titulo %}Ajustar estoque{% endblock %}
+
+{% block migalha %}
+    <a class="migalha" href="{{ url_for('painel.estoque') }}">{{ i.icone("voltar") }} Estoque</a>
+{% endblock %}
+
+{% block conteudo %}
+    <form class="bloco bloco--estreito" method="post">
+        {{ m.csrf() }}
+        <h2>{{ insumo.nome }}</h2>
+        <dl class="dados dados--grade">
+            <div>
+                <dt>Em estoque agora</dt>
+                <dd>{{ m.quantidade(insumo.quantidade_atual, insumo.unidade_receita) }}</dd>
+            </div>
+            <div>
+                <dt>Em unidade de compra</dt>
+                <dd>{{ m.quantidade(insumo.quantidade_atual / insumo.fator_conversao, insumo.unidade_medida, 2) }}</dd>
+            </div>
+        </dl>
+        <hr>
+
+        {{ f.campo("nova_quantidade", "Quantidade correta (" ~ insumo.unidade_receita ~ ")", tipo="number", min=0, step="0.001",
+             inputmode="decimal", dica="O que tem de verdade na prateleira, na unidade da receita.") }}
+        {{ f.area("motivo", "Motivo do ajuste", linhas=2, maxlength=255, placeholder="Ex.: contagem do fim do mês, embalagem rasgada") }}
+        {{ f.caixa("confirmo", "Confirmo que quero substituir a quantidade em estoque", required="required") }}
+
+        <div class="formulario__acoes">
+            <a class="botao botao--secundario" href="{{ url_for('painel.estoque') }}">Cancelar</a>
+            <button class="botao" type="submit">Ajustar estoque</button>
+        </div>
+    </form>
+{% endblock %}

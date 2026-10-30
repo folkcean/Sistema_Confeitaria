@@ -1,0 +1,122 @@
+{#
+  painel/receita_form.html  (nova receita / editar receita, só administrador)
+  Rotas:
+    painel.receitaNova     GET e POST /painel/receitas/nova
+    painel.receitaEditar   GET e POST /painel/receitas/<int:id>/editar
+
+  Variáveis:
+    receita        Receita ou None. Os itens vêm de receita.itens (ItemReceita:
+                   insumo, quantidade_necessaria, observacoes)
+    insumos        lista de Insumo ativos para escolher (id, nome, unidade_receita)
+    linhas_extras  (opcional) quantas linhas em branco mostrar (padrão: 8 na nova, 3 na edição)
+
+  Campos da receita: nome, rendimento_qtd, rendimento_un, tempo_preparo, complexidade, modo_preparo
+  Ingredientes (uma linha por item; leia com request.form.getlist):
+    insumo_id[], quantidade_necessaria[], observacoes[]
+  Linhas com insumo vazio devem ser ignoradas pela rota.
+
+  Botão "Mais linhas" (name="acao" value="mais_linhas"): a rota só re-renderiza
+  o formulário com o que já foi digitado e mais 3 linhas em branco (sem salvar).
+#}
+{% extends "painel/base.html" %}
+{% import "/_icones.html" as i %}
+{% import "/_macros.html" as m %}
+{% import "/_formularios.html" as f with context %}
+
+{% set menu_ativo = "receitas" %}
+{% set nova = not receita %}
+{% set postado = request.method == "POST" %}
+{% set extras = linhas_extras|default(3 if (postado and request.form.get("acao") == "mais_linhas") else (0 if postado else (8 if nova else 3))) %}
+
+{# Uma linha da tabela de ingredientes #}
+{% macro linha(insumo_id="", quantidade="", observacoes="") -%}
+    <tr>
+        <td>
+            <select class="entrada" name="insumo_id" aria-label="Insumo">
+                <option value="">Escolha um insumo</option>
+                {% for insumo in insumos|default([]) %}
+                    <option value="{{ insumo.id }}"{% if insumo.id|string == insumo_id|string %}
+                            selected{% endif %}>{{ insumo.nome }} ({{ insumo.unidade_receita }})
+                    </option>
+                {% endfor %}
+            </select>
+        </td>
+        <td>
+            <input class="entrada" name="quantidade_necessaria" aria-label="Quantidade" type="number" min="0"
+                   step="0.001" inputmode="decimal" value="{{ quantidade if quantidade is not none else '' }}">
+        </td>
+        <td>
+            <input class="entrada" name="observacoes" aria-label="Observação" type="text" maxlength="255"
+                   value="{{ observacoes or '' }}" placeholder="Opcional">
+        </td>
+    </tr>
+{%- endmacro %}
+
+{% block titulo %}{{ "Nova receita" if nova else "Editar " ~ receita.nome }}{% endblock %}
+
+{% block migalha %}
+    <a class="migalha"
+       href="{{ url_for('painel.receitas') if nova else url_for('painel.receita', id=receita.id) }}">{{ i.icone("voltar") }} {{ "Receitas" if nova else receita.nome }}</a>
+{% endblock %}
+
+{% block conteudo %}
+    <form class="formulario" method="post">
+        {{ m.csrf() }}
+
+        <section class="bloco">
+            <h2>Receita</h2>
+            {{ f.campo("nome", "Nome da receita", receita, maxlength=255, placeholder="Ex.: Massa de chocolate") }}
+            <div class="grade-campos grade-campos--3">
+                {{ f.campo("rendimento_qtd", "Rende", receita, tipo="number", min="0.001", step="0.001", inputmode="decimal") }}
+                {{ f.campo("rendimento_un", "Unidade do rendimento", receita, maxlength=100, placeholder="Ex.: unidades, bolo de 25 cm") }}
+                {{ f.campo("tempo_preparo", "Tempo de preparo (min)", receita, tipo="number", min=0, step=1, inputmode="numeric") }}
+            </div>
+            {{ f.selecao("complexidade", "Complexidade", m.COMPLEXIDADE, receita, vazio="Não informada", opcional=true) }}
+            {{ f.area("modo_preparo", "Modo de preparo", receita, linhas=6, opcional=true,
+              dica="Um passo por linha. A entrevista marcou como pouco necessário, então pode ficar em branco.") }}
+        </section>
+
+        <section class="bloco bloco--tabela">
+            <div class="bloco__topo">
+                <h2>Ingredientes</h2>
+                <p>Quantidades na unidade da receita de cada insumo (gramas, unidades, ml). O sistema converte para a
+                    unidade de compra.</p>
+            </div>
+            <div class="tabela-rolagem">
+                <table class="tabela linhas-itens">
+                    <thead>
+                    <tr>
+                        <th>Insumo</th>
+                        <th>Quantidade</th>
+                        <th>Observação</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% if postado %}
+                        {% set ids = request.form.getlist("insumo_id") %}
+                        {% set qtds = request.form.getlist("quantidade_necessaria") %}
+                        {% set obss = request.form.getlist("observacoes") %}
+                        {% for n in range(ids|length) %}{{ linha(ids[n], qtds[n], obss[n]) }}{% endfor %}
+                    {% elif not nova %}
+                        {% for item in receita.itens %}
+                            {{ linha(item.insumo.id, item.quantidade_necessaria, item.observacoes) }}{% endfor %}
+                    {% endif %}
+                    {% for n in range(extras) %}{{ linha() }}{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="acoes bloco__rodape">
+                <button class="botao botao--fantasma botao--pequeno" type="submit" name="acao" value="mais_linhas"
+                        formnovalidate>{{ i.icone("mais") }} Mais linhas
+                </button>
+                <span class="texto-suave texto-pequeno">Linhas sem insumo são ignoradas.</span>
+            </div>
+        </section>
+
+        <div class="formulario__acoes">
+            <a class="botao botao--secundario" href="{{ url_for('painel.receitas') }}">Cancelar</a>
+            <button class="botao" type="submit" name="acao"
+                    value="salvar">{{ "Cadastrar receita" if nova else "Salvar receita" }}</button>
+        </div>
+    </form>
+{% endblock %}

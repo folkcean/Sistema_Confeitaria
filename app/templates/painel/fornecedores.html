@@ -1,0 +1,84 @@
+{#
+  painel/fornecedores.html  (só administrador)
+  Rota: painel.fornecedores   GET /painel/fornecedores   (?filtro=inativos)
+
+  Variáveis:
+    fornecedores   lista de Fornecedor (id, nome, cnpj, contato_principal, telefone, email, endereco, ativo)
+    filtro
+#}
+{% extends "painel/base.html" %}
+{% import "/_icones.html" as i %}
+{% import "/_macros.html" as m %}
+
+{% set menu_ativo = "fornecedores" %}
+{% set filtro_atual = filtro|default("", true) %}
+
+{% block titulo %}Fornecedores{% endblock %}
+
+{% block acoes %}
+    <a class="botao" href="{{ url_for('painel.fornecedorNovo') }}">{{ i.icone("mais") }} Novo fornecedor</a>
+{% endblock %}
+
+{% block conteudo %}
+    <nav aria-label="Filtrar fornecedores">
+        <ul class="abas">
+            <li><a href="{{ url_for('painel.fornecedores') }}"{% if not filtro_atual %} aria-current="page"{% endif %}>Ativos</a>
+            </li>
+            <li><a href="{{ url_for('painel.fornecedores', filtro='inativos') }}"{% if filtro_atual == 'inativos' %}
+                   aria-current="page"{% endif %}>Inativos</a></li>
+        </ul>
+    </nav>
+
+    <section class="bloco bloco--tabela">
+        <div class="tabela-rolagem">
+            <table class="tabela">
+                <thead>
+                <tr>
+                    <th>Fornecedor</th>
+                    <th>Contato</th>
+                    <th class="opcional-celular">E-mail</th>
+                    <th class="opcional-celular">CNPJ</th>
+                    <th><span class="visualmente-oculto">Ações</span></th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for fornecedor in fornecedores %}
+                    <tr{% if not fornecedor.ativo %} class="linha-inativa"{% endif %}>
+                        <td>
+                            <a class="tabela__principal"
+                               href="{{ url_for('painel.fornecedorEditar', id=fornecedor.id) }}">{{ fornecedor.nome }}</a>
+                            <small>{{ fornecedor.endereco }}</small>
+                        </td>
+                        <td>
+                            {{ m.telefone(fornecedor.telefone) }}
+                            {% if fornecedor.contato_principal %}
+                                <small>{{ fornecedor.contato_principal }}</small>{% endif %}
+                        </td>
+                        <td class="opcional-celular">{{ fornecedor.email or "—" }}</td>
+                        <td class="opcional-celular">{{ m.cnpj(fornecedor.cnpj) }}</td>
+                        <td class="tabela__acoes">
+                            <a class="botao botao--fantasma botao--icone botao--pequeno"
+                               href="{{ url_for('painel.fornecedorEditar', id=fornecedor.id) }}">{{ i.icone("editar", "Editar " ~ fornecedor.nome) }}</a>
+                            {% if fornecedor.ativo %}
+                                <a class="botao botao--fantasma botao--pequeno"
+                                   href="{{ url_for('painel.fornecedorDesativar', id=fornecedor.id) }}">Desativar</a>
+                            {% else %}
+                                <form method="post"
+                                      action="{{ url_for('painel.fornecedorReativar', id=fornecedor.id) }}">
+                                    {{ m.csrf() }}
+                                    <button class="botao botao--fantasma botao--pequeno" type="submit">Reativar</button>
+                                </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td class="tabela__vazia" colspan="5">Nenhum fornecedor nesta lista. <a
+                                href="{{ url_for('painel.fornecedorNovo') }}">Cadastrar fornecedor</a></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}

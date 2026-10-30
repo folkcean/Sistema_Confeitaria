@@ -1,0 +1,110 @@
+{#
+  painel/pedidos.html  (lista de pedidos)
+  Rota: painel.pedidos   GET /painel/pedidos
+
+  Filtros (GET, na URL):
+    q        nome ou telefone do cliente (entrevista 4.14)
+    status   valor do StatusPedido (vazio = todos)
+    data     AAAA-MM-DD da entrega/retirada
+
+  Variáveis:
+    pedidos   lista de Pedido já filtrada. Usa: id, cliente.apelido, cliente.telefone,
+              itens (produto.nome, quantidade), data_entrega_ou_retirada, tipo_entrega,
+              valor_total, status, status_pagamento
+    busca, status_filtro, data_filtro   valores atuais dos filtros (para manter nos campos)
+
+  Colunas = o que a entrevista pediu para ver sem abrir o pedido (4.12).
+  O endereço só aparece ao abrir o pedido.
+#}
+{% extends "painel/base.html" %}
+{% import "/_icones.html" as i %}
+{% import "/_macros.html" as m %}
+
+{% set menu_ativo = "pedidos" %}
+
+{% block titulo %}Pedidos{% endblock %}
+
+{% block conteudo %}
+    <form class="ferramentas" method="get" role="search">
+        <div class="campo ferramentas__busca">
+            <label for="q">Cliente</label>
+            {{ i.icone("busca") }}
+            <input id="q" name="q" type="search" value="{{ busca|default('', true) }}"
+                   placeholder="Nome ou telefone do cliente">
+        </div>
+        <div class="campo">
+            <label for="status">Status</label>
+            <select id="status" name="status">
+                <option value="">Todos</option>
+                {% for valor, item in m.STATUS_PEDIDO.items() %}
+                    <option value="{{ valor }}"{% if status_filtro|default('') == valor %}
+                            selected{% endif %}>{{ item.rotulo }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="campo">
+            <label for="data">Entrega em</label>
+            <input id="data" name="data" type="date" value="{{ data_filtro|default('', true) }}">
+        </div>
+        <button class="botao botao--secundario" type="submit">Filtrar</button>
+        {% if busca or status_filtro or data_filtro %}
+            <a class="botao botao--fantasma" href="{{ url_for('painel.pedidos') }}">Limpar</a>
+        {% endif %}
+    </form>
+
+    <section class="bloco bloco--tabela">
+        <div class="tabela-rolagem">
+            <table class="tabela">
+                <thead>
+                <tr>
+                    <th>Pedido</th>
+                    <th>Cliente</th>
+                    <th class="opcional-celular">Itens</th>
+                    <th>Entrega</th>
+                    <th class="num opcional-celular">Valor</th>
+                    <th class="opcional-celular">Pagamento</th>
+                    <th>Status</th>
+                    <th><span class="visualmente-oculto">Ações</span></th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for pedido in pedidos %}
+                    <tr>
+                        <td><a class="tabela__principal"
+                               href="{{ url_for('painel.pedido', id=pedido.id) }}">nº&nbsp;{{ pedido.id }}</a></td>
+                        <td>
+                            {{ pedido.cliente.apelido }}
+                            <small>{{ m.telefone(pedido.cliente.telefone) }}</small>
+                        </td>
+                        <td class="opcional-celular">
+                            {%- for item in pedido.itens %}{{ item.quantidade }}× {{ item.produto.nome }}
+                                {{ ", " if not loop.last }}{% endfor -%}
+                        </td>
+                        <td>
+                            {{ m.dataHora(pedido.data_entrega_ou_retirada) }}
+                            <small>{{ m.rotulo(m.TIPO_ENTREGA, pedido.tipo_entrega) }}</small>
+                        </td>
+                        <td class="num opcional-celular">{{ m.moeda(pedido.valor_total) }}</td>
+                        <td class="opcional-celular">{{ m.selo(m.STATUS_PAGAMENTO, pedido.status_pagamento) }}</td>
+                        <td>{{ m.selo(m.STATUS_PEDIDO, pedido.status) }}</td>
+                        <td class="tabela__acoes">
+                            <a class="botao botao--secundario botao--pequeno"
+                               href="{{ url_for('painel.pedido', id=pedido.id) }}">Abrir</a>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td class="tabela__vazia" colspan="8">
+                            {% if busca or status_filtro or data_filtro %}
+                                Nenhum pedido com esses filtros. <a href="{{ url_for('painel.pedidos') }}">Ver todos</a>
+                            {% else %}
+                                Nenhum pedido ainda. Os pedidos feitos pelos clientes aparecem aqui.
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}

@@ -1,0 +1,101 @@
+{#
+  painel/receitas.html  (lista de receitas)
+  Rota: painel.receitas   GET /painel/receitas
+
+  Filtros (GET): filtro = "" (ativas) | inativas ;  q = nome
+  Variáveis:
+    receitas   lista de Receita. Usa: id, nome, rendimento_qtd, rendimento_un,
+               tempo_preparo (minutos), complexidade, ativa
+    filtro, busca
+
+  Funcionário consulta (precisa das receitas para produzir); administrador cria e edita.
+  Obs.: a tabela RECEITA do DER ainda não tem a coluna `nome` (ver tarefa B).
+#}
+{% extends "painel/base.html" %}
+{% import "/_icones.html" as i %}
+{% import "/_macros.html" as m %}
+
+{% set menu_ativo = "receitas" %}
+{% set filtro_atual = filtro|default("", true) %}
+
+{% block titulo %}Receitas{% endblock %}
+
+{% block acoes %}
+    {% if eh_admin %}
+        <a class="botao" href="{{ url_for('painel.receitaNova') }}">{{ i.icone("mais") }} Nova receita</a>
+    {% endif %}
+{% endblock %}
+
+{% block conteudo %}
+    <nav aria-label="Filtrar receitas">
+        <ul class="abas">
+            <li><a href="{{ url_for('painel.receitas', q=busca or none) }}"{% if not filtro_atual %}
+                   aria-current="page"{% endif %}>Em uso</a></li>
+            <li><a href="{{ url_for('painel.receitas', filtro='inativas', q=busca or none) }}"
+                    {% if filtro_atual == 'inativas' %} aria-current="page"{% endif %}>Fora de uso</a></li>
+        </ul>
+    </nav>
+
+    <form class="ferramentas" method="get" role="search">
+        {% if filtro_atual %}<input type="hidden" name="filtro" value="{{ filtro_atual }}">{% endif %}
+        <div class="campo ferramentas__busca">
+            <label for="q">Receita</label>
+            {{ i.icone("busca") }}
+            <input id="q" name="q" type="search" value="{{ busca|default('', true) }}" placeholder="Buscar pelo nome">
+        </div>
+        <button class="botao botao--secundario" type="submit">Buscar</button>
+    </form>
+
+    <section class="bloco bloco--tabela">
+        <div class="tabela-rolagem">
+            <table class="tabela">
+                <thead>
+                <tr>
+                    <th>Receita</th>
+                    <th>Rendimento</th>
+                    <th class="num opcional-celular">Preparo</th>
+                    <th class="opcional-celular">Complexidade</th>
+                    <th><span class="visualmente-oculto">Ações</span></th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for receita in receitas %}
+                    <tr{% if not receita.ativa %} class="linha-inativa"{% endif %}>
+                        <td><a class="tabela__principal"
+                               href="{{ url_for('painel.receita', id=receita.id) }}">{{ receita.nome }}</a></td>
+                        <td>{{ m.numero(receita.rendimento_qtd, 3) }} {{ receita.rendimento_un }}</td>
+                        <td class="num opcional-celular">{{ receita.tempo_preparo }} min</td>
+                        <td class="opcional-celular">{{ m.rotulo(m.COMPLEXIDADE, receita.complexidade) }}</td>
+                        <td class="tabela__acoes">
+                            <a class="botao botao--secundario botao--pequeno"
+                               href="{{ url_for('painel.receita', id=receita.id) }}">Abrir</a>
+                            {% if eh_admin %}
+                                <a class="botao botao--fantasma botao--icone botao--pequeno"
+                                   href="{{ url_for('painel.receitaEditar', id=receita.id) }}">{{ i.icone("editar", "Editar " ~ receita.nome) }}</a>
+                                {% if receita.ativa %}
+                                    <a class="botao botao--fantasma botao--pequeno"
+                                       href="{{ url_for('painel.receitaDesativar', id=receita.id) }}">Desativar</a>
+                                {% else %}
+                                    <form method="post" action="{{ url_for('painel.receitaReativar', id=receita.id) }}">
+                                        {{ m.csrf() }}
+                                        <button class="botao botao--fantasma botao--pequeno" type="submit">Reativar
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td class="tabela__vazia" colspan="5">
+                            Nenhuma receita nesta lista.
+                            {% if eh_admin %}
+                                <a href="{{ url_for('painel.receitaNova') }}">Cadastrar receita</a>{% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}

@@ -1,0 +1,70 @@
+{#
+  loja/home.html  (início do cliente)
+  Rota: loja.home   GET /loja
+
+  Variáveis:
+    pronta_entrega   lista de Produto ativos com disponibilidade "pronta_entrega"
+    encomendas       lista de Produto ativos com disponibilidade "encomenda"
+                     (pode ser só uma seleção, ex.: os 8 mais pedidos)
+    usuario_atual    (global) para a saudação; sem login mostra só "Olá!"
+#}
+{% extends "loja/base.html" %}
+{% import "/_icones.html" as i %}
+{% import "/_macros.html" as m %}
+{% import "loja/_componentes.html" as c %}
+
+{% set menu_ativo = "inicio" %}
+
+{% block titulo %}Início{% endblock %}
+
+{% block conteudo %}
+    <section class="saudacao">
+        <h1>Olá{% if nome_cliente %}, {{ nome_cliente }}{% endif %}!</h1>
+        <p>O que vamos adoçar hoje?</p>
+    </section>
+
+    <form class="busca" action="{{ url_for('loja.catalogo') }}" method="get" role="search">
+        <label class="visualmente-oculto" for="busca-inicio">Buscar no cardápio</label>
+        {{ i.icone("busca") }}
+        <input id="busca-inicio" name="q" type="search" placeholder="Buscar bolos, tortas, docinhos...">
+    </form>
+
+    <section class="capa-loja borda-renda" aria-labelledby="capa-titulo">
+        <div class="capa-loja__texto">
+            <h2 id="capa-titulo">Encomendas para a sua festa</h2>
+            <p>Escolha o sabor, o tamanho e a decoração. Peça com 48 horas de antecedência.</p>
+            <a class="botao botao--claro botao--pequeno"
+               href="{{ url_for('loja.catalogo', disponibilidade='encomenda') }}">Ver encomendas</a>
+        </div>
+    </section>
+
+    <section class="secao" aria-labelledby="titulo-pronta">
+        <div class="secao__topo">
+            <h2 id="titulo-pronta">Pronta entrega</h2>
+            <a href="{{ url_for('loja.catalogo', disponibilidade='pronta_entrega') }}">Ver todos</a>
+        </div>
+        <p class="secao__nota">Pedidos feitos até as 17h saem no mesmo dia.</p>
+        {% if pronta_entrega %}
+            <div class="vitrine">
+                {% for produto in pronta_entrega %}{{ c.cartaoProduto(produto) }}{% endfor %}
+            </div>
+        {% else %}
+            {{ m.vazio("cardapio", "Nada na vitrine agora", "Os doces de pronta entrega aparecem aqui assim que ficam prontos. Enquanto isso, que tal uma encomenda?") }}
+        {% endif %}
+    </section>
+
+    <section class="secao" aria-labelledby="titulo-encomendas">
+        <div class="secao__topo">
+            <h2 id="titulo-encomendas">Para encomendar</h2>
+            <a href="{{ url_for('loja.catalogo', disponibilidade='encomenda') }}">Ver todos</a>
+        </div>
+        <p class="secao__nota">Bolos, tortas e kits personalizados.</p>
+        {% if encomendas %}
+            <div class="vitrine">
+                {% for produto in encomendas %}{{ c.cartaoProduto(produto) }}{% endfor %}
+            </div>
+        {% else %}
+            {{ m.vazio("bolo", "Cardápio em preparo", "Os produtos para encomenda aparecem aqui assim que forem cadastrados.") }}
+        {% endif %}
+    </section>
+{% endblock %}
