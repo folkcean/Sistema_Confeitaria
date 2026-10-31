@@ -4,10 +4,14 @@ app / __init__.py
 Fábrica do app: cria e configura o Flask
 """
 
-from flask import Flask, render_template
+from flask import Flask, render_template, session
 
 from app.config import Config
-from app.repositories.conexao_rep import fecharConexao
+from app.controllers.sessao import usuarioLogado
+from app.repositories.conexao_rep import fecharConexao, obterConexao
+from app.repositories.usuarios_rep import RepositorioUsuarios
+from app.services import autenticacao
+from app.services.autenticacao import Autenticacao
 
 
 def paginaNaoEncontrada(erro):
@@ -26,7 +30,7 @@ def erroInterno(erro):
 
 
 def variaveisGlobais():
-    return {"usuario_atual": None,
+    return {"usuario_atual": usuarioLogado(),
             "qtd_carrinho": len(session.get("carrinho", []))}
 
 
@@ -45,10 +49,16 @@ def create_app(config=Config):
     app.register_blueprint(loja)
     app.register_blueprint(painel)
 
+    repositorio = RepositorioUsuarios(obterConexao)
+    app.extensions["usuarios"] = repositorio
+    app.extensions["autenticacao"] = Autenticacao(repositorio, app.config["SECRET_KEY"])
+
     # tratadores de erro (404, 403, 500)
     app.register_error_handler(404, paginaNaoEncontrada)
     app.register_error_handler(403, acessoNegado)
     app.register_error_handler(500, erroInterno)
+    # app.register_error_handler(AutenticacaoError, tratarNaoLogado)
+    # app.register_error_handler(AcessoNegadoError, tratarAcessoNegado)
 
     # context_processor (usuario_atual, qtd_carrinho)
 

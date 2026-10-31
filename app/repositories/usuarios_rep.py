@@ -5,18 +5,14 @@ Acesso às tabelas USUARIO, CLIENTE, FUNCIONARIO, ADMINISTRADOR e ENDERECO
 """
 
 from psycopg.errors import UniqueViolation
-from psycopg.rows import dict_row
 
 from app.exceptions import ValidacaoError
 from app.models import Cliente, Endereco, Senha, Funcionario, Administrador
+from app.repositories.base import RepositorioBase
 
 
-class RepositorioUsuarios:
+class RepositorioUsuarios(RepositorioBase):
     """Busca e grava usuários, montando o objeto do perfil certo"""
-
-    def __init__(self, obter_conexao):
-        """Recebe a função que devolve a conexão da requisição"""
-        self._obter_conexao = obter_conexao
 
     def buscarPorEmail(self, email):
         """Usuário com esse e-mail (já em minúsculas) ou None. É o contrato que a Autenticacao espera"""
@@ -166,21 +162,3 @@ class RepositorioUsuarios:
             "UPDATE usuario SET senha_hash = %s WHERE id_usuario = %s",
             (usuario.senha_hash, usuario.id),
         )
-
-    # Execução do SQL
-    def _umaLinha(self, sql, parametros):
-        """Primeira linha do resultado como dicionário, ou None"""
-        with self._obter_conexao().cursor(row_factory=dict_row) as cursor:
-            cursor.execute(sql, parametros)
-            return cursor.fetchone()
-
-    def _todasLinhas(self, sql, parametros):
-        """Todas as linhas do resultado, cada uma como dicionário"""
-        with self._obter_conexao().cursor(row_factory=dict_row) as cursor:
-            cursor.execute(sql, parametros)
-            return cursor.fetchall()
-
-    def _executar(self, sql, parametros):
-        """Executa um comando que não devolve linhas (INSERT sem RETURNING, UPDATE, DELETE)"""
-        with self._obter_conexao().cursor() as cursor:
-            cursor.execute(sql, parametros)

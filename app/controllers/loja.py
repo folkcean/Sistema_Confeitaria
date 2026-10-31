@@ -4,28 +4,47 @@ app / controllers / loja.py
 Área do cliente: cardápio, carrinho, pedidos e perfil
 """
 
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, request, abort
+
+from app.controllers.sessao import soCliente
+from app.repositories.conexao_rep import obterConexao
+from app.repositories.produtos_rep import RepositorioProdutos
 
 loja = Blueprint("loja", __name__, url_prefix="/loja")
+
+repo_produtos = RepositorioProdutos(obterConexao)
 
 
 # Vitrine (Tarefa 4)
 @loja.get("")
 def home():
-    """Início da loja: pronta entrega e encomendas"""
-    return render_template("loja/home.html")
+    """Início da loja: o que tem pronto hoje e uma seleção de encomendas"""
+    pronta_entrega = repo_produtos.listar(disponibilidade="pronta_entrega")
+    encomendas = repo_produtos.listar(disponibilidade="encomenda")
+    return render_template(
+        "loja/home.html",
+        pronta_entrega=pronta_entrega,
+        encomendas=encomendas,
+    )
 
 
 @loja.get("/cardapio")
 def catalogo():
     """Cardápio com filtro por disponibilidade e busca"""
-    return render_template("loja/catalogo.html")
+    disponibilidade = request.args.get("disponibilidade")
+    busca = request.args.get("q", "")
+
+    produtos = repo_produtos.listar(disponibilidade, busca)
+
+    return render_template("loja/catalogo.html", produtos=produtos, disponibilidade=disponibilidade, busca=busca)
 
 
 @loja.get("/produtos/<int:id>")
 def produto(id):
     """Detalhe do produto com as opções de personalização"""
-    return render_template("loja/produto.html")
+    produto_buscado = repo_produtos.buscarAtivo(id) or abort(404)
+
+    return render_template("loja/produto.html", produto=produto_buscado)
 
 
 # Carrinho (Tarefa 5)
@@ -74,8 +93,8 @@ def pedido(id):
 
 # Perfil (Tarefa 6)
 @loja.get("/perfil")
+@soCliente
 def perfil():
-    """Menu do perfil do cliente"""
     return render_template("loja/perfil.html")
 
 
