@@ -147,7 +147,7 @@
 
                         {{ f.escolhas("forma_pagamento_sinal", "Como vai pagar o sinal", m.FORMA_PAGAMENTO) }}
 
-                        {{ f.area("observacoes", "Observações do pedido", opcional=true, linhas=3, maxlength=255,
+                        {{ f.area("observacoes", "Observações do pedido", opcional=true, dicionarios=3, maxlength=255,
                 placeholder="Ex.: interfone com defeito, ligar ao chegar") }}
                     </form>
                 {% endif %}

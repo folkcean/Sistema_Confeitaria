@@ -4,11 +4,15 @@ app / controllers / loja.py
 Área do cliente: cardápio, carrinho, pedidos e perfil
 """
 
-from flask import Blueprint, render_template, request, abort
+from flask import Blueprint, render_template, request, abort, session, redirect, url_for, flash
 
+from app import usuarioLogado
 from app.controllers.sessao import soCliente
+from app.exceptions import ValidacaoError
 from app.repositories.conexao_rep import obterConexao
 from app.repositories.produtos_rep import RepositorioProdutos
+from app.services.carrinho import Carrinho
+from app.validators.campos import Validador, garantir
 
 loja = Blueprint("loja", __name__, url_prefix="/loja")
 
@@ -51,25 +55,91 @@ def produto(id):
 @loja.get("/carrinho")
 def carrinho():
     """Itens do carrinho e formulário de envio do pedido"""
-    return render_template("loja/carrinho.html")
+    dados_carrinho = Carrinho(session).montarCarrinho(repo_produtos)
+    enderecos = getattr(usuarioLogado(), "enderecos", [])
+    return render_template(
+        "loja/carrinho.html",
+        carrinho=dados_carrinho,
+        enderecos=enderecos,
+    )
 
 
 @loja.post("/carrinho/adicionar")
 def carrinhoAdicionar():
     """Põe um produto (com opções) no carrinho"""
-    return "em construção"
+    produto_id = request.form.get("produto_id", type=int)
+    quantidade = request.form.get("quantidade", type=int)
+    ids_das_opcoes = request.form.getlist("opcoes", type=int)
+    observacoes = request.form.get("observacoes", "")
+
+    produto = repo_produtos.buscarAtivo(produto_id) or abort(404)
+    Validador.textoOpcional(observacoes, "observacoes")
+
+    opcoes = []
+    for id_op in ids_das_opcoes:
+        quantidade_opcao = request.form.get(f"qtd_opcao_{id_op}", 1, type=int)
+        opcoes.append([id_op, quantidade_opcao])
+
+    try:
+        Validador.inteiroPositivo(quantidade, "quantidade")
+        _validarOpcoes(produto, opcoes)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        pagina = render_template("loja/produto.html", produto=produto)
+        return pagina, 400
+
+    Carrinho(session).adicionar(produto_id, quantidade, opcoes, observacoes)
+    flash(f"{produto.nome} foi para o carrinho.", "sucesso")
+    return redirect(url_for("loja.carrinho"))
+
+
+def _validarOpcoes(produto, opcoes):
+    """
+    Confere as opções antes de irem para a sessão:
+    cada id precisa ser deste produto, cada quantidade >= 1, e a opção precisa estar ativa
+    """
+    opcoes_por_id = {}
+    for opcao in produto.opcoes:
+        opcoes_por_id[opcao.id] = opcao
+
+    opcoes_para_preco = []
+    for id_opcao, quantidade_opcao in opcoes:
+        garantir(
+            id_opcao in opcoes_por_id,
+            ValidacaoError("Uma das opções escolhidas não é deste produto."),
+        )
+        Validador.inteiroPositivo(quantidade_opcao, "quantidade da opção")
+        opcoes_para_preco = opcoes_para_preco + [opcoes_por_id[id_opcao]] * quantidade_opcao
+
+    # O calcularPreco recusa opção desligada: se passar aqui, a tela do carrinho também vai passar
+    produto.calcularPreco(opcoes_para_preco)
 
 
 @loja.post("/carrinho/<int:indice>/atualizar")
 def carrinhoAtualizar(indice):
-    """Muda a quantidade de uma linha do carrinho (0 remove)"""
-    return "em construção"
+    """Muda a quantidade de uma linha do carrinho (0 remove a linha)"""
+    quantidade = request.form.get("quantidade", type=int)
+    try:
+        # 0 é permitido aqui: é o botão "−" no último item
+        Validador.inteiroNaoNegativo(quantidade, "quantidade")
+        Validador.quantidade(quantidade, "quantidade")
+        Carrinho(session).atualizar(indice, quantidade)
+
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+    except IndexError:
+        abort(404)
+    return redirect(url_for("loja.carrinho"))
 
 
 @loja.post("/carrinho/<int:indice>/remover")
 def carrinhoRemover(indice):
     """Tira uma linha do carrinho"""
-    return "em construção"
+    try:
+        Carrinho(session).remover(indice)
+    except IndexError:
+        abort(404)
+    return redirect(url_for("loja.carrinho"))
 
 
 # Pedidos (Tarefa 10)

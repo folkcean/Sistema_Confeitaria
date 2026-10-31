@@ -25,12 +25,12 @@ class RepositorioBase:
             return cursor.fetchone()
 
     def _todasLinhas(self, sql, parametros):
-        """Todas as linhas do resultado, cada uma como dicionário"""
+        """Todas as dicionarios do resultado, cada uma como dicionário"""
         with self._obter_conexao().cursor(row_factory=dict_row) as cursor:
             cursor.execute(sql, parametros)
             return cursor.fetchall()
 
     def _executar(self, sql, parametros):
-        """Executa um comando que não devolve linhas (INSERT sem RETURNING, UPDATE, DELETE)"""
+        """Executa um comando que não devolve dicionarios (INSERT sem RETURNING, UPDATE, DELETE)"""
         with self._obter_conexao().cursor() as cursor:
             cursor.execute(sql, parametros)

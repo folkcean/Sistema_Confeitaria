@@ -46,7 +46,7 @@
         <section class="bloco">
             <h2>Dados do produto</h2>
             {{ f.campo("nome", "Nome", produto, maxlength=255, placeholder="Ex.: Bolo de chocolate com brigadeiro") }}
-            {{ f.area("descricao", "Descrição", produto, linhas=3, opcional=true, maxlength=255,
+            {{ f.area("descricao", "Descrição", produto, dicionarios=3, opcional=true, maxlength=255,
               dica="Aparece para o cliente no cardápio.") }}
             {{ f.escolhas("disponibilidade", "Disponibilidade", m.DISPONIBILIDADE, produto,
                   dica="Encomenda é feita sob pedido; pronta entrega já está na vitrine.") }}

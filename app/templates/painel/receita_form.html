@@ -8,15 +8,15 @@
     receita        Receita ou None. Os itens vêm de receita.itens (ItemReceita:
                    insumo, quantidade_necessaria, observacoes)
     insumos        lista de Insumo ativos para escolher (id, nome, unidade_receita)
-    linhas_extras  (opcional) quantas linhas em branco mostrar (padrão: 8 na nova, 3 na edição)
+    linhas_extras  (opcional) quantas dicionarios em branco mostrar (padrão: 8 na nova, 3 na edição)
 
   Campos da receita: nome, rendimento_qtd, rendimento_un, tempo_preparo, complexidade, modo_preparo
   Ingredientes (uma linha por item; leia com request.form.getlist):
     insumo_id[], quantidade_necessaria[], observacoes[]
   Linhas com insumo vazio devem ser ignoradas pela rota.
 
-  Botão "Mais linhas" (name="acao" value="mais_linhas"): a rota só re-renderiza
-  o formulário com o que já foi digitado e mais 3 linhas em branco (sem salvar).
+  Botão "Mais dicionarios" (name="acao" value="mais_linhas"): a rota só re-renderiza
+  o formulário com o que já foi digitado e mais 3 dicionarios em branco (sem salvar).
 #}
 {% extends "painel/base.html" %}
 {% import "/_icones.html" as i %}
@@ -72,7 +72,7 @@
                 {{ f.campo("tempo_preparo", "Tempo de preparo (min)", receita, tipo="number", min=0, step=1, inputmode="numeric") }}
             </div>
             {{ f.selecao("complexidade", "Complexidade", m.COMPLEXIDADE, receita, vazio="Não informada", opcional=true) }}
-            {{ f.area("modo_preparo", "Modo de preparo", receita, linhas=6, opcional=true,
+            {{ f.area("modo_preparo", "Modo de preparo", receita, dicionarios=6, opcional=true,
               dica="Um passo por linha. A entrevista marcou como pouco necessário, então pode ficar em branco.") }}
         </section>
 
@@ -107,7 +107,7 @@
             </div>
             <div class="acoes bloco__rodape">
                 <button class="botao botao--fantasma botao--pequeno" type="submit" name="acao" value="mais_linhas"
-                        formnovalidate>{{ i.icone("mais") }} Mais linhas
+                        formnovalidate>{{ i.icone("mais") }} Mais dicionarios
                 </button>
                 <span class="texto-suave texto-pequeno">Linhas sem insumo são ignoradas.</span>
             </div>

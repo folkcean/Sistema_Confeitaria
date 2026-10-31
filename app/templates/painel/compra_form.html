@@ -6,15 +6,15 @@
     fornecedores      lista de Fornecedor ativos
     insumos           lista de Insumo ativos (id, nome, unidade_medida)
     itens_sugeridos   (opcional) lista com insumo, quantidade e custo_unitario para já
-                      preencher as linhas (ex.: a partir da lista de compras)
-    linhas_extras     (opcional) linhas em branco (padrão 5; 3 se vier sugestão)
+                      preencher as dicionarios (ex.: a partir da lista de compras)
+    linhas_extras     (opcional) dicionarios em branco (padrão 5; 3 se vier sugestão)
 
   Campos: id_fornecedor, data_entrega, nota_fiscal
   Itens (request.form.getlist): insumo_id[], quantidade[], custo_unitario[]
     quantidade e custo na unidade de COMPRA (kg, lata...). Ao receber a compra,
     a entrada no estoque multiplica pelo fator_conversao do insumo.
   O valor total é calculado pela rota (soma de quantidade x custo).
-  Botão "Mais linhas" (name="acao" value="mais_linhas"): re-renderiza sem salvar.
+  Botão "Mais dicionarios" (name="acao" value="mais_linhas"): re-renderiza sem salvar.
 #}
 {% extends "painel/base.html" %}
 {% import "/_icones.html" as i %}
@@ -106,7 +106,7 @@
             </div>
             <div class="acoes bloco__rodape">
                 <button class="botao botao--fantasma botao--pequeno" type="submit" name="acao" value="mais_linhas"
-                        formnovalidate>{{ i.icone("mais") }} Mais linhas
+                        formnovalidate>{{ i.icone("mais") }} Mais dicionarios
                 </button>
                 <span class="texto-suave texto-pequeno">Linhas sem insumo são ignoradas.</span>
             </div>

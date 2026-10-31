@@ -147,7 +147,7 @@ def receitaNova():
 
 @painel.post("/receitas/nova")
 def receitaNovaSalvar():
-    """Cadastra a receita (ou só acrescenta linhas)"""
+    """Cadastra a receita (ou só acrescenta dicionarios)"""
     return "em construção"
 
 
@@ -159,7 +159,7 @@ def receitaEditar(id):
 
 @painel.post("/receitas/<int:id>/editar")
 def receitaEditarSalvar(id):
-    """Salva a edição da receita (ou só acrescenta linhas)"""
+    """Salva a edição da receita (ou só acrescenta dicionarios)"""
     return "em construção"
 
 
@@ -263,7 +263,7 @@ def compraNova():
 
 @painel.post("/compras/nova")
 def compraNovaSalvar():
-    """Registra a compra (ou só acrescenta linhas)"""
+    """Registra a compra (ou só acrescenta dicionarios)"""
     return "em construção"
 
 

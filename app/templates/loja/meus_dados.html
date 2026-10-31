@@ -46,7 +46,7 @@
             </div>
             {{ f.campo("restricoes_alimentares", "Restrições alimentares", cliente, opcional=true, maxlength=255,
                dica="Alergias ou intolerâncias que a cozinha precisa saber.") }}
-            {{ f.area("preferencias", "Sabores preferidos", cliente, opcional=true, linhas=3,
+            {{ f.area("preferencias", "Sabores preferidos", cliente, opcional=true, dicionarios=3,
               placeholder="Ex.: chocolate meio amargo, nada de coco") }}
             <div class="formulario__acoes">
                 <button class="botao" type="submit">Salvar alterações</button>

@@ -44,7 +44,7 @@
 
         {{ f.campo("nova_quantidade", "Quantidade correta (" ~ insumo.unidade_receita ~ ")", tipo="number", min=0, step="0.001",
              inputmode="decimal", dica="O que tem de verdade na prateleira, na unidade da receita.") }}
-        {{ f.area("motivo", "Motivo do ajuste", linhas=2, maxlength=255, placeholder="Ex.: contagem do fim do mês, embalagem rasgada") }}
+        {{ f.area("motivo", "Motivo do ajuste", dicionarios=2, maxlength=255, placeholder="Ex.: contagem do fim do mês, embalagem rasgada") }}
         {{ f.caixa("confirmo", "Confirmo que quero substituir a quantidade em estoque", required="required") }}
 
         <div class="formulario__acoes">

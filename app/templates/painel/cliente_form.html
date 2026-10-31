@@ -50,8 +50,8 @@
         <section class="bloco">
             <h2>Preferências</h2>
             {{ f.campo("restricoes_alimentares", "Restrições alimentares", ficha, opcional=true, maxlength=255) }}
-            {{ f.area("preferencias", "Sabores preferidos", ficha, opcional=true, linhas=3) }}
-            {{ f.area("observacoes", "Observações internas", ficha, opcional=true, linhas=3, dica="Só a administração vê.") }}
+            {{ f.area("preferencias", "Sabores preferidos", ficha, opcional=true, dicionarios=3) }}
+            {{ f.area("observacoes", "Observações internas", ficha, opcional=true, dicionarios=3, dica="Só a administração vê.") }}
             {{ f.caixa("cliente_vip", "Cliente VIP", marcado=(ficha.vip if ficha else false), dica="Clientes fiéis (entrevista 3.6).") }}
         </section>
 

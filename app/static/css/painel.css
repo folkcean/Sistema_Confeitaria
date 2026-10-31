@@ -11,440 +11,440 @@
     3. Tabelas
     4. Indicadores e alertas (início)
     5. Detalhe (pedido, cliente, receita)
-    6. Formulários do painel (linhas de itens)
+    6. Formulários do painel (dicionarios de itens)
     7. Gráficos (relatórios) em CSS puro
 */
 
 /* 1. ESTRUTURA ------------------------------------------------------------- */
 .painel {
-  font-size: 14px;
+    font-size: 14px;
 }
 
 @media (min-width: 960px) {
-  .painel {
-    display: grid;
-    grid-template-columns: 248px minmax(0, 1fr);
-    align-items: start;
-    /* A coluna do menu fica vinho até o fim da página, mesmo em páginas longas */
-    background: linear-gradient(90deg, var(--vinho) 248px, var(--creme) 248px);
-  }
+    .painel {
+        display: grid;
+        grid-template-columns: 248px minmax(0, 1fr);
+        align-items: start;
+        /* A coluna do menu fica vinho até o fim da página, mesmo em páginas longas */
+        background: linear-gradient(90deg, var(--vinho) 248px, var(--creme) 248px);
+    }
 }
 
 /* Checkbox que abre/fecha o menu no celular (fica escondido) */
 .menu-alternar {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
 }
 
 .lateral {
-  position: sticky;
-  top: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  height: 100vh;
-  padding: 22px 14px 16px;
-  overflow-y: auto;
-  background: var(--vinho);
-  color: #f3e6e8;
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    height: 100vh;
+    padding: 22px 14px 16px;
+    overflow-y: auto;
+    background: var(--vinho);
+    color: #f3e6e8;
 }
 
 .lateral .marca {
-  margin: 0 8px 18px;
-  color: #fff;
+    margin: 0 8px 18px;
+    color: #fff;
 }
 
 .lateral .marca__logo {
-  width: 32px;
-  height: 27px;
+    width: 32px;
+    height: 27px;
 }
 
 .lateral__grupo {
-  margin: 14px 12px 6px;
-  font-size: 0.75rem;
-  color: rgb(255 255 255 / 0.55);
+    margin: 14px 12px 6px;
+    font-size: 0.75rem;
+    color: rgb(255 255 255 / 0.55);
 }
 
 .lateral__menu {
-  display: grid;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
 }
 
 .lateral__menu a {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 9px 12px;
-  border-radius: 10px;
-  color: rgb(255 255 255 / 0.8);
-  font-weight: 500;
-  text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    color: rgb(255 255 255 / 0.8);
+    font-weight: 500;
+    text-decoration: none;
 }
 
 .lateral__menu a:hover {
-  background: rgb(255 255 255 / 0.07);
-  color: #fff;
-  text-decoration: none;
+    background: rgb(255 255 255 / 0.07);
+    color: #fff;
+    text-decoration: none;
 }
 
 .lateral__menu a[aria-current="page"] {
-  background: rgb(255 255 255 / 0.14);
-  color: #fff;
-  font-weight: 650;
+    background: rgb(255 255 255 / 0.14);
+    color: #fff;
+    font-weight: 650;
 }
 
 .lateral__menu .icone {
-  width: 19px;
-  height: 19px;
+    width: 19px;
+    height: 19px;
 }
 
 .lateral :focus-visible {
-  outline-color: #fff;
+    outline-color: #fff;
 }
 
 /* Quem está logado + sair */
 .lateral__usuario {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: auto;
-  padding: 14px 8px 0;
-  border-top: 1px solid rgb(255 255 255 / 0.12);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: auto;
+    padding: 14px 8px 0;
+    border-top: 1px solid rgb(255 255 255 / 0.12);
 }
 
 .lateral__avatar {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: var(--rosa-claro);
-  color: var(--vinho);
-  font-weight: 700;
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--rosa-claro);
+    color: var(--vinho);
+    font-weight: 700;
 }
 
 .lateral__usuario div {
-  flex: 1;
-  min-width: 0;
-  line-height: 1.3;
+    flex: 1;
+    min-width: 0;
+    line-height: 1.3;
 }
 
 .lateral__usuario strong {
-  display: block;
-  overflow: hidden;
-  color: #fff;
-  font-size: 0.8125rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+    display: block;
+    overflow: hidden;
+    color: #fff;
+    font-size: 0.8125rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .lateral__usuario small {
-  color: rgb(255 255 255 / 0.62);
-  font-size: 0.75rem;
+    color: rgb(255 255 255 / 0.62);
+    font-size: 0.75rem;
 }
 
 .lateral__sair {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  color: rgb(255 255 255 / 0.75);
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    color: rgb(255 255 255 / 0.75);
 }
 
 .lateral__sair:hover {
-  background: rgb(255 255 255 / 0.08);
-  color: #fff;
+    background: rgb(255 255 255 / 0.08);
+    color: #fff;
 }
 
 .lateral__fundo {
-  display: none;
+    display: none;
 }
 
 /* Topo da página: título e ações principais */
 .painel-topo {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px 16px;
-  max-width: 1240px;
-  padding: 28px 32px 4px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px 16px;
+    max-width: 1240px;
+    padding: 28px 32px 4px;
 }
 
 .painel-topo__menu {
-  display: none;
+    display: none;
 }
 
 .painel-topo__titulo {
-  flex: 1;
-  min-width: 0;
+    flex: 1;
+    min-width: 0;
 }
 
 .painel-topo h1 {
-  font-size: 1.75rem;
+    font-size: 1.75rem;
 }
 
 .migalha {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  margin-bottom: 6px;
-  font-size: 0.8125rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-bottom: 6px;
+    font-size: 0.8125rem;
 }
 
 .migalha .icone {
-  width: 16px;
-  height: 16px;
+    width: 16px;
+    height: 16px;
 }
 
 .painel-topo__acoes {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
 }
 
 .painel-conteudo {
-  max-width: 1240px;
-  padding: 20px 32px 56px;
+    max-width: 1240px;
+    padding: 20px 32px 56px;
 }
 
 .painel-saudacao {
-  margin: -8px 0 20px;
-  color: var(--suave);
+    margin: -8px 0 20px;
+    color: var(--suave);
 }
 
 /* Celular e tablet: menu vira gaveta */
 @media (max-width: 959.98px) {
-  .lateral {
-    position: fixed;
-    inset: 0 auto 0 0;
-    z-index: 50;
-    width: 272px;
-    transform: translateX(-100%);
-    transition: transform 0.2s ease;
-    box-shadow: var(--sombra);
-  }
+    .lateral {
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 50;
+        width: 272px;
+        transform: translateX(-100%);
+        transition: transform 0.2s ease;
+        box-shadow: var(--sombra);
+    }
 
-  .menu-alternar:checked ~ .lateral {
-    transform: none;
-  }
+    .menu-alternar:checked ~ .lateral {
+        transform: none;
+    }
 
-  .menu-alternar:checked ~ .lateral__fundo {
-    position: fixed;
-    inset: 0;
-    z-index: 40;
-    display: block;
-    background: rgb(52 37 42 / 0.45);
-  }
+    .menu-alternar:checked ~ .lateral__fundo {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        display: block;
+        background: rgb(52 37 42 / 0.45);
+    }
 
-  .menu-alternar:focus-visible ~ .painel-area .painel-topo__menu {
-    outline: 2px solid var(--rosa-escuro);
-    outline-offset: 2px;
-  }
+    .menu-alternar:focus-visible ~ .painel-area .painel-topo__menu {
+        outline: 2px solid var(--rosa-escuro);
+        outline-offset: 2px;
+    }
 
-  .painel-topo {
-    padding: 16px 16px 0;
-    align-items: center;
-  }
+    .painel-topo {
+        padding: 16px 16px 0;
+        align-items: center;
+    }
 
-  .painel-topo__menu {
-    display: grid;
-    place-items: center;
-    width: 42px;
-    height: 42px;
-    border: 1px solid var(--linha);
-    border-radius: var(--raio-p);
-    background: var(--papel);
-    color: var(--vinho);
-    cursor: pointer;
-  }
+    .painel-topo__menu {
+        display: grid;
+        place-items: center;
+        width: 42px;
+        height: 42px;
+        border: 1px solid var(--linha);
+        border-radius: var(--raio-p);
+        background: var(--papel);
+        color: var(--vinho);
+        cursor: pointer;
+    }
 
-  .painel-topo h1 {
-    font-size: 1.5rem;
-  }
+    .painel-topo h1 {
+        font-size: 1.5rem;
+    }
 
-  .painel-topo__acoes {
-    width: 100%;
-  }
+    .painel-topo__acoes {
+        width: 100%;
+    }
 
-  .painel-conteudo {
-    padding: 16px 16px 40px;
-  }
+    .painel-conteudo {
+        padding: 16px 16px 40px;
+    }
 }
 
 /* 2. BLOCOS, GRADES E FERRAMENTAS ------------------------------------------ */
 .bloco {
-  padding: 20px 22px;
-  border: 1px solid var(--linha);
-  border-radius: var(--raio-m);
-  background: var(--papel);
+    padding: 20px 22px;
+    border: 1px solid var(--linha);
+    border-radius: var(--raio-m);
+    background: var(--papel);
 }
 
 .bloco + .bloco {
-  margin-top: 20px;
+    margin-top: 20px;
 }
 
 .bloco__topo {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px 16px;
-  margin-bottom: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px 16px;
+    margin-bottom: 14px;
 }
 
 .bloco__topo p {
-  flex-basis: 100%;
-  color: var(--suave);
-  font-size: 0.8125rem;
+    flex-basis: 100%;
+    color: var(--suave);
+    font-size: 0.8125rem;
 }
 
 /* Bloco que encosta a tabela nas bordas */
 .bloco--tabela {
-  padding: 0;
-  overflow: hidden;
+    padding: 0;
+    overflow: hidden;
 }
 
 .bloco--tabela .bloco__topo {
-  margin: 0;
-  padding: 18px 22px 14px;
+    margin: 0;
+    padding: 18px 22px 14px;
 }
 
 .bloco--estreito {
-  max-width: 640px;
+    max-width: 640px;
 }
 
 /* minmax(0, 1fr): sem isso uma tabela larga empurra a grade para fora da tela no celular */
 .grade-painel {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
 }
 
 .grade-painel > * {
-  min-width: 0;
+    min-width: 0;
 }
 
 .grade-painel > .bloco + .bloco {
-  margin-top: 0;
+    margin-top: 0;
 }
 
 .grade-painel + .bloco {
-  margin-top: 20px;
+    margin-top: 20px;
 }
 
 /* Atalhos de período (links com cara de pílula) */
 a.escolha {
-  text-decoration: none;
+    text-decoration: none;
 }
 
 .escolha--ativa,
 .escolha--ativa:hover {
-  border-color: var(--vinho);
-  background: var(--vinho);
-  color: #fff;
+    border-color: var(--vinho);
+    background: var(--vinho);
+    color: #fff;
 }
 
 @media (min-width: 1100px) {
-  .grade-painel {
-    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-  }
+    .grade-painel {
+        grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    }
 
-  .grade-painel--metades {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+    .grade-painel--metades {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 /* Barra de busca e filtros (GET), sempre acima do que ela filtra */
 .ferramentas {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 10px;
-  margin-bottom: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px;
+    margin-bottom: 16px;
 }
 
 .ferramentas .campo {
-  margin: 0;
+    margin: 0;
 }
 
 .ferramentas .campo > label {
-  font-size: 0.75rem;
-  color: var(--suave);
-  font-weight: 600;
+    font-size: 0.75rem;
+    color: var(--suave);
+    font-weight: 600;
 }
 
 .ferramentas__busca {
-  position: relative;
-  flex: 1 1 260px;
+    position: relative;
+    flex: 1 1 260px;
 }
 
 .ferramentas__busca .icone {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  color: var(--suave);
-  pointer-events: none;
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    color: var(--suave);
+    pointer-events: none;
 }
 
 .ferramentas__busca input {
-  padding-left: 40px !important;
+    padding-left: 40px !important;
 }
 
 .ferramentas select,
 .ferramentas input[type="date"] {
-  width: auto;
-  min-width: 170px;
+    width: auto;
+    min-width: 170px;
 }
 
 /* Aviso dentro do conteúdo */
 .chamada {
-  display: flex;
-  gap: 12px;
-  padding: 14px 16px;
-  border: 1px solid #ead5b0;
-  border-radius: var(--raio-m);
-  background: var(--aviso-fundo);
-  font-size: 0.875rem;
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid #ead5b0;
+    border-radius: var(--raio-m);
+    background: var(--aviso-fundo);
+    font-size: 0.875rem;
 }
 
 .chamada .icone {
-  color: var(--aviso);
+    color: var(--aviso);
 }
 
 .chamada--erro {
-  border-color: #ecc4c5;
-  background: var(--erro-fundo);
+    border-color: #ecc4c5;
+    background: var(--erro-fundo);
 }
 
 .chamada--erro .icone {
-  color: var(--erro);
+    color: var(--erro);
 }
 
 .chamada--info {
-  border-color: #c9d6e2;
-  background: var(--info-fundo);
+    border-color: #c9d6e2;
+    background: var(--info-fundo);
 }
 
 .chamada--info .icone {
-  color: var(--info);
+    color: var(--info);
 }
 
 .chamada + .bloco,
 .chamada + form,
 .chamada + .detalhe {
-  margin-top: 16px;
+    margin-top: 16px;
 }
 
 .chamada--espaco {
-  margin: 16px 0 20px;
+    margin: 16px 0 20px;
 }
 
 /* 3. TABELAS --------------------------------------------------------------- */
@@ -454,653 +454,665 @@ a.escolha {
   inteira ganha rolagem lateral no celular.
 */
 .tabela-rolagem {
-  position: relative;
-  overflow-x: auto;
+    position: relative;
+    overflow-x: auto;
 }
 
 .tabela {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.875rem;
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
 }
 
 .tabela th {
-  padding: 11px 16px;
-  border-bottom: 1px solid var(--linha);
-  background: #fcf7f5;
-  color: var(--suave);
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-align: left;
-  white-space: nowrap;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--linha);
+    background: #fcf7f5;
+    color: var(--suave);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: left;
+    white-space: nowrap;
 }
 
 .tabela td {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--linha);
-  vertical-align: middle;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--linha);
+    vertical-align: middle;
 }
 
 .tabela tbody tr:last-child td {
-  border-bottom: 0;
+    border-bottom: 0;
 }
 
 .tabela tbody tr:hover {
-  background: #fffaf8;
+    background: #fffaf8;
 }
 
 .tabela td small {
-  display: block;
-  color: var(--suave);
-  font-size: 0.75rem;
+    display: block;
+    color: var(--suave);
+    font-size: 0.75rem;
 }
 
 .tabela .num {
-  text-align: right;
+    text-align: right;
 }
 
 .tabela__principal {
-  color: var(--tinta);
-  font-weight: 650;
+    color: var(--tinta);
+    font-weight: 650;
 }
 
 .tabela__acoes {
-  width: 1%;
-  text-align: right;
-  white-space: nowrap;
+    width: 1%;
+    text-align: right;
+    white-space: nowrap;
 }
 
 .tabela__acoes > * {
-  display: inline-flex;
-  vertical-align: middle;
+    display: inline-flex;
+    vertical-align: middle;
 }
 
 .tabela__acoes form {
-  margin: 0;
+    margin: 0;
 }
 
 .tabela__foto {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  font-size: 1.125rem;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    font-size: 1.125rem;
 }
 
 /* Produto/insumo inativo: aparece mais apagado */
 .linha-inativa td {
-  color: var(--suave);
+    color: var(--suave);
 }
 
 .linha-inativa .tabela__principal {
-  color: var(--suave);
+    color: var(--suave);
 }
 
 /* Linha de insumo abaixo do mínimo */
 .linha-alerta td:first-child {
-  box-shadow: inset 3px 0 0 var(--aviso);
+    box-shadow: inset 3px 0 0 var(--aviso);
 }
 
 .tabela--compacta th,
 .tabela--compacta td {
-  padding: 9px 12px;
+    padding: 9px 12px;
 }
 
 .tabela tfoot td {
-  border-top: 1px solid var(--linha-forte);
-  border-bottom: 0;
-  font-weight: 700;
+    border-top: 1px solid var(--linha-forte);
+    border-bottom: 0;
+    font-weight: 700;
 }
 
 .tabela__vazia {
-  padding: 32px 16px !important;
-  color: var(--suave);
-  text-align: center;
+    padding: 32px 16px !important;
+    color: var(--suave);
+    text-align: center;
 }
 
 /* No celular, colunas secundárias somem (poucas informações por tela) */
 @media (max-width: 719.98px) {
-  .opcional-celular {
-    display: none;
-  }
+    .opcional-celular {
+        display: none;
+    }
 
-  .tabela th,
-  .tabela td {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
+    .tabela th,
+    .tabela td {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
 }
 
 /* 4. INDICADORES E ALERTAS ------------------------------------------------- */
 .indicadores {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 16px;
-  margin-bottom: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
 }
 
 .indicador {
-  display: grid;
-  gap: 2px;
-  padding: 18px 20px;
-  border: 1px solid var(--linha);
-  border-radius: var(--raio-m);
-  background: var(--papel);
-  color: var(--tinta);
-  font-weight: 400;
-  text-decoration: none;
+    display: grid;
+    gap: 2px;
+    padding: 18px 20px;
+    border: 1px solid var(--linha);
+    border-radius: var(--raio-m);
+    background: var(--papel);
+    color: var(--tinta);
+    font-weight: 400;
+    text-decoration: none;
 }
 
 a.indicador:hover {
-  border-color: var(--rosa-borda);
-  text-decoration: none;
+    border-color: var(--rosa-borda);
+    text-decoration: none;
 }
 
 .indicador__rotulo {
-  color: var(--suave);
-  font-size: 0.8125rem;
+    color: var(--suave);
+    font-size: 0.8125rem;
 }
 
 /* Número em destaque: mesma fonte do texto, algarismos proporcionais */
 .indicador__valor {
-  color: var(--vinho);
-  font-size: 1.875rem;
-  font-weight: 650;
-  line-height: 1.2;
+    color: var(--vinho);
+    font-size: 1.875rem;
+    font-weight: 650;
+    line-height: 1.2;
 }
 
 .indicador__nota {
-  color: var(--suave);
-  font-size: 0.75rem;
+    color: var(--suave);
+    font-size: 0.75rem;
 }
 
 .indicador--alerta {
-  border-color: #ead5b0;
-  background: var(--aviso-fundo);
+    border-color: #ead5b0;
+    background: var(--aviso-fundo);
 }
 
 .indicador--alerta .indicador__valor {
-  color: var(--aviso);
+    color: var(--aviso);
 }
 
 .alertas {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+    margin: 0;
+    padding: 0;
+    list-style: none;
 }
 
 .alerta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 11px 0;
-  border-bottom: 1px solid var(--linha);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--linha);
 }
 
 .alerta:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
+    border-bottom: 0;
+    padding-bottom: 0;
 }
 
 .alerta:first-child {
-  padding-top: 0;
+    padding-top: 0;
 }
 
 .alerta p {
-  flex: 1;
+    flex: 1;
 }
 
 .alerta > .icone {
-  color: var(--info);
+    color: var(--info);
 }
 
-.alerta--aviso > .icone { color: var(--aviso); }
-.alerta--erro > .icone  { color: var(--erro); }
+.alerta--aviso > .icone {
+    color: var(--aviso);
+}
+
+.alerta--erro > .icone {
+    color: var(--erro);
+}
 
 .alerta a {
-  font-size: 0.8125rem;
-  white-space: nowrap;
+    font-size: 0.8125rem;
+    white-space: nowrap;
 }
 
 /* Lista simples com rótulo e valor (aniversários, produtos da receita) */
 .lista-simples {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+    margin: 0;
+    padding: 0;
+    list-style: none;
 }
 
 .lista-simples li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--linha);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--linha);
 }
 
 .lista-simples li:last-child {
-  border-bottom: 0;
+    border-bottom: 0;
 }
 
 .lista-simples small {
-  color: var(--suave);
+    color: var(--suave);
 }
 
 .lista-simples__principal {
-  flex: 1;
-  min-width: 0;
+    flex: 1;
+    min-width: 0;
 }
 
 .lista-simples .icone {
-  color: var(--rosa-escuro);
+    color: var(--rosa-escuro);
 }
 
 /* 5. DETALHE --------------------------------------------------------------- */
 .detalhe {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
 }
 
 .detalhe__principal,
 .detalhe__lateral {
-  display: grid;
-  gap: 20px;
-  min-width: 0;
+    display: grid;
+    gap: 20px;
+    min-width: 0;
 }
 
 .detalhe .bloco + .bloco {
-  margin-top: 0;
+    margin-top: 0;
 }
 
 @media (min-width: 1100px) {
-  .detalhe {
-    grid-template-columns: minmax(0, 1fr) 360px;
-  }
+    .detalhe {
+        grid-template-columns: minmax(0, 1fr) 360px;
+    }
 }
 
 /* Em telas estreitas, a coluna de ações (andamento, pagamento) sobe para o topo */
 @media (max-width: 1099.98px) {
-  .detalhe--acoes-primeiro .detalhe__lateral {
-    order: -1;
-  }
+    .detalhe--acoes-primeiro .detalhe__lateral {
+        order: -1;
+    }
 }
 
 @media (min-width: 640px) {
-  .dados--grade {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px 24px;
-  }
+    .dados--grade {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px 24px;
+    }
 }
 
 .destaque-restricao {
-  padding: 2px 8px;
-  border-radius: 6px;
-  background: var(--aviso-fundo);
-  color: var(--aviso);
-  font-weight: 650;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: var(--aviso-fundo);
+    color: var(--aviso);
+    font-weight: 650;
 }
 
 /* Botões de avançar status (um por próximo status permitido) */
 .avancar {
-  display: grid;
-  gap: 10px;
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid var(--linha);
+    display: grid;
+    gap: 10px;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--linha);
 }
 
 .avancar .campo {
-  margin-bottom: 4px;
+    margin-bottom: 4px;
 }
 
 .avancar__dica {
-  color: var(--suave);
-  font-size: 0.75rem;
+    color: var(--suave);
+    font-size: 0.75rem;
 }
 
 /* Texto de apoio no fim de um bloco */
 .nota-bloco {
-  margin-top: 12px;
-  color: var(--suave);
-  font-size: 0.8125rem;
+    margin-top: 12px;
+    color: var(--suave);
+    font-size: 0.8125rem;
 }
 
 /* 6. FORMULÁRIOS DO PAINEL ------------------------------------------------- */
 .formulario {
-  max-width: 920px;
+    max-width: 920px;
 }
 
 .formulario .bloco + .bloco {
-  margin-top: 20px;
+    margin-top: 20px;
 }
 
 .formulario .bloco > h2,
 .bloco > h2 {
-  margin-bottom: 16px;
+    margin-bottom: 16px;
 }
 
 /* Frase de apoio logo abaixo do título do bloco */
 .bloco__nota {
-  margin: -8px 0 16px;
-  color: var(--suave);
-  font-size: 0.8125rem;
+    margin: -8px 0 16px;
+    color: var(--suave);
+    font-size: 0.8125rem;
 }
 
 /* Seções extras abaixo do formulário principal (opções, receitas) */
 .formulario--extra {
-  margin-top: 28px;
+    margin-top: 28px;
 }
 
 .formulario--extra .bloco + .bloco {
-  margin-top: 20px;
+    margin-top: 20px;
 }
 
 /* Rodapé de um bloco com tabela (botões abaixo da tabela) */
 .bloco__rodape {
-  padding: 14px 22px 20px;
+    padding: 14px 22px 20px;
 }
 
 /* Bloco "Adicionar ..." no pé de uma tabela */
 .bloco--tabela > .expansivel {
-  margin: 0 22px 22px;
+    margin: 0 22px 22px;
 }
 
 /* Linhas de itens (ingredientes da receita, itens da compra) */
 .linhas-itens td {
-  padding: 8px 10px;
-  vertical-align: top;
+    padding: 8px 10px;
+    vertical-align: top;
 }
 
 .linhas-itens .entrada {
-  min-height: 38px;
-  font-size: 0.8125rem;
+    min-height: 38px;
+    font-size: 0.8125rem;
 }
 
 .linhas-itens select.entrada {
-  min-width: 200px;
+    min-width: 200px;
 }
 
 .linhas-itens input[type="number"].entrada {
-  min-width: 110px;
+    min-width: 110px;
 }
 
 .foto-atual {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 10px;
-  color: var(--suave);
-  font-size: 0.8125rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+    color: var(--suave);
+    font-size: 0.8125rem;
 }
 
 .foto-atual .foto {
-  width: 56px;
-  height: 56px;
-  border-radius: 10px;
-  font-size: 1.25rem;
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    font-size: 1.25rem;
 }
 
 /* Valor calculado mostrado como dica (preço sugerido) */
 .sugestao {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 4px;
-  padding: 12px 14px;
-  border-radius: var(--raio-p);
-  background: var(--rosa-claro);
-  font-size: 0.8125rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 4px;
+    padding: 12px 14px;
+    border-radius: var(--raio-p);
+    background: var(--rosa-claro);
+    font-size: 0.8125rem;
 }
 
 .sugestao strong {
-  color: var(--vinho);
-  font-size: 1rem;
+    color: var(--vinho);
+    font-size: 1rem;
 }
 
 /* Escala da receita ("calcular para N unidades") */
 .escala {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 10px;
-  margin-bottom: 16px;
-  padding: 14px;
-  border-radius: var(--raio-p);
-  background: var(--rosa-claro);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 14px;
+    border-radius: var(--raio-p);
+    background: var(--rosa-claro);
 }
 
 .escala .campo {
-  margin: 0;
+    margin: 0;
 }
 
 .escala input {
-  width: 140px !important;
+    width: 140px !important;
 }
 
 .escala__unidade {
-  padding-bottom: 12px;
-  color: var(--rosa-texto);
-  font-weight: 600;
+    padding-bottom: 12px;
+    color: var(--rosa-texto);
+    font-weight: 600;
 }
 
 /* 7. GRÁFICOS EM CSS PURO -------------------------------------------------- */
 /*
   Uma série só (uma cor), barras finas (até 24px) com ponta arredondada de 4px
-  e base reta, linhas de grade finas e discretas. O valor de cada barra vem no
+  e base reta, dicionarios de grade finas e discretas. O valor de cada barra vem no
   estilo inline "--v" (0 a 100), calculado no template. Todo gráfico tem uma
   tabela com os mesmos números logo abaixo (<details>), para ninguém depender
   só da imagem.
 */
 .grafico {
-  --serie: #ab5670;          /* passa no validador de cor contra o fundo #fffdfb */
-  --serie-foco: #8f4259;
-  --grade: var(--linha);
-  margin: 0;
+    --serie: #ab5670; /* passa no validador de cor contra o fundo #fffdfb */
+    --serie-foco: #8f4259;
+    --grade: var(--linha);
+    margin: 0;
 }
 
 /* Colunas (vendas por dia) */
 .colunas {
-  position: relative;
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
-  gap: 0 8px;
+    position: relative;
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 0 8px;
 }
 
 .colunas__eixo {
-  position: relative;
-  height: 220px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  color: var(--suave);
-  font-size: 0.6875rem;
-  font-variant-numeric: tabular-nums;
+    position: relative;
+    height: 220px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--suave);
+    font-size: 0.6875rem;
+    font-variant-numeric: tabular-nums;
 }
 
 .colunas__eixo li {
-  position: absolute;
-  right: 0;
-  transform: translateY(50%);
+    position: absolute;
+    right: 0;
+    transform: translateY(50%);
 }
 
-.colunas__marca--topo { bottom: 100%; }
-.colunas__marca--meio { bottom: 50%; }
-.colunas__marca--base { bottom: 0; }
+.colunas__marca--topo {
+    bottom: 100%;
+}
+
+.colunas__marca--meio {
+    bottom: 50%;
+}
+
+.colunas__marca--base {
+    bottom: 0;
+}
 
 .colunas__area {
-  position: relative;
-  display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 220px;
-  border-bottom: 1px solid var(--linha-forte);
-  /* linhas de grade em 50% e 100% */
-  background:
-    linear-gradient(var(--grade), var(--grade)) 0 0 / 100% 1px no-repeat,
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 220px;
+    border-bottom: 1px solid var(--linha-forte);
+    /* dicionarios de grade em 50% e 100% */
+    background: linear-gradient(var(--grade), var(--grade)) 0 0 / 100% 1px no-repeat,
     linear-gradient(var(--grade), var(--grade)) 0 50% / 100% 1px no-repeat;
 }
 
 .coluna {
-  position: relative;
-  display: flex;
-  flex: 1;
-  align-items: flex-end;
-  justify-content: center;
-  height: 100%;
-  min-width: 0;
+    position: relative;
+    display: flex;
+    flex: 1;
+    align-items: flex-end;
+    justify-content: center;
+    height: 100%;
+    min-width: 0;
 }
 
 .coluna__barra {
-  width: min(24px, 70%);
-  height: calc(var(--v) * 1%);
-  min-height: 1px;
-  border-radius: 4px 4px 0 0;
-  background: var(--serie);
+    width: min(24px, 70%);
+    height: calc(var(--v) * 1%);
+    min-height: 1px;
+    border-radius: 4px 4px 0 0;
+    background: var(--serie);
 }
 
 .coluna:hover .coluna__barra,
 .coluna:focus-visible .coluna__barra {
-  background: var(--serie-foco);
+    background: var(--serie-foco);
 }
 
 /* Valor que aparece ao passar o mouse ou focar a coluna */
 .coluna__valor {
-  position: absolute;
-  bottom: calc(var(--v) * 1% + 6px);
-  padding: 2px 6px;
-  border-radius: 6px;
-  background: var(--tinta);
-  color: #fff;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.12s ease;
+    position: absolute;
+    bottom: calc(var(--v) * 1% + 6px);
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: var(--tinta);
+    color: #fff;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease;
 }
 
 .coluna:hover .coluna__valor,
 .coluna:focus-visible .coluna__valor {
-  opacity: 1;
+    opacity: 1;
 }
 
 /* O maior valor fica sempre escrito (rótulo seletivo) */
 .coluna--maior .coluna__valor {
-  background: none;
-  color: var(--tinta);
-  opacity: 1;
+    background: none;
+    color: var(--tinta);
+    opacity: 1;
 }
 
 .coluna--maior:hover .coluna__valor,
 .coluna--maior:focus-visible .coluna__valor {
-  background: var(--tinta);
-  color: #fff;
+    background: var(--tinta);
+    color: #fff;
 }
 
 .colunas__datas {
-  display: flex;
-  gap: 2px;
-  margin: 6px 0 0;
-  padding: 0;
-  list-style: none;
-  grid-column: 2;
-  color: var(--suave);
-  font-size: 0.6875rem;
+    display: flex;
+    gap: 2px;
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+    grid-column: 2;
+    color: var(--suave);
+    font-size: 0.6875rem;
 }
 
 .colunas__datas li {
-  flex: 1;
-  min-width: 0;
-  text-align: center;
-  white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    white-space: nowrap;
 }
 
 /* Barras horizontais (ranking de produtos e insumos) */
 .barras {
-  display: grid;
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
 }
 
 .barra {
-  display: grid;
-  grid-template-columns: minmax(110px, 34%) minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  font-size: 0.8125rem;
+    display: grid;
+    grid-template-columns: minmax(110px, 34%) minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    font-size: 0.8125rem;
 }
 
 .barra__nome {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .barra__trilho {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
 }
 
 /* A barra cresce até o fim da pista menos o espaço do rótulo (11ch), então o valor nunca vaza do bloco */
 .barra__preenchimento {
-  flex: none;
-  width: calc((100% - 11ch - 8px) * var(--v) / 100);
-  min-width: 2px;
-  height: 14px;
-  border-radius: 0 4px 4px 0;
-  background: var(--serie);
+    flex: none;
+    width: calc((100% - 11ch - 8px) * var(--v) / 100);
+    min-width: 2px;
+    height: 14px;
+    border-radius: 0 4px 4px 0;
+    background: var(--serie);
 }
 
 .barra:hover .barra__preenchimento {
-  background: var(--serie-foco);
+    background: var(--serie-foco);
 }
 
 .barra__valor {
-  flex: none;
-  color: var(--tinta);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+    flex: none;
+    color: var(--tinta);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 /* Tabela "ver os números" embaixo de cada gráfico */
 .grafico__tabela {
-  margin-top: 16px;
+    margin-top: 16px;
 }
 
 .grafico__tabela > summary {
-  color: var(--rosa-texto);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  cursor: pointer;
+    color: var(--rosa-texto);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
 }
 
 .grafico__tabela .tabela {
-  margin-top: 10px;
+    margin-top: 10px;
 }
 
 @media print {
-  .lateral,
-  .lateral__fundo,
-  .painel-topo__menu,
-  .painel-topo__acoes,
-  .ferramentas {
-    display: none !important;
-  }
+    .lateral,
+    .lateral__fundo,
+    .painel-topo__menu,
+    .painel-topo__acoes,
+    .ferramentas {
+        display: none !important;
+    }
 
-  .painel {
-    display: block;
-  }
+    .painel {
+        display: block;
+    }
 
-  .painel-conteudo,
-  .painel-topo {
-    padding: 0;
-    max-width: none;
-  }
+    .painel-conteudo,
+    .painel-topo {
+        padding: 0;
+        max-width: none;
+    }
 }

@@ -12,6 +12,7 @@ from app.repositories.conexao_rep import fecharConexao, obterConexao
 from app.repositories.usuarios_rep import RepositorioUsuarios
 from app.services import autenticacao
 from app.services.autenticacao import Autenticacao
+from app.services.carrinho import Carrinho
 
 
 def paginaNaoEncontrada(erro):
@@ -30,8 +31,11 @@ def erroInterno(erro):
 
 
 def variaveisGlobais():
-    return {"usuario_atual": usuarioLogado(),
-            "qtd_carrinho": len(session.get("carrinho", []))}
+    """Variáveis disponíveis em todo template"""
+    return {
+        "usuario_atual": usuarioLogado(),
+        "qtd_carrinho": Carrinho(session).quantidadeDeItens(),
+    }
 
 
 def create_app(config=Config):
