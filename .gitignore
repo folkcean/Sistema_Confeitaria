@@ -22,3 +22,7 @@ venv/
 .venv/
 __pycache__/
 .pytest_cache/
+
+# Fotos enviadas pelo painel (ficam só na máquina de quem cadastrou)
+app/static/fotos/*
+!app/static/fotos/LEIA-ME.txt
