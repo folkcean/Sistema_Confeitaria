@@ -1,7 +1,8 @@
 """
 app / repositories / usuarios_rep.py
 
-Acesso às tabelas USUARIO, CLIENTE, FUNCIONARIO, ADMINISTRADOR e ENDERECO
+Acesso às tabelas USUARIO, FUNCIONARIO e ADMINISTRADOR, e a montagem de qualquer usuário
+(login, sessão). O que é só de cliente fica em clientes_rep.py
 """
 
 from psycopg.errors import UniqueViolation
@@ -79,30 +80,9 @@ class RepositorioUsuarios(RepositorioBase):
     # Mensagem usada quando o banco recusa por e-mail, telefone ou CPF repetido (colunas UNIQUE)
     MENSAGEM_DUPLICADO = "Já existe uma conta com este e-mail, telefone ou CPF."
 
-    def cadastrarCliente(self, cliente):
-        try:
-            with self._obter_conexao().transaction():
-                linha = self._umaLinha(
-                    "INSERT INTO usuario (nome, email, telefone, senha_hash, data_cadastro, ativo, cpf, data_nascimento, perfil) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'cliente') RETURNING id_usuario",
-                    (cliente.nome, cliente.email, cliente.telefone, cliente.senha_hash, cliente.data_cadastro,
-                     cliente.ativo, cliente.cpf_persistencia, cliente.data_nascimento),
-                )
-                cliente.atribuirID(linha["id_usuario"])
-                self._executar(
-                    "INSERT INTO cliente (id_usuario, apelido, cliente_vip, instagram, restricoes_alimentares, observacoes, preferencias) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                    (cliente.id, cliente.apelido, cliente.cliente_vip, cliente.instagram,
-                     cliente.restricoes_alimentares, cliente.observacoes, cliente.preferencias),
-                )
-        except UniqueViolation as erro:
-            # O with já fez ROLLBACK; aqui só troca o erro do banco por um erro do projeto
-            raise ValidacaoError(self.MENSAGEM_DUPLICADO) from erro
-        return cliente
-
     def cadastrarFuncionario(self, funcionario):
         try:
-            with self._obter_conexao().transaction():
+            with self._transacao():
                 linha = self._umaLinha(
                     "INSERT INTO usuario (nome, email, telefone, senha_hash, data_cadastro, ativo, cpf, data_nascimento, perfil) "
                     "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'funcionario') RETURNING id_usuario",
@@ -120,7 +100,7 @@ class RepositorioUsuarios(RepositorioBase):
 
     def cadastrarAdministrador(self, administrador):
         try:
-            with self._obter_conexao().transaction():
+            with self._transacao():
                 linha = self._umaLinha(
                     "INSERT INTO usuario (nome, email, telefone, senha_hash, data_cadastro, ativo, cpf, data_nascimento, perfil) "
                     "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'administrador') RETURNING id_usuario",
@@ -136,29 +116,21 @@ class RepositorioUsuarios(RepositorioBase):
             raise ValidacaoError(self.MENSAGEM_DUPLICADO) from erro
         return administrador
 
-    def atualizarCliente(self, cliente):
-        try:
-            with self._obter_conexao().transaction():
-                self._executar(
-                    "UPDATE usuario SET nome = %s, email = %s, telefone = %s, ativo = %s, data_nascimento = %s "
-                    "WHERE id_usuario = %s",
-                    (cliente.nome, cliente.email, cliente.telefone, cliente.ativo,
-                     cliente.data_nascimento, cliente.id),
-                )
-                self._executar(
-                    "UPDATE cliente SET apelido = %s, instagram = %s, restricoes_alimentares = %s, "
-                    "observacoes = %s, preferencias = %s "
-                    "WHERE id_usuario = %s",
-                    (cliente.apelido, cliente.instagram, cliente.restricoes_alimentares,
-                     cliente.observacoes, cliente.preferencias, cliente.id),
-                )
-        except UniqueViolation as erro:
-            # Trocar o e-mail ou telefone para um que outra pessoa já usa também cai aqui
-            raise ValidacaoError(self.MENSAGEM_DUPLICADO) from erro
-        return cliente
-
     def atualizarSenha(self, usuario):
+        """Grava o hash novo da senha (serve para os três perfis)"""
         self._executar(
             "UPDATE usuario SET senha_hash = %s WHERE id_usuario = %s",
             (usuario.senha_hash, usuario.id),
         )
+
+    def listarFuncionarios(self):
+        """Toda a equipe (ativos e desligados), em ordem de nome. Não inclui administradores"""
+        linhas = self._todasLinhas(
+            "SELECT * FROM usuario JOIN funcionario USING (id_usuario) ORDER BY nome",
+            (),
+        )
+
+        funcionarios = []
+        for linha in linhas:
+            funcionarios.append(Funcionario(**self._camposDeUsuario(linha)))
+        return funcionarios

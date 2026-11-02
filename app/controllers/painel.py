@@ -3,20 +3,26 @@ app / controllers / painel.py
 
 Área interna (funcionário e administrador): pedidos, estoque, receitas, produtos e gestão
 """
+import uuid
 from decimal import Decimal
+from pathlib import Path
 
-from flask import Blueprint, render_template, request, flash, redirect, url_for, abort
+from flask import Blueprint, render_template, request, flash, redirect, url_for, abort, current_app
 
+from app.controllers.loja import repo_produtos
 from app.controllers.sessao import conferirEquipe, soAdmin, usuarioLogado
 from app.exceptions import ValidacaoError, AcessoNegadoError
-from app.models import Insumo, Estoque, Perfil
+from app.models import Insumo, Estoque, Perfil, Produto, OpcaoPersonalizacao, Cliente
 from app.repositories.conexao_rep import obterConexao
 from app.repositories.insumos_rep import RepositorioInsumos
+from app.repositories.produtos_rep import RepositorioProdutos
+from app.repositories.usuarios_rep import RepositorioUsuarios
 from app.validators.campos import garantir
 
 painel = Blueprint("painel", __name__, url_prefix="/painel")
 
 painel.before_request(conferirEquipe)
+
 
 # Início
 @painel.get("")
@@ -66,73 +72,204 @@ def pedidoCancelarConfirmado(id):
 
 
 # Produtos
+repo_produtos = RepositorioProdutos(obterConexao)
+
+
 @painel.get("/produtos")
 def produtos():
     """Lista de produtos"""
-    return render_template("painel/produtos.html")
+    filtro = request.args.get("filtro", "")
+    busca = request.args.get("q", "")
+
+    abas = {
+        "": (None, True),
+        "pronta_entrega": ("pronta_entrega", True),
+        "encomenda": ("encomenda", True),
+        "inativos": (None, False),
+    }
+
+    disponibilidade, ativos = abas.get(filtro, abas[""])
+
+    produtos = repo_produtos.listar_ativo_exclusivo(disponibilidade, busca, ativos)
+
+    return render_template("painel/produtos.html", produtos=produtos, filtro=filtro, busca=busca)
 
 
 @painel.get("/produtos/novo")
 @soAdmin
 def produtoNovo():
     """Formulário de produto novo"""
-    return render_template("painel/produto_form.html")
+    return render_template("painel/produto_form.html", produto=None)
 
 
 @painel.post("/produtos/novo")
 @soAdmin
 def produtoNovoSalvar():
     """Cadastra o produto"""
-    return "em construção"
+    foto = request.files.get("foto")
+    try:
+        caminho_foto = _caminhoDaFoto(foto)
+        produto = Produto(
+            nome=request.form.get("nome"),
+            preco_base=request.form.get("preco_base"),
+            descricao=request.form.get("descricao", ""),
+            disponibilidade=request.form.get("disponibilidade"),
+            custo_mao_de_obra=request.form.get("custo_mao_de_obra"),
+            margem_lucro=request.form.get("margem_lucro"),
+            custo_embalagem=request.form.get("custo_embalagem"),
+            custo_indireto=request.form.get("custo_indireto"),
+            percentual_perda=request.form.get("percentual_perda"),
+            antecedencia_horas=request.form.get("antecedencia_horas", type=int),
+            tamanho=request.form.get("tamanho", ""),
+            caminho_foto=caminho_foto,
+        )
+        repo_produtos.salvar(produto)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return render_template("painel/produto_form.html", produto=None), 400
+
+    _salvarFoto(foto, caminho_foto)
+    flash(f"{produto.nome} cadastrado.", "sucesso")
+    return redirect(url_for("painel.produtoEditar", id=produto.id))
 
 
 @painel.get("/produtos/<int:id>")
 @soAdmin
 def produtoEditar(id):
-    """Formulário de edição do produto"""
-    return "em construção"
+    """Formulário de edição do produto (com as opções de personalização)"""
+    produto = repo_produtos.buscarPorId(id) or abort(404)
+    return render_template("painel/produto_form.html", produto=produto)
 
 
 @painel.post("/produtos/<int:id>")
 @soAdmin
 def produtoEditarSalvar(id):
-    """Salva a edição do produto"""
-    return "em construção"
+    """Salva a edição do produto (e troca a foto, se vier uma nova)"""
+    produto = repo_produtos.buscarPorId(id) or abort(404)
+    foto = request.files.get("foto")
+    try:
+        # Cada alterar* do model valida o próprio campo
+        produto.alterarNome(request.form.get("nome"))
+        produto.alterarDescricao(request.form.get("descricao", ""))
+        produto.alterarDisponibilidade(request.form.get("disponibilidade"))
+        produto.alterarTamanho(request.form.get("tamanho", ""))
+        produto.alterarAntecedencia(request.form.get("antecedencia_horas", type=int))
+        produto.alterarPreco(request.form.get("preco_base"))
+        produto.alterarCustoMaoDeObra(request.form.get("custo_mao_de_obra"))
+        produto.alterarCustoEmbalagem(request.form.get("custo_embalagem"))
+        produto.alterarCustoIndireto(request.form.get("custo_indireto"))
+        produto.alterarPercentualPerda(request.form.get("percentual_perda"))
+        produto.alterarMargemLucro(request.form.get("margem_lucro"))
+        # Caminho da foto NOVA ("" se não veio arquivo); sem foto nova, fica a que já estava
+        caminho_foto_nova = _caminhoDaFoto(foto)
+        produto.alterarFoto(caminho_foto_nova or produto.caminho_foto)
+        repo_produtos.salvar(produto)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return render_template("painel/produto_form.html", produto=produto), 400
+
+    _salvarFoto(foto, caminho_foto_nova)
+    flash(f"{produto.nome} atualizado.", "sucesso")
+    return redirect(url_for("painel.produtoEditar", id=id))
 
 
 @painel.get("/produtos/<int:id>/desativar")
 @soAdmin
 def produtoDesativar(id):
     """Pergunta antes de tirar o produto do cardápio"""
-    return "em construção"
+    produto = repo_produtos.buscarPorId(id) or abort(404)
+    return render_template(
+        "confirmar.html",
+        titulo=f"Tirar {produto.nome} do cardápio?",
+        mensagem="O produto some da loja, mas continua no histórico dos pedidos.",
+        acao=url_for("painel.produtoDesativar", id=id),
+        voltar=url_for("painel.produtos"),
+        rotulo_botao="Tirar do cardápio",
+        perigo=True,
+    )
 
 
 @painel.post("/produtos/<int:id>/desativar")
 @soAdmin
 def produtoDesativarConfirmado(id):
-    """Tira o produto do cardápio"""
-    return "em construção"
+    """Tira o produto do cardápio e oferece desfazer (que reativa)"""
+    produto = repo_produtos.buscarPorId(id) or abort(404)
+    try:
+        # alternarAtivo INVERTE: sem esta conferência, "desativar" um inativo o reativaria
+        garantir(produto.ativo, ValidacaoError(f"{produto.nome} já está fora do cardápio."))
+        produto.alternarAtivo()
+        repo_produtos.salvar(produto)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return redirect(url_for("painel.produtos"))
+
+    url_desfazer = url_for("painel.produtoReativar", id=id)
+    flash(f"{produto.nome} saiu do cardápio.", "desfazer:" + url_desfazer)
+    return redirect(url_for("painel.produtos"))
 
 
 @painel.post("/produtos/<int:id>/reativar")
 @soAdmin
 def produtoReativar(id):
-    """Volta o produto para o cardápio"""
-    return "em construção"
+    """Volta o produto para o cardápio (aba Inativos e o "desfazer" da desativação)"""
+    produto = repo_produtos.buscarPorId(id) or abort(404)
+    try:
+        garantir(not produto.ativo, ValidacaoError(f"{produto.nome} já está no cardápio."))
+        produto.alternarAtivo()
+        repo_produtos.salvar(produto)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return redirect(url_for("painel.produtos"))
+
+    flash(f"{produto.nome} voltou ao cardápio.", "sucesso")
+    return redirect(url_for("painel.produtos"))
 
 
 @painel.post("/produtos/<int:id>/opcoes")
 @soAdmin
 def opcaoAdicionar(id):
     """Acrescenta uma opção de personalização ao produto"""
-    return "em construção"
+    produto = repo_produtos.buscarPorId(id) or abort(404)
+    try:
+        opcao = OpcaoPersonalizacao(
+            nome=request.form.get("nome"),
+            custo_adicional=request.form.get("custo_adicional"),
+            descricao=request.form.get("descricao", ""),
+        )
+        # Vincula ao produto (é isso que preenche opcao.produto_id) e grava
+        produto.adicionarOpcao(opcao)
+        repo_produtos.salvarOpcao(opcao)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return render_template("painel/produto_form.html", produto=produto), 400
+
+    flash(f"Opção {opcao.nome} adicionada.", "sucesso")
+    return redirect(url_for("painel.produtoEditar", id=id))
 
 
-@painel.post("/opcoes/<int:id>/alternar")
-@soAdmin
+def _opcaoDoProduto(produto, id):
+    def _opcaoDoProduto(produto, id_opcao):
+        """A opção com esse id dentro do produto, ou 404"""
+        opcoes_por_id = {}
+        for opcao in produto.opcoes:
+            opcoes_por_id[opcao.id] = opcao
+        return opcoes_por_id.get(id_opcao) or abort(404)
+
+    pass
+
+
 def opcaoAlternar(id):
-    """Liga ou desliga uma opção"""
-    return "em construção"
+    """Liga ou desliga uma opção (o botão mostra "Ligar" ou "Desligar" conforme o estado)"""
+    # O id da URL é o da OPÇÃO: o repositório acha o produto dono, já com as opções
+    produto = repo_produtos.buscarPorOpcao(id) or abort(404)
+    opcao = _opcaoDoProduto(produto, id)
+
+    opcao.alternarAtivo()
+    repo_produtos.salvarOpcao(opcao)
+
+    estado = {True: "ligada", False: "desligada"}[opcao.ativo]
+    flash(f"Opção {opcao.nome} {estado}.", "sucesso")
+    return redirect(url_for("painel.produtoEditar", id=produto.id))
 
 
 @painel.post("/produtos/<int:id>/receitas")
@@ -212,6 +349,8 @@ def receitaReativar(id):
 
 
 repo_estoque = RepositorioInsumos(obterConexao)
+
+
 # Estoque
 @painel.get("/estoque")
 def estoque():
@@ -541,74 +680,181 @@ def fornecedorReativar(id):
 
 
 # Clientes (Tarefa 9)
+repo_usuarios = RepositorioUsuarios(obterConexao)
+
+
+def _buscarUsuario(id_usuario, perfil):
+    """O usuário com esse id, se for do perfil pedido; senão 404"""
+    usuario = repo_usuarios.buscarPorId(id_usuario) or abort(404)
+    # `and`: se o perfil confere, o resultado é o próprio usuário; se não, False, e o `or` chama o abort
+    return (usuario.perfil is perfil and usuario) or abort(404)
+
+
+def _clienteDoFormulario(**extras):
+    """
+    Monta um Cliente com os campos do cliente_form.html (o construtor valida todos).
+    `extras` são os parâmetros que não vêm da tela (na edição: id, ativo, data de cadastro)
+    """
+    return Cliente(
+        nome=request.form.get("nome"),
+        apelido=request.form.get("apelido", ""),
+        telefone=request.form.get("telefone"),
+        email=request.form.get("email"),
+        cpf=request.form.get("cpf"),
+        data_nascimento=request.form.get("data_nascimento"),
+        instagram=request.form.get("instagram", ""),
+        restricoes_alimentares=request.form.get("restricoes_alimentares", ""),
+        preferencias=request.form.get("preferencias", ""),
+        observacoes=request.form.get("observacoes", ""),
+        cliente_vip="cliente_vip" in request.form,
+        **extras,
+    )
+
+
 @painel.get("/clientes")
 @soAdmin
 def clientes():
-    """Lista de clientes"""
-    return "em construção"
+    """Lista de clientes com abas (ativos, VIP, inativos) e busca por nome ou telefone"""
+    filtro = request.args.get("filtro", "")
+    busca = request.args.get("q", "")
+    lista = repo_usuarios.listarClientes(filtro=filtro, busca=busca)
+    return render_template("painel/clientes.html", clientes=lista, filtro=filtro, busca=busca)
 
 
 @painel.get("/clientes/<int:id>")
 @soAdmin
 def cliente(id):
     """Ficha do cliente"""
-    return "em construção"
+    cliente_atual = _buscarUsuario(id, Perfil.CLIENTE)
+    # consultarCliente: o administrador recebe os dados completos (o CPF passa pelo obterCpf)
+    dados = usuarioLogado().consultarCliente(cliente_atual)
+    # pedidos: histórico do cliente, quando o Pedido existir (Tarefa 10)
+    return render_template("painel/cliente.html", cliente=cliente_atual, dados=dados, pedidos=[])
 
 
 @painel.get("/clientes/novo")
 @soAdmin
 def clienteNovo():
-    """Formulário de cliente novo"""
-    return render_template("painel/cliente_form.html")
+    """Formulário de cliente novo (ex.: quem pede pelo WhatsApp)"""
+    return render_template("painel/cliente_form.html", cliente=None, dados=None)
 
 
 @painel.post("/clientes/novo")
 @soAdmin
 def clienteNovoSalvar():
-    """Cadastra o cliente"""
-    return "em construção"
+    """Cadastra o cliente. Sem senha: ele pode criar a conta depois, se quiser"""
+    try:
+        novo = _clienteDoFormulario()
+        repo_usuarios.cadastrarCliente(novo)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return render_template("painel/cliente_form.html", cliente=None, dados=None), 400
+
+    flash(f"{novo.nome} cadastrado.", "sucesso")
+    return redirect(url_for("painel.cliente", id=novo.id))
 
 
 @painel.get("/clientes/<int:id>/editar")
 @soAdmin
 def clienteEditar(id):
-    """Formulário de edição do cliente"""
-    return "em construção"
+    """Formulário de edição, preenchido com os dados completos"""
+    cliente_atual = _buscarUsuario(id, Perfil.CLIENTE)
+    dados = usuarioLogado().consultarCliente(cliente_atual)
+    return render_template("painel/cliente_form.html", cliente=cliente_atual, dados=dados)
 
 
 @painel.post("/clientes/<int:id>/editar")
 @soAdmin
 def clienteEditarSalvar(id):
-    """Salva a edição do cliente"""
-    return "em construção"
+    """
+    Salva a edição. O CPF não tem setter no model, então o cliente é montado de novo com os
+    dados do formulário, mantendo o que não vem da tela (id, ativo, data de cadastro)
+    """
+    cliente_atual = _buscarUsuario(id, Perfil.CLIENTE)
+    try:
+        editado = _clienteDoFormulario(
+            id_usuario=cliente_atual.id,
+            ativo=cliente_atual.ativo,
+            data_cadastro=cliente_atual.data_cadastro,
+        )
+        # O atualizarCliente não mexe na senha: ela continua a que estava no banco
+        repo_usuarios.atualizarCliente(editado)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        dados = usuarioLogado().consultarCliente(cliente_atual)
+        return render_template("painel/cliente_form.html", cliente=cliente_atual, dados=dados), 400
+
+    flash(f"{editado.nome} atualizado.", "sucesso")
+    return redirect(url_for("painel.cliente", id=id))
 
 
 @painel.post("/clientes/<int:id>/vip")
 @soAdmin
 def clienteVip(id):
     """Marca ou desmarca o cliente como VIP"""
-    return "em construção"
+    cliente_atual = _buscarUsuario(id, Perfil.CLIENTE)
+    # O método escolhido depende do estado atual (sem if): VIP perde, não VIP ganha
+    alternar = {
+        True: cliente_atual.removerVip,
+        False: cliente_atual.promoverVip,
+    }
+    alternar[cliente_atual.cliente_vip]()
+    repo_usuarios.atualizarCliente(cliente_atual)
+
+    mensagem = {True: "agora é VIP", False: "não é mais VIP"}[cliente_atual.cliente_vip]
+    flash(f"{cliente_atual.nome} {mensagem}.", "sucesso")
+    return redirect(url_for("painel.cliente", id=id))
 
 
 @painel.get("/clientes/<int:id>/desativar")
 @soAdmin
 def clienteDesativar(id):
     """Pergunta antes de desativar o cliente"""
-    return "em construção"
+    cliente_atual = _buscarUsuario(id, Perfil.CLIENTE)
+    return render_template(
+        "confirmar.html",
+        titulo=f"Desativar {cliente_atual.nome}?",
+        mensagem="O cliente não consegue mais entrar na loja, mas o histórico de pedidos continua.",
+        acao=url_for("painel.clienteDesativar", id=id),
+        voltar=url_for("painel.cliente", id=id),
+        rotulo_botao="Desativar",
+        perigo=True,
+    )
 
 
 @painel.post("/clientes/<int:id>/desativar")
 @soAdmin
 def clienteDesativarConfirmado(id):
-    """Desativa o cliente"""
-    return "em construção"
+    """Desativa o cliente e oferece desfazer (que reativa)"""
+    cliente_atual = _buscarUsuario(id, Perfil.CLIENTE)
+    try:
+        garantir(cliente_atual.ativo, ValidacaoError(f"{cliente_atual.nome} já está inativo."))
+        cliente_atual.desativar()
+        repo_usuarios.atualizarCliente(cliente_atual)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return redirect(url_for("painel.cliente", id=id))
+
+    url_desfazer = url_for("painel.clienteReativar", id=id)
+    flash(f"{cliente_atual.nome} desativado.", "desfazer:" + url_desfazer)
+    return redirect(url_for("painel.cliente", id=id))
 
 
 @painel.post("/clientes/<int:id>/reativar")
 @soAdmin
 def clienteReativar(id):
     """Reativa o cliente"""
-    return "em construção"
+    cliente_atual = _buscarUsuario(id, Perfil.CLIENTE)
+    try:
+        garantir(not cliente_atual.ativo, ValidacaoError(f"{cliente_atual.nome} já está ativo."))
+        cliente_atual.ativar()
+        repo_usuarios.atualizarCliente(cliente_atual)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return redirect(url_for("painel.cliente", id=id))
+
+    flash(f"{cliente_atual.nome} reativado.", "sucesso")
+    return redirect(url_for("painel.cliente", id=id))
 
 
 # Funcionários
@@ -681,3 +927,32 @@ def relatorios():
 def relatorioExportar():
     """Os mesmos relatórios em CSV"""
     return "em construção"
+
+
+EXTENSOES_FOTO = (".jpg", ".jpeg", ".png", ".webp")
+
+
+def _caminhoDaFoto(arquivo):
+    """
+    Caminho (relativo a static/) onde a foto vai ser salva, ou "" se não veio foto.
+    Recusa extensão que não seja de imagem
+    """
+    # FileStorage sem arquivo escolhido é falso: o `and` devolve ele mesmo e o `or` troca por ""
+    return (arquivo and _nomeNovoDaFoto(arquivo)) or ""
+
+
+def _nomeNovoDaFoto(arquivo):
+    """Gera um nome único para a foto, mantendo a extensão"""
+    extensao = Path(arquivo.filename).suffix.lower()
+    garantir(
+        extensao in EXTENSOES_FOTO,
+        ValidacaoError("A foto precisa ser JPG, PNG ou WEBP."),
+    )
+    return f"fotos/{uuid.uuid4().hex}{extensao}"
+
+
+def _salvarFoto(arquivo, caminho):
+    """Grava o arquivo em static/<caminho> (não faz nada se não veio foto)"""
+    destino = Path(current_app.static_folder) / caminho
+    # `caminho and ...`: sem foto (caminho vazio), não grava nada
+    caminho and arquivo.save(destino)

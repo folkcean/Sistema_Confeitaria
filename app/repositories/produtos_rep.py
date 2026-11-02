@@ -22,6 +22,34 @@ class RepositorioProdutos(RepositorioBase):
     )
     MENSAGEM_OPCAO_INVALIDA = "Algum valor da opção de personalização não é aceito."
 
+    def listar_ativo_exclusivo(self, disponibilidade=None, busca="", ativo=True):
+        """
+        Produtos filtrados, em ordem de nome, cada um com as suas opções
+
+        disponibilidade: None (todas), "pronta_entrega" ou "encomenda"
+        busca: texto que o nome precisa conter ("" = sem filtro)
+        ativo: True só os ativos (loja); False só os inativos; None todos
+        """
+        padrao_busca = "%" + busca + "%"
+
+        sql = (
+            "SELECT * FROM produto "
+            "WHERE (%s::text IS NULL OR disponibilidade = %s) "
+            "AND nome ILIKE %s "
+            "AND (%s::boolean IS NULL OR ativo = %s) "
+            "ORDER BY nome"
+        )
+        parametros = (disponibilidade, disponibilidade, padrao_busca, ativo, ativo)
+        linhas = self._todasLinhas(sql, parametros)
+
+        produtos = []
+        for linha in linhas:
+            produto = Produto(**linha)
+            produtos.append(produto)
+
+        self._carregarOpcoes(produtos)
+        return produtos
+
     def listar(self, disponibilidade: object = None, busca: object = "", ativos: object = True) -> list[Any]:
         """
         Produtos filtrados, em ordem de nome, cada um com as suas opções
