@@ -7,12 +7,14 @@ app / controllers / loja.py
 from flask import Blueprint, render_template, request, abort, session, redirect, url_for, flash
 
 from app import usuarioLogado
-from app.controllers.sessao import soCliente
+from app.controllers.sessao import soCliente, repositorioUsuarios
 from app.exceptions import ValidacaoError
+from app.models import Endereco
 from app.repositories.conexao_rep import obterConexao
 from app.repositories.produtos_rep import RepositorioProdutos
 from app.services.carrinho import Carrinho
 from app.validators.campos import Validador, garantir
+from app.validators.senha import ValidadorSenha
 
 loja = Blueprint("loja", __name__, url_prefix="/loja")
 
@@ -162,49 +164,167 @@ def pedido(id):
 
 
 # Perfil (Tarefa 6)
+# Campos do formulário "Meus dados": os nomes são os mesmos dos setters do Cliente
+CAMPOS_MEUS_DADOS = (
+    "nome",
+    "apelido",
+    "telefone",
+    "email",
+    "data_nascimento",
+    "instagram",
+    "restricoes_alimentares",
+    "preferencias",
+)
+
+
 @loja.get("/perfil")
 @soCliente
 def perfil():
+    """Meu perfil (o usuario_atual já chega no template pelo context_processor)"""
     return render_template("loja/perfil.html")
 
 
 @loja.get("/perfil/dados")
+@soCliente
 def meusDados():
-    """Formulário com os dados do cliente"""
-    return render_template("loja/meus_dados.html")
+    """Formulário para editar os dados do cliente e trocar a senha"""
+    return _telaMeusDados()
 
 
 @loja.post("/perfil/dados")
+@soCliente
 def meusDadosSalvar():
-    """Salva os dados do cliente"""
-    return "em construção"
+    """Aplica os campos do formulário pelos setters e grava"""
+    cliente = usuarioLogado()
+    try:
+        # No model o e-mail é opcional, mas o login depende dele
+        Validador.email(request.form.get("email"))
+        # Cada setter valida o próprio campo (e levanta ValidacaoError se não servir)
+        for nome_do_campo in CAMPOS_MEUS_DADOS:
+            setattr(cliente, nome_do_campo, request.form.get(nome_do_campo))
+        repositorioUsuarios().atualizarCliente(cliente)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return _telaMeusDados(), 400
+
+    flash("Dados atualizados.", "sucesso")
+    return redirect(url_for("loja.perfil"))
 
 
 @loja.post("/perfil/senha")
+@soCliente
 def alterarSenha():
-    """Troca a senha do cliente"""
-    return "em construção"
+    """Troca a senha: confere a atual, a confirmação e a força da nova"""
+    cliente = usuarioLogado()
+    senha_atual = request.form.get("senha_atual", "")
+    nova_senha = request.form.get("nova_senha", "")
+    confirmar_senha = request.form.get("confirmar_senha", "")
+    try:
+        garantir(cliente.verificarSenha(senha_atual), ValidacaoError("A senha atual não confere."))
+        garantir(nova_senha == confirmar_senha, ValidacaoError("As senhas novas não conferem."))
+        # definirSenha valida a força (SenhaFracaError) e gera o hash novo
+        cliente.definirSenha(nova_senha)
+        repositorioUsuarios().atualizarSenha(cliente)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return _telaMeusDados(), 400
+
+    flash("Senha alterada.", "sucesso")
+    return redirect(url_for("loja.perfil"))
 
 
 @loja.get("/perfil/enderecos")
+@soCliente
 def enderecos():
-    """Endereços do cliente"""
-    return render_template("loja/enderecos.html")
+    """Endereços do cliente, com o formulário para cadastrar outro"""
+    return render_template("loja/enderecos.html", enderecos=usuarioLogado().enderecos)
 
 
 @loja.post("/perfil/enderecos/novo")
+@soCliente
 def enderecoAdicionar():
-    """Cadastra um endereço novo"""
-    return "em construção"
+    """Cadastra um endereço novo para o cliente"""
+    cliente = usuarioLogado()
+    try:
+        endereco = Endereco(
+            logradouro=request.form.get("logradouro"),
+            numero=request.form.get("numero"),
+            bairro=request.form.get("bairro"),
+            cidade=request.form.get("cidade"),
+            cep=request.form.get("cep"),
+            complemento=request.form.get("complemento", ""),
+            apelido=request.form.get("apelido", ""),
+        )
+        # Vincula ao cliente (é isso que preenche endereco.id_cliente) e grava
+        cliente.adicionarEndereco(endereco)
+        repositorioUsuarios().salvarEndereco(endereco)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        pagina = render_template("loja/enderecos.html", enderecos=cliente.enderecos)
+        return pagina, 400
+
+    flash("Endereço cadastrado.", "sucesso")
+    return redirect(url_for("loja.enderecos"))
 
 
 @loja.get("/perfil/enderecos/<int:id>/remover")
+@soCliente
 def enderecoRemover(id):
     """Pergunta antes de remover o endereço"""
-    return "em construção"
+    endereco = _enderecoDoCliente(usuarioLogado(), id)
+    return render_template(
+        "confirmar.html",
+        titulo="Remover endereço?",
+        mensagem=endereco.formatado(),
+        acao=url_for("loja.enderecoRemover", id=id),
+        voltar=url_for("loja.enderecos"),
+        rotulo_botao="Remover",
+        perigo=True,
+    )
 
 
 @loja.post("/perfil/enderecos/<int:id>/remover")
+@soCliente
 def enderecoRemoverConfirmado(id):
-    """Remove o endereço depois da confirmação"""
-    return "em construção"
+    """Remove o endereço (só se for do cliente logado)"""
+    cliente = usuarioLogado()
+    endereco = _enderecoDoCliente(cliente, id)
+    try:
+        # Primeiro o banco: se um pedido usou o endereço, ele recusa e nada muda
+        repositorioUsuarios().removerEndereco(endereco)
+        cliente.removerEndereco(endereco)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return redirect(url_for("loja.enderecos"))
+
+    flash("Endereço removido.", "sucesso")
+    return redirect(url_for("loja.enderecos"))
+
+
+def _telaMeusDados():
+    """O formulário de meus dados (usado no GET e na volta dos erros)"""
+    return render_template(
+        "loja/meus_dados.html",
+        cliente=usuarioLogado(),
+        regras_senha=_regrasSenha(),
+    )
+
+
+def _regrasSenha():
+    """Os textos das regras de senha, para a tela mostrar o que o validador cobra"""
+    regras_senha = []
+    for regra in ValidadorSenha.REGRAS:
+        regras_senha.append(regra.descricao)
+    return regras_senha
+
+
+def _enderecoDoCliente(cliente, id_endereco):
+    """
+    O endereço com esse id, se for do cliente; senão 404.
+    Procurar só nos endereços DELE é o que impede alguém de remover o endereço de outro
+    pelo número na URL
+    """
+    enderecos_por_id = {}
+    for endereco in cliente.enderecos:
+        enderecos_por_id[endereco.id] = endereco
+    return enderecos_por_id.get(id_endereco) or abort(404)

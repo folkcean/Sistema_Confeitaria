@@ -130,4 +130,4 @@ def sair():
     """Encerra a sessão e volta ao início"""
     session.clear()
     flash("Você saiu da sua conta.", "info")
-    return redirect(url_for("acesso.inicio"))
+    return predirect(url_for("acesso.inicio"))

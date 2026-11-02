@@ -3,6 +3,7 @@ app / repositories / base.py
 
 O que todo repositório tem em comum: receber a conexão e executar SQL
 """
+from typing import Any
 
 from psycopg.rows import dict_row
 
@@ -18,7 +19,7 @@ class RepositorioBase:
         """Bloco em que os comandos são gravados juntos ou desfeitos juntos"""
         return self._obter_conexao().transaction()
 
-    def _umaLinha(self, sql, parametros):
+    def _umaLinha(self, sql: object, parametros: object) -> Any:
         """Primeira linha do resultado como dicionário, ou None"""
         with self._obter_conexao().cursor(row_factory=dict_row) as cursor:
             cursor.execute(sql, parametros)
