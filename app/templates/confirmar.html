@@ -1,0 +1,42 @@
+{#
+  confirmar.html
+  Página genérica de confirmação antes de ações importantes (requisito 11.6):
+  excluir, desativar, cancelar, receber compra etc.
+
+  Fluxo sugerido (sem JavaScript):
+    1. O botão da lista é um LINK (GET) para a rota da ação;
+    2. no GET, a rota renderiza esta página;
+    3. o botão daqui faz o POST na mesma rota (ou em `acao`), que executa e redireciona.
+
+  Variáveis:
+    titulo        "Desativar produto?"
+    mensagem      "Bolo de morango sai do cardápio, mas continua no histórico."
+    acao          URL que recebe o POST (ex.: url_for("painel.produtoDesativar", id=3))
+    voltar        URL do botão Voltar
+    rotulo_botao  texto do botão que confirma (padrão: "Confirmar")
+    perigo        true deixa o botão vermelho (exclusões e cancelamentos)
+    detalhe       (opcional) texto menor embaixo da mensagem
+#}
+{% extends "base.html" %}
+{% import "_icones.html" as i %}
+{% import "_macros.html" as m %}
+
+{% block titulo %}{{ titulo|default("Confirmar") }}{% endblock %}
+{% block classe_corpo %}pagina-confirmacao{% endblock %}
+
+{% block corpo %}
+<main class="pagina-centro">
+  <div class="cartao-centro{{ ' cartao-centro--perigo' if perigo }}">
+    <div class="cartao-centro__icone">{{ i.icone("alerta" if perigo else "info") }}</div>
+    <h1>{{ titulo|default("Confirmar ação") }}</h1>
+    {% if mensagem %}<p>{{ mensagem }}</p>{% endif %}
+    {% if detalhe %}<p class="texto-pequeno">{{ detalhe }}</p>{% endif %}
+
+    <form method="post" action="{{ acao|default('') }}" class="acoes">
+      {{ m.csrf() }}
+      <a class="botao botao--secundario" href="{{ voltar|default(request.referrer or url_for('acesso.inicio')) }}">Voltar</a>
+      <button class="botao{{ ' botao--perigo' if perigo }}" type="submit">{{ rotulo_botao|default("Confirmar") }}</button>
+    </form>
+  </div>
+</main>
+{% endblock %}

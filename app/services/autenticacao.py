@@ -60,10 +60,10 @@ class Autenticacao:
     VALIDADE_TOKEN_SEGUNDOS = 8 * 3600  # 8 horas
 
     def __init__(
-        self,
-        repositorio: RepositorioUsuarios,
-        chave_secreta: str,
-        controle: ControleLogin | None = None,
+            self,
+            repositorio: RepositorioUsuarios,
+            chave_secreta: str,
+            controle: ControleLogin | None = None,
     ):
         """A chave secreta vem do .env e precisa ter ao menos 16 caracteres"""
         garantir(
@@ -111,6 +111,8 @@ class Autenticacao:
         """Confere assinatura e validade (8h). SignatureExpired é subclasse de BadSignature,
         por isso precisa vir primeiro"""
         try:
+            # _serializer.loads verifica a assinatura do token e se a validade do tempo não estourou.
+            # quando os dois passam ele retorna um dicionário do tipo {"uid": id_usuario, "perfil": tipo-de-perfil}
             return self._serializer.loads(token, max_age=self.VALIDADE_TOKEN_SEGUNDOS)
         except SignatureExpired as erro:
             raise AutenticacaoError("Sessão expirada. Faça login novamente.") from erro

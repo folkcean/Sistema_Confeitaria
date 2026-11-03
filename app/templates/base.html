@@ -1,0 +1,39 @@
+{#
+  base.html
+  Esqueleto de TODAS as páginas. Ninguém renderiza este arquivo direto:
+  os layouts estendem dele (acesso/base.html, loja/base.html, painel/base.html).
+
+  Blocos:
+    titulo        texto da aba do navegador (ex.: "Pedidos")
+    estilos       CSS extra da área (use {{ super() }} para manter o que já existe)
+    classe_corpo  classe do <body> (loja, painel, acesso)
+    corpo         a página em si
+    scripts       ESPAÇO RESERVADO para JavaScript (o projeto não usa; ver abaixo)
+
+  Arquivos estáticos ficam em static/ e são chamados com url_for("static", filename=...).
+#}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#572f35">
+  <title>{% block titulo %}Confeitaria{% endblock %} | Dolce Bea</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  {% block estilos %}{% endblock %}
+</head>
+<body class="{% block classe_corpo %}{% endblock %}">
+  {% block corpo %}{% endblock %}
+
+  {#
+    ESPAÇO RESERVADO PARA JAVASCRIPT.
+    Todas as telas funcionam só com HTML, CSS e formulários do Flask.
+    Se um dia quiserem algo que só JS faz (mostrar a senha digitada, atualizar o
+    total do produto enquanto marca opções, imprimir com um clique), criem
+    static/js/<arquivo>.js e incluam na própria página assim:
+        {% block scripts %}<script src="{{ url_for('static', filename='js/arquivo.js') }}"></script>{% endblock %}
+  #}
+  {% block scripts %}{% endblock %}
+</body>
+</html>

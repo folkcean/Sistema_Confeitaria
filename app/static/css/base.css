@@ -1,0 +1,1097 @@
+/*
+  static/css/base.css
+
+  Estilos compartilhados por todas as páginas (loja, painel e acesso).
+  Sem frameworks: só CSS puro. As cores e medidas ficam em variáveis (:root),
+  então trocar a identidade visual é mexer só no bloco abaixo.
+
+  Ordem do arquivo:
+    1. Variáveis (cores, fontes, medidas)
+    2. Base (reset e tipografia)
+    3. Marca (logo + nome)
+    4. Botões
+    5. Formulários
+    6. Selos de status
+    7. Mensagens (flash do Flask)
+    8. Abas
+    9. Componentes de conteúdo (vazio, dados, etapas, expansível, foto)
+   10. Páginas centralizadas (confirmação e erro)
+   11. Utilitários, movimento reduzido e impressão
+*/
+
+/* 1. VARIÁVEIS ------------------------------------------------------------ */
+:root {
+  /* Cores da marca (tiradas do login da Dolce Bea) */
+  --vinho: #572f35;
+  --vinho-escuro: #42242a;
+  --rosa: #bd7788;
+  --rosa-escuro: #a85e72;      /* fundo de botão: texto branco fica com contraste 4,7:1 */
+  --rosa-texto: #93505f;       /* links e destaques sobre fundo claro (5:1) */
+  --rosa-claro: #f5e6e8;       /* fundos suaves */
+  --rosa-borda: #dcb0ba;
+  --creme: #fbf6f2;            /* fundo das páginas */
+  --papel: #fffdfb;            /* cartões, formulários e tabelas */
+  --tinta: #34252a;            /* texto principal */
+  --suave: #776569;            /* texto secundário */
+  --linha: #eadfe0;            /* bordas */
+  --linha-forte: #dccbcd;
+
+  /* Estados. Sempre aparecem junto com texto, nunca só a cor */
+  --sucesso: #3f6f4f;  --sucesso-fundo: #e5efe7;
+  --aviso: #84561a;    --aviso-fundo: #f7ecd8;
+  --erro: #a1353b;     --erro-fundo: #f8e3e3;
+  --info: #45607a;     --info-fundo: #e5ecf2;
+  --neutro: #66595d;   --neutro-fundo: #efe8e8;
+
+  /* Fontes do próprio sistema (nada é baixado da internet) */
+  --fonte-texto: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --fonte-marca: Georgia, "Times New Roman", serif;
+
+  /* Medidas */
+  --raio-p: 9px;               /* campos e botões */
+  --raio-m: 14px;              /* blocos e cartões */
+  --raio-g: 22px;              /* fotos e capas */
+  --raio-pilula: 999px;
+  --sombra: 0 12px 32px rgb(87 47 53 / 0.12);
+  --anel-foco: 0 0 0 3px rgb(189 119 136 / 0.28);
+  --altura-campo: 44px;
+}
+
+/* 2. BASE ------------------------------------------------------------------ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--creme);
+  color: var(--tinta);
+  font-family: var(--fonte-texto);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  color: var(--vinho);
+  line-height: 1.2;
+}
+
+/* Títulos de página usam a mesma serifa da marca */
+h1 {
+  font-family: var(--fonte-marca);
+  font-weight: 400;
+  font-size: 1.75rem;
+}
+
+h2 {
+  font-size: 1.0625rem;
+  font-weight: 650;
+}
+
+h3 {
+  font-size: 0.9375rem;
+  font-weight: 650;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--rosa-texto);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+small {
+  font-size: 0.8125rem;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--rosa-escuro);
+  outline-offset: 2px;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--linha);
+  margin: 20px 0;
+}
+
+/* Ícones SVG desenhados em _icones.html: herdam a cor do texto */
+.icone {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* 3. MARCA ----------------------------------------------------------------- */
+.marca {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--vinho);
+  text-decoration: none;
+}
+
+.marca:hover {
+  text-decoration: none;
+}
+
+.marca__logo {
+  width: 34px;
+  height: 29px;
+}
+
+.marca__nome {
+  font-family: var(--fonte-marca);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.375rem;
+  line-height: 1;
+}
+
+.marca__nome small {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--fonte-texto);
+  font-style: normal;
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  opacity: 0.8;
+}
+
+/* 4. BOTÕES ---------------------------------------------------------------- */
+.botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--altura-campo);
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: var(--raio-p);
+  background: var(--rosa-escuro);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.botao:hover {
+  background: #94505f;
+  text-decoration: none;
+}
+
+.botao .icone {
+  width: 18px;
+  height: 18px;
+}
+
+.botao--secundario {
+  background: var(--papel);
+  border-color: var(--rosa-borda);
+  color: var(--rosa-texto);
+}
+
+.botao--secundario:hover {
+  background: var(--rosa-claro);
+}
+
+.botao--fantasma {
+  background: transparent;
+  color: var(--rosa-texto);
+}
+
+.botao--fantasma:hover {
+  background: var(--rosa-claro);
+}
+
+.botao--perigo {
+  background: var(--erro);
+}
+
+.botao--perigo:hover {
+  background: #86292f;
+}
+
+/* Botão de perigo discreto (ex.: "Cancelar pedido" ao lado de outras ações) */
+.botao--perigo-leve {
+  background: transparent;
+  border-color: #e3b9bb;
+  color: var(--erro);
+}
+
+.botao--perigo-leve:hover {
+  background: var(--erro-fundo);
+}
+
+/* Usado sobre fotos (capa da loja, tela inicial) */
+.botao--claro {
+  background: #fff;
+  color: var(--vinho);
+}
+
+.botao--claro:hover {
+  background: var(--rosa-claro);
+}
+
+.botao--largo {
+  width: 100%;
+}
+
+.botao--pequeno {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 0.8125rem;
+}
+
+/* Botão só com ícone: o texto vai em aria-label */
+.botao--icone {
+  width: var(--altura-campo);
+  padding: 0;
+}
+
+.botao--icone.botao--pequeno {
+  width: 34px;
+}
+
+.botao[disabled],
+.botao[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Grupo de botões lado a lado */
+.acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.acoes--fim {
+  justify-content: flex-end;
+}
+
+/* Botões que são formulários (POST) dentro de uma linha de ações */
+.acoes form {
+  margin: 0;
+}
+
+/* 5. FORMULÁRIOS ----------------------------------------------------------- */
+.campo {
+  margin-bottom: 16px;
+}
+
+.campo > label,
+.rotulo {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--tinta);
+}
+
+.campo__opcional {
+  font-weight: 400;
+  color: var(--suave);
+}
+
+.entrada,
+.campo input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.campo select,
+.campo textarea {
+  display: block;
+  width: 100%;
+  min-height: var(--altura-campo);
+  padding: 0 12px;
+  border: 1px solid #e2d4d6;
+  border-radius: var(--raio-p);
+  background: #fffdfc;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.campo textarea,
+textarea.entrada {
+  min-height: 96px;
+  padding: 10px 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.campo select,
+select.entrada {
+  padding-right: 36px;
+  appearance: none;
+  /* Seta desenhada em SVG embutido (não é arquivo externo) */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23776569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 18px;
+}
+
+.entrada:focus,
+.campo input:focus,
+.campo select:focus,
+.campo textarea:focus {
+  border-color: var(--rosa);
+  box-shadow: var(--anel-foco);
+}
+
+.campo input::placeholder,
+.campo textarea::placeholder,
+.entrada::placeholder {
+  color: #a8999c;
+}
+
+.campo input[type="file"] {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  border: 1px dashed var(--rosa-borda);
+  border-radius: var(--raio-p);
+  background: var(--papel);
+  font-size: 0.8125rem;
+}
+
+.campo__dica {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--suave);
+}
+
+/* Lista das regras de senha (vem de ValidadorSenha.REGRAS) */
+.regras {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 0.75rem;
+  color: var(--suave);
+}
+
+/* Campos lado a lado: 1 coluna no celular, 2 a partir de 640px */
+.grade-campos {
+  display: grid;
+  gap: 0 16px;
+}
+
+@media (min-width: 640px) {
+  .grade-campos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .grade-campos--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .grade-campos > .campo--inteiro {
+    grid-column: 1 / -1;
+  }
+}
+
+fieldset {
+  min-width: 0;
+  margin: 0 0 16px;
+  padding: 0;
+  border: 0;
+}
+
+legend {
+  padding: 0;
+  margin-bottom: 8px;
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+/* Caixa de seleção com o texto ao lado */
+.caixa {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 16px;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.caixa input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  flex: none;
+  accent-color: var(--rosa-escuro);
+}
+
+.caixa small {
+  display: block;
+  color: var(--suave);
+}
+
+/*
+  Escolhas em "pílula" (rádio ou checkbox estilizado, sem JavaScript).
+  Estrutura: <input class="escolha__entrada"> logo antes do <label class="escolha">
+*/
+.escolhas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.escolha__entrada {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.escolha {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio-pilula);
+  background: var(--papel);
+  color: var(--tinta);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.escolha:hover {
+  border-color: var(--rosa);
+}
+
+.escolha__entrada:checked + .escolha {
+  border-color: var(--vinho);
+  background: var(--vinho);
+  color: #fff;
+}
+
+.escolha__entrada:focus-visible + .escolha {
+  outline: 2px solid var(--rosa-escuro);
+  outline-offset: 2px;
+}
+
+/* Botões do fim do formulário */
+.formulario__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* 6. SELOS DE STATUS ------------------------------------------------------- */
+.selo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--raio-pilula);
+  background: var(--neutro-fundo);
+  color: var(--neutro);
+  font-size: 0.75rem;
+  font-weight: 650;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.selo--sucesso { background: var(--sucesso-fundo); color: var(--sucesso); }
+.selo--aviso   { background: var(--aviso-fundo);   color: var(--aviso); }
+.selo--erro    { background: var(--erro-fundo);    color: var(--erro); }
+.selo--info    { background: var(--info-fundo);    color: var(--info); }
+.selo--marca   { background: var(--rosa-claro);    color: var(--rosa-texto); }
+
+/* 7. MENSAGENS (flash) ----------------------------------------------------- */
+.mensagens {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.mensagem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  border-left-width: 4px;
+  border-radius: var(--raio-p);
+  background: var(--info-fundo);
+  border-color: #c9d6e2;
+  border-left-color: var(--info);
+  color: var(--tinta);
+  font-size: 0.875rem;
+}
+
+.mensagem > .icone {
+  color: var(--info);
+}
+
+.mensagem p {
+  flex: 1;
+}
+
+.mensagem form {
+  margin: 0;
+}
+
+.mensagem--sucesso,
+.mensagem--desfazer {
+  background: var(--sucesso-fundo);
+  border-color: #c7dbcc;
+  border-left-color: var(--sucesso);
+}
+
+.mensagem--sucesso > .icone,
+.mensagem--desfazer > .icone {
+  color: var(--sucesso);
+}
+
+.mensagem--aviso {
+  background: var(--aviso-fundo);
+  border-color: #ead5b0;
+  border-left-color: var(--aviso);
+}
+
+.mensagem--aviso > .icone {
+  color: var(--aviso);
+}
+
+.mensagem--erro {
+  background: var(--erro-fundo);
+  border-color: #ecc4c5;
+  border-left-color: var(--erro);
+}
+
+.mensagem--erro > .icone {
+  color: var(--erro);
+}
+
+/* 8. ABAS (links com ?filtro=..., sem JavaScript) -------------------------- */
+.abas {
+  position: relative;
+  display: flex;
+  gap: 4px;
+  margin: 0 0 20px;
+  padding: 0;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--linha);
+  list-style: none;
+  scrollbar-width: none;
+}
+
+.abas::-webkit-scrollbar {
+  display: none;
+}
+
+.abas a {
+  display: block;
+  padding: 10px 14px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: var(--suave);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.abas a:hover {
+  color: var(--vinho);
+  text-decoration: none;
+}
+
+.abas a[aria-current="page"] {
+  border-bottom-color: var(--rosa-escuro);
+  color: var(--vinho);
+}
+
+/* Variante em pílulas (usada na loja) */
+.abas--pilulas {
+  gap: 8px;
+  border-bottom: 0;
+}
+
+.abas--pilulas a {
+  padding: 8px 16px;
+  margin: 0;
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio-pilula);
+  background: var(--papel);
+  color: var(--tinta);
+}
+
+.abas--pilulas a[aria-current="page"] {
+  border-color: var(--vinho);
+  background: var(--vinho);
+  color: #fff;
+}
+
+/* 9. COMPONENTES DE CONTEÚDO ----------------------------------------------- */
+
+/* Estado vazio: diz o que fazer em seguida */
+.vazio {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--suave);
+}
+
+.vazio .icone {
+  width: 36px;
+  height: 36px;
+  margin-bottom: 4px;
+  color: var(--rosa);
+  stroke-width: 1.4;
+}
+
+.vazio h2 {
+  color: var(--tinta);
+}
+
+.vazio p {
+  max-width: 34ch;
+  font-size: 0.875rem;
+}
+
+.vazio .botao {
+  margin-top: 8px;
+}
+
+/* Lista de dados (rótulo + valor) */
+.dados {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.dados div {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+}
+
+.dados dt {
+  font-size: 0.75rem;
+  color: var(--suave);
+}
+
+.dados dd {
+  margin: 0;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+/* Versão em linha: rótulo à esquerda, valor à direita (resumos de valores) */
+.dados--linhas div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dados--linhas dt {
+  font-size: 0.875rem;
+}
+
+.dados--linhas dd {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.dados__total {
+  padding-top: 12px;
+  border-top: 1px solid var(--linha);
+}
+
+.dados__total dt,
+.dados__total dd {
+  color: var(--vinho);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+/*
+  Etapas do pedido (solicitado -> ... -> finalizado).
+  É uma sequência de verdade, por isso os marcadores ligados por uma linha.
+*/
+.etapas {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.etapa {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  padding-bottom: 18px;
+}
+
+.etapa:last-child {
+  padding-bottom: 0;
+}
+
+/* Linha vertical entre um marcador e o próximo */
+.etapa:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 20px;
+  bottom: 2px;
+  width: 2px;
+  background: var(--linha);
+}
+
+.etapa--feita:not(:last-child)::before {
+  background: var(--vinho);
+}
+
+.etapa__marca {
+  position: relative;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border: 2px solid var(--linha-forte);
+  border-radius: 50%;
+  background: var(--papel);
+}
+
+.etapa--feita .etapa__marca {
+  border-color: var(--vinho);
+  background: var(--vinho);
+}
+
+/* "Check" desenhado com bordas */
+.etapa--feita .etapa__marca::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.etapa--atual .etapa__marca {
+  border: 5px solid var(--rosa-escuro);
+  box-shadow: 0 0 0 4px var(--rosa-claro);
+}
+
+.etapa__texto strong {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--suave);
+}
+
+.etapa--feita .etapa__texto strong,
+.etapa--atual .etapa__texto strong {
+  color: var(--tinta);
+}
+
+.etapa--atual .etapa__texto strong {
+  font-weight: 700;
+}
+
+.etapa__texto small {
+  display: block;
+  color: var(--suave);
+}
+
+/* Versão compacta (painel): menos espaço entre as etapas */
+.etapas--compacta .etapa {
+  gap: 12px;
+  padding-bottom: 10px;
+}
+
+.etapas--compacta .etapa__marca {
+  width: 14px;
+  height: 14px;
+  margin-top: 3px;
+}
+
+.etapas--compacta .etapa:not(:last-child)::before {
+  left: 6px;
+  top: 18px;
+}
+
+.etapas--compacta .etapa--feita .etapa__marca::after {
+  left: 3px;
+  top: 0;
+  width: 4px;
+  height: 7px;
+}
+
+.etapas--compacta .etapa--atual .etapa__marca {
+  border-width: 4px;
+}
+
+.etapas--compacta .etapa__texto strong {
+  font-size: 0.8125rem;
+}
+
+/* Bloco expansível (<details>): mostra/esconde sem JavaScript */
+.expansivel {
+  border: 1px dashed var(--rosa-borda);
+  border-radius: var(--raio-m);
+  background: var(--papel);
+}
+
+.expansivel > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  color: var(--rosa-texto);
+  font-size: 0.875rem;
+  font-weight: 650;
+  cursor: pointer;
+  list-style: none;
+}
+
+.expansivel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.expansivel[open] {
+  border-style: solid;
+  border-color: var(--linha);
+}
+
+.expansivel[open] > summary {
+  border-bottom: 1px solid var(--linha);
+}
+
+.expansivel__conteudo {
+  padding: 16px;
+}
+
+/*
+  Foto de produto (macro m.foto). A inicial do nome fica por baixo da imagem:
+  se a foto não carregar, a inicial aparece no lugar.
+*/
+.foto {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: var(--rosa-claro);
+  font-size: 2rem;            /* tamanho da inicial; as variantes mudam aqui */
+}
+
+/*
+  .foto::before: a inicial que fica por baixo da imagem.
+  .foto img::after: só aparece quando a imagem NÃO carrega (arquivo ainda não
+  enviado) e cobre o ícone de "imagem quebrada" do navegador com a mesma inicial.
+*/
+.foto::before,
+.foto img::after {
+  content: attr(data-inicial);
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--rosa-claro);
+  color: var(--rosa-escuro);
+  font-family: var(--fonte-marca);
+  font-style: italic;
+  font-size: 1em;
+}
+
+.foto img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/*
+  Borda de "toalhinha de renda" (o papel rendado que vai embaixo do bolo).
+  Recorta a borda de baixo do elemento em semicírculos com mask; é o único
+  enfeite da identidade, usado só nas capas.
+*/
+.borda-renda {
+  --renda: 9px;
+  -webkit-mask:
+    linear-gradient(#000 0 0) top / 100% calc(100% - var(--renda)) no-repeat,
+    radial-gradient(circle at 50% 0, #000 calc(var(--renda) - 0.5px), #0000 var(--renda)) bottom / calc(var(--renda) * 2) var(--renda) repeat-x;
+  mask:
+    linear-gradient(#000 0 0) top / 100% calc(100% - var(--renda)) no-repeat,
+    radial-gradient(circle at 50% 0, #000 calc(var(--renda) - 0.5px), #0000 var(--renda)) bottom / calc(var(--renda) * 2) var(--renda) repeat-x;
+}
+
+/* 10. PÁGINAS CENTRALIZADAS (confirmar.html e erro.html) ------------------- */
+.pagina-centro {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px 16px;
+}
+
+.cartao-centro {
+  width: 100%;
+  max-width: 440px;
+  padding: 32px 28px 28px;
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-m);
+  background: var(--papel);
+  box-shadow: var(--sombra);
+  text-align: center;
+}
+
+.cartao-centro__icone {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: var(--rosa-claro);
+  color: var(--rosa-escuro);
+}
+
+.cartao-centro__icone .icone {
+  width: 26px;
+  height: 26px;
+}
+
+.cartao-centro--perigo .cartao-centro__icone {
+  background: var(--erro-fundo);
+  color: var(--erro);
+}
+
+.cartao-centro h1 {
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+}
+
+.cartao-centro p {
+  color: var(--suave);
+  font-size: 0.9375rem;
+}
+
+.cartao-centro .acoes {
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.cartao-centro__codigo {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--fonte-marca);
+  font-style: italic;
+  font-size: 3rem;
+  line-height: 1;
+  color: var(--rosa);
+}
+
+/* 11. UTILITÁRIOS ---------------------------------------------------------- */
+
+/* Esconde da tela, mas leitores de tela continuam lendo */
+.visualmente-oculto {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.texto-suave {
+  color: var(--suave);
+}
+
+.texto-pequeno {
+  font-size: 0.8125rem;
+}
+
+.sem-quebra {
+  white-space: nowrap;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Texto com quebras de linha preservadas (modo de preparo, observações) */
+.texto-livre {
+  white-space: pre-line;
+}
+
+/* Quem prefere menos movimento não vê transições */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Impressão (ex.: lista de compras): some com menus e botões */
+@media print {
+  body {
+    background: #fff;
+  }
+
+  .nao-imprimir,
+  .botao,
+  .mensagens,
+  .abas {
+    display: none !important;
+  }
+}

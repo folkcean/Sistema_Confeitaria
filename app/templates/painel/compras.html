@@ -1,0 +1,88 @@
+{#
+  painel/compras.html  (compras de insumos, só administrador)
+  Rota: painel.compras   GET /painel/compras
+
+  Filtro (GET): status = "" | pendente | recebida | cancelada
+  Variáveis:
+    compras   lista de CompraInsumo. Usa: id, fornecedor.nome, data_compra, data_entrega,
+              valor_total, status, nota_fiscal, itens (só para contar)
+    status_filtro
+
+  Ações (com confirmação, ver confirmar.html):
+    painel.compraReceber(id)    GET confirma, POST marca como recebida e dá entrada
+                                 no estoque (entrevista 8.5: atualização automática)
+    painel.compraCancelar(id)   GET confirma, POST cancela
+#}
+{% extends "painel/base.html" %}
+{% import "/_icones.html" as i %}
+{% import "/_macros.html" as m %}
+
+{% set menu_ativo = "compras" %}
+{% set filtro_atual = status_filtro|default("", true) %}
+{% set abas = [("", "Todas"), ("pendente", "Pendentes"), ("recebida", "Recebidas"), ("cancelada", "Canceladas")] %}
+
+{% block titulo %}Compras{% endblock %}
+
+{% block acoes %}
+    <a class="botao botao--secundario" href="{{ url_for('painel.listaCompras') }}">Lista de compras</a>
+    <a class="botao" href="{{ url_for('painel.compraNova') }}">{{ i.icone("mais") }} Nova compra</a>
+{% endblock %}
+
+{% block conteudo %}
+    <nav aria-label="Filtrar compras">
+        <ul class="abas">
+            {% for valor, texto in abas %}
+                <li><a href="{{ url_for('painel.compras', status=valor or none) }}"{% if filtro_atual == valor %}
+                       aria-current="page"{% endif %}>{{ texto }}</a></li>
+            {% endfor %}
+        </ul>
+    </nav>
+
+    <section class="bloco bloco--tabela">
+        <div class="tabela-rolagem">
+            <table class="tabela">
+                <thead>
+                <tr>
+                    <th>Compra</th>
+                    <th>Fornecedor</th>
+                    <th class="num opcional-celular">Itens</th>
+                    <th class="num">Valor</th>
+                    <th class="opcional-celular">Entrega prevista</th>
+                    <th>Situação</th>
+                    <th><span class="visualmente-oculto">Ações</span></th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for compra in compras %}
+                    {% set situacao = m.valor(compra.status)|string %}
+                    <tr>
+                        <td>
+                            <span class="tabela__principal">nº&nbsp;{{ compra.id }}</span>
+                            <small>{{ m.data(compra.data_compra) }}{% if compra.nota_fiscal %},
+                                {{ compra.nota_fiscal }}{% endif %}</small>
+                        </td>
+                        <td>{{ compra.fornecedor.nome }}</td>
+                        <td class="num opcional-celular">{{ compra.itens|length }}</td>
+                        <td class="num">{{ m.moeda(compra.valor_total) }}</td>
+                        <td class="opcional-celular">{{ m.data(compra.data_entrega) }}</td>
+                        <td>{{ m.selo(m.STATUS_COMPRA, compra.status) }}</td>
+                        <td class="tabela__acoes">
+                            {% if situacao == "pendente" %}
+                                <a class="botao botao--secundario botao--pequeno"
+                                   href="{{ url_for('painel.compraReceber', id=compra.id) }}">Receber</a>
+                                <a class="botao botao--fantasma botao--pequeno"
+                                   href="{{ url_for('painel.compraCancelar', id=compra.id) }}">Cancelar</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td class="tabela__vazia" colspan="7">Nenhuma compra nesta lista. <a
+                                href="{{ url_for('painel.compraNova') }}">Registrar compra</a></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}

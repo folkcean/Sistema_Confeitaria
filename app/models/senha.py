@@ -41,7 +41,7 @@ class Senha:
     @classmethod
     def deHash(cls, hash_senha: str) -> "Senha":
         """
-        Reconstrói a Senha a partir do hash lido do banco (não valida força: o hash já foi aceito antes)
+         Recria o objeto Senha a partir do hash salvo no banco (não recupera a senha original e não valida força: ela já foi validada no cadastro)
         """
         return cls(hash_senha)
 

@@ -20,38 +20,38 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
- 
+
 from app.exceptions import ValidacaoError
 from app.validators.campos import Validador, garantir
- 
 from .base import Entidade
 from .enums import TipoMovimentacao
- 
+
 # Só para as dicas de tipo 
 if TYPE_CHECKING:
     from .insumo import Insumo
+
 
 class MovimentacaoEstoque(Entidade):
     """
     DER: ID_movimentacao, FK do insumo, tipo, quantidade numeric(10,3), data,
     motivo (nulo), FK do pedido (nula), FK da compra (nula)
     """
- 
+
     def __init__(
-        self, 
-        insumo: Insumo, 
-        tipo: TipoMovimentacao, 
-        quantidade, 
-        motivo: str = "",
-        id_pedido: int | None = None, 
-        id_compra: int | None = None,
-        data: datetime | None = None, 
-        id_movimentacao: int | None = None
+            self,
+            insumo: Insumo,
+            tipo: TipoMovimentacao,
+            quantidade,
+            motivo: str = "",
+            id_pedido: int | None = None,
+            id_compra: int | None = None,
+            data: datetime | None = None,
+            id_movimentacao: int | None = None
     ):
-        
         """
         Valida tudo no momento da criação 
         Normalmente quem cria é o próprio Insumo
+        :rtype: None
         """
         super().__init__(id_movimentacao)
         self._insumo = insumo
@@ -78,44 +78,50 @@ class MovimentacaoEstoque(Entidade):
             ValidacaoError("Somente uma entrada pode estar ligada a uma compra"),
         )
         self._data = data or datetime.now()
- 
+
     # Leitura
     @property
-    def insumo(self) -> Insumo: 
+    def insumo(self) -> Insumo:
         return self._insumo
+
     @property
-    def tipo(self) -> TipoMovimentacao: 
+    def tipo(self) -> TipoMovimentacao:
         return self._tipo
+
     @property
-    def quantidade(self) -> Decimal: 
+    def quantidade(self) -> Decimal:
         return self._quantidade
+
     @property
-    def motivo(self) -> str | None: 
+    def motivo(self) -> str | None:
         return self._motivo
+
     @property
-    def id_pedido(self) -> int | None: 
+    def id_pedido(self) -> int | None:
         return self._id_pedido
+
     @property
-    def id_compra(self) -> int | None: 
+    def id_compra(self) -> int | None:
         return self._id_compra
+
     @property
-    def data(self) -> datetime: 
+    def data(self) -> datetime:
         return self._data
- 
+
     @property
     def insumo_id(self) -> int | None:
         """
         Valor da FK do insumo (None se o insumo ainda não foi gravado)
         """
         return self._insumo.id
- 
+
     @property
     def variacao(self) -> Decimal:
         """
         Quanto o saldo mudou por causa desta movimentação (positivo soma, negativo subtrai)
         """
         return self._tipo.variacao(self._quantidade)
- 
+
     def __repr__(self) -> str:
         """
         Texto exibido ao imprimir o objeto

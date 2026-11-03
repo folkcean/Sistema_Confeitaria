@@ -1,0 +1,237 @@
+{#
+  _macros.html
+  Funções de apresentação usadas em vários templates.
+
+  Uso:
+      {% import "_macros.html" as m %}
+      {{ m.moeda(pedido.valor_total) }}        -> R$ 1.234,50
+      {{ m.selo(m.STATUS_PEDIDO, pedido.status) }}
+
+  Aqui só tem formatação (dinheiro, datas, telefone) e tabelas de rótulos.
+  Nenhuma regra de negócio: cálculo de valores e mudança de status ficam nos models.
+
+  Os valores podem chegar como Enum (StatusPedido.CONFIRMADO) ou como texto
+  ("confirmado"): as macros aceitam os dois.
+#}
+{% import "_icones.html" as i %}
+
+{# ---------------------------------------------------------------------------
+   TABELAS DE RÓTULOS: valor salvo no banco -> texto na tela (+ tom do selo)
+   Os tons existem no base.css: neutro, info, marca, aviso, sucesso, erro
+--------------------------------------------------------------------------- #}
+{% set STATUS_PEDIDO = {
+  "solicitado":  {"rotulo": "Solicitado",        "tom": "neutro"},
+  "orcamento":   {"rotulo": "Orçamento enviado", "tom": "info"},
+  "confirmado":  {"rotulo": "Confirmado",        "tom": "marca"},
+  "em_producao": {"rotulo": "Em produção",       "tom": "aviso"},
+  "pronto":      {"rotulo": "Pronto",            "tom": "sucesso"},
+  "entregue":    {"rotulo": "Entregue",          "tom": "sucesso"},
+  "finalizado":  {"rotulo": "Finalizado",        "tom": "neutro"},
+  "cancelado":   {"rotulo": "Cancelado",         "tom": "erro"},
+} %}
+
+{# Fluxo da entrevista (4.6), na ordem. "cancelado" fica fora: não é uma etapa #}
+{% set ETAPAS_PEDIDO = [
+  {"status": "solicitado",  "rotulo": "Pedido recebido",   "texto": "A confeitaria está preparando o orçamento."},
+  {"status": "orcamento",   "rotulo": "Orçamento enviado", "texto": "Confira o valor final e pague o sinal de 50%."},
+  {"status": "confirmado",  "rotulo": "Pedido confirmado", "texto": "Sinal recebido. O pedido entrou na agenda."},
+  {"status": "em_producao", "rotulo": "Em produção",       "texto": "O pedido está sendo preparado."},
+  {"status": "pronto",      "rotulo": "Pronto",            "texto": "Pronto para entrega ou retirada."},
+  {"status": "entregue",    "rotulo": "Entregue",          "texto": "O pedido chegou ao destino."},
+  {"status": "finalizado",  "rotulo": "Finalizado",        "texto": "Pagamento concluído e pedido encerrado."},
+] %}
+
+{# Texto do botão que leva o pedido para cada status (painel) #}
+{% set ACAO_STATUS = {
+  "orcamento":   "Enviar orçamento",
+  "confirmado":  "Confirmar pedido",
+  "em_producao": "Iniciar produção",
+  "pronto":      "Marcar como pronto",
+  "entregue":    "Marcar como entregue",
+  "finalizado":  "Finalizar pedido",
+} %}
+
+{% set STATUS_PAGAMENTO = {
+  "aguardando_sinal": {"rotulo": "Aguardando sinal", "tom": "aviso"},
+  "sinal_pago":       {"rotulo": "Sinal pago",       "tom": "info"},
+  "pago":             {"rotulo": "Pago",             "tom": "sucesso"},
+} %}
+
+{% set TIPO_ENTREGA = {"entrega": "Entrega", "retirada": "Retirada na loja"} %}
+
+{% set FORMA_PAGAMENTO = {"pix": "Pix", "dinheiro": "Dinheiro", "cartao": "Cartão"} %}
+
+{% set DISPONIBILIDADE = {
+  "pronta_entrega": {"rotulo": "Pronta entrega", "tom": "sucesso"},
+  "encomenda":      {"rotulo": "Encomenda",      "tom": "marca"},
+} %}
+
+{% set STATUS_COMPRA = {
+  "pendente":  {"rotulo": "Pendente",  "tom": "aviso"},
+  "recebida":  {"rotulo": "Recebida",  "tom": "sucesso"},
+  "cancelada": {"rotulo": "Cancelada", "tom": "erro"},
+} %}
+
+{% set TIPO_INSUMO = {"ingrediente": "Ingrediente", "embalagem": "Embalagem", "decoracao": "Decoração"} %}
+
+{% set COMPLEXIDADE = {"baixa": "Baixa", "media": "Média", "alta": "Alta"} %}
+
+{# ---------------------------------------------------------------------------
+   RÓTULOS E SELOS
+--------------------------------------------------------------------------- #}
+
+{# Valor cru de um Enum ou de um texto: StatusPedido.PRONTO -> "pronto" #}
+{% macro valor(v) -%}
+{{ v.value if v.value is defined else v }}
+{%- endmacro %}
+
+{# Texto de um valor usando uma das tabelas acima #}
+{% macro rotulo(tabela, v) -%}
+{%- set chave = v.value if v.value is defined else v -%}
+{%- if chave is none or chave == "" -%}
+—
+{%- else -%}
+{%- set item = tabela.get(chave, chave) -%}
+{{ item.rotulo if item.rotulo is defined else item }}
+{%- endif -%}
+{%- endmacro %}
+
+{# Selo colorido com texto (o texto sempre aparece; a cor só reforça) #}
+{% macro selo(tabela, v) -%}
+{%- set chave = v.value if v.value is defined else v -%}
+{%- if chave is not none and chave != "" -%}
+{%- set item = tabela.get(chave, {"rotulo": chave, "tom": "neutro"}) -%}
+<span class="selo selo--{{ item.tom|default('neutro') }}">{{ item.rotulo if item.rotulo is defined else item }}</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro seloAtivo(ativo, sim="Ativo", nao="Inativo") -%}
+{%- if ativo %}<span class="selo selo--sucesso">{{ sim }}</span>{% else %}<span class="selo">{{ nao }}</span>{% endif -%}
+{%- endmacro %}
+
+{# ---------------------------------------------------------------------------
+   NÚMEROS, DINHEIRO E DATAS (formato brasileiro)
+   Recebem Decimal/int e objetos date/datetime (é o que o psycopg devolve).
+--------------------------------------------------------------------------- #}
+
+{# 1234.5 -> R$ 1.234,50 #}
+{% macro moeda(v) -%}
+R$&nbsp;{{ "{:,.2f}".format(v or 0)|replace(",", "_")|replace(".", ",")|replace("_", ".") }}
+{%- endmacro %}
+
+{# Número com até `casas` decimais, sem zeros sobrando: 11268.190 -> 11.268,19 #}
+{% macro numero(v, casas=2) -%}
+{%- set texto = ("{:,." ~ casas ~ "f}").format(v or 0) -%}
+{%- set texto = texto.rstrip("0").rstrip(".") if "." in texto else texto -%}
+{{ texto|replace(",", "_")|replace(".", ",")|replace("_", ".") }}
+{%- endmacro %}
+
+{# Quantidade com unidade: 11268.19, "g" -> 11.268,19 g #}
+{% macro quantidade(v, unidade, casas=3) -%}
+{{ numero(v, casas) }}&nbsp;{{ unidade }}
+{%- endmacro %}
+
+{% macro data(d) -%}
+{{ d.strftime("%d/%m/%Y") if d else "—" }}
+{%- endmacro %}
+
+{# Data e hora; o &nbsp; impede que a hora quebre para a linha de baixo #}
+{% macro dataHora(d) -%}
+{%- if d %}{{ d.strftime("%d/%m/%Y") }},&nbsp;{{ d.strftime("%H:%M") }}{% else %}—{% endif -%}
+{%- endmacro %}
+
+{% macro hora(d) -%}
+{{ d.strftime("%H:%M") if d else "—" }}
+{%- endmacro %}
+
+{# Só dia e mês (aniversários) #}
+{% macro diaMes(d) -%}
+{{ d.strftime("%d/%m") if d else "—" }}
+{%- endmacro %}
+
+{# "22999990001" -> (22) 99999-0001. O banco guarda só os dígitos #}
+{% macro telefone(numero) -%}
+{%- if numero and numero|length in (10, 11) -%}
+<span class="sem-quebra">({{ numero[:2] }}) {{ numero[2:-4] }}-{{ numero[-4:] }}</span>
+{%- else -%}
+{{ numero or "—" }}
+{%- endif -%}
+{%- endmacro %}
+
+{# "12345678000190" -> 12.345.678/0001-90 #}
+{% macro cnpj(numero) -%}
+{%- if numero and numero|length == 14 -%}
+{{ numero[:2] }}.{{ numero[2:5] }}.{{ numero[5:8] }}/{{ numero[8:12] }}-{{ numero[12:] }}
+{%- else -%}
+{{ numero or "—" }}
+{%- endif -%}
+{%- endmacro %}
+
+{# "52998224725" -> 529.982.247-25 (só aparece para o administrador) #}
+{% macro cpf(numero) -%}
+{%- if numero and numero|length == 11 -%}
+{{ numero[:3] }}.{{ numero[3:6] }}.{{ numero[6:9] }}-{{ numero[9:] }}
+{%- else -%}
+{{ numero or "—" }}
+{%- endif -%}
+{%- endmacro %}
+
+{# ---------------------------------------------------------------------------
+   PEÇAS DE TELA
+--------------------------------------------------------------------------- #}
+
+{#
+  Foto do produto. O caminho vem da coluna PRODUTO.caminho_foto.
+  Aceita "fotos/bolo.jpg" ou "static/fotos/bolo.jpg" (formato do DB_fill.sql).
+  Embaixo da foto fica sempre a inicial do nome: se a foto não existir ou
+  ainda não tiver sido enviada, aparece a inicial no lugar (só com CSS).
+#}
+{% macro foto(produto, classe="", descricao="") -%}
+<span class="foto {{ classe }}" data-inicial="{{ produto.nome[:1] }}">
+  {%- if produto.caminho_foto -%}
+  <img src="{{ url_for('static', filename=(produto.caminho_foto|replace('static/', '', 1)).lstrip('/')) }}" alt="{{ descricao }}" data-inicial="{{ produto.nome[:1] }}" loading="lazy">
+  {%- endif -%}
+</span>
+{%- endmacro %}
+
+{#
+  Etapas do pedido como linha do tempo.
+  status: valor atual do pedido. compacta=true esconde as descrições (uso no painel).
+#}
+{% macro etapasPedido(status, compacta=false) -%}
+{%- set atual = status.value if status.value is defined else status -%}
+{%- set ordem = ETAPAS_PEDIDO|map(attribute="status")|list -%}
+{%- set posicao = ordem.index(atual) if atual in ordem else -1 -%}
+<ol class="etapas{{ ' etapas--compacta' if compacta }}">
+  {%- for etapa in ETAPAS_PEDIDO %}
+  {%- set classe = "etapa--feita" if loop.index0 < posicao else ("etapa--atual" if loop.index0 == posicao else "") %}
+  <li class="etapa {{ classe }}"{% if loop.index0 == posicao %} aria-current="step"{% endif %}>
+    <span class="etapa__marca" aria-hidden="true"></span>
+    <div class="etapa__texto">
+      <strong>{{ etapa.rotulo }}</strong>
+      {%- if not compacta and loop.index0 == posicao %}<small>{{ etapa.texto }}</small>{% endif %}
+    </div>
+  </li>
+  {%- endfor %}
+</ol>
+{%- endmacro %}
+
+{# Estado vazio: diz o que aconteceu e o que fazer #}
+{% macro vazio(icone, titulo, texto="", url="", botao="") -%}
+<div class="vazio">
+  {{ i.icone(icone) }}
+  <h2>{{ titulo }}</h2>
+  {% if texto %}<p>{{ texto }}</p>{% endif %}
+  {% if url and botao %}<a class="botao botao--secundario" href="{{ url }}">{{ botao }}</a>{% endif %}
+</div>
+{%- endmacro %}
+
+{#
+  Proteção CSRF: ESPAÇO RESERVADO.
+  O Flask puro não tem CSRF. Se a dupla usar o Flask-WTF (CSRFProtect) ou criar
+  uma função global `csrf_token()`, o campo aparece sozinho em todos os
+  formulários POST. Enquanto não existir, não imprime nada.
+#}
+{% macro csrf() -%}
+{%- if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif -%}
+{%- endmacro %}
