@@ -10,6 +10,7 @@ from app import usuarioLogado
 from app.controllers.sessao import soCliente, repositorioUsuarios
 from app.exceptions import ValidacaoError
 from app.models import Endereco
+from app.repositories.clientes_rep import RepositorioClientes
 from app.repositories.conexao_rep import obterConexao
 from app.repositories.produtos_rep import RepositorioProdutos
 from app.services.carrinho import Carrinho
@@ -17,6 +18,7 @@ from app.validators.campos import Validador, garantir
 from app.validators.senha import ValidadorSenha
 
 loja = Blueprint("loja", __name__, url_prefix="/loja")
+repo_clientes = RepositorioClientes(obterConexao)
 
 repo_produtos = RepositorioProdutos(obterConexao)
 
@@ -69,20 +71,20 @@ def carrinho():
 @loja.post("/carrinho/adicionar")
 def carrinhoAdicionar():
     """Põe um produto (com opções) no carrinho"""
-    produto_id = request.form.get("produto_id", type=int)
-    quantidade = request.form.get("quantidade", type=int)
-    ids_das_opcoes = request.form.getlist("opcoes", type=int)
-    observacoes = request.form.get("observacoes", "")
-
-    produto = repo_produtos.buscarAtivo(produto_id) or abort(404)
-    Validador.textoOpcional(observacoes, "observacoes")
-
     opcoes = []
     for id_op in ids_das_opcoes:
         quantidade_opcao = request.form.get(f"qtd_opcao_{id_op}", 1, type=int)
         opcoes.append([id_op, quantidade_opcao])
 
     try:
+        produto_id = request.form.get("produto_id", type=int)
+        quantidade = request.form.get("quantidade", type=int)
+        ids_das_opcoes = request.form.getlist("opcoes", type=int)
+        observacoes = request.form.get("observacoes", "")
+
+        produto = repo_produtos.buscarAtivo(produto_id) or abort(404)
+        Validador.textoOpcional(observacoes, "observacoes")
+
         Validador.inteiroPositivo(quantidade, "quantidade")
         _validarOpcoes(produto, opcoes)
     except ValidacaoError as erro:
@@ -202,7 +204,7 @@ def meusDadosSalvar():
         # Cada setter valida o próprio campo (e levanta ValidacaoError se não servir)
         for nome_do_campo in CAMPOS_MEUS_DADOS:
             setattr(cliente, nome_do_campo, request.form.get(nome_do_campo))
-        repositorioUsuarios().atualizarCliente(cliente)
+        repo_clientes.atualizarCliente(cliente)
     except ValidacaoError as erro:
         flash(str(erro), "erro")
         return _telaMeusDados(), 400
@@ -257,7 +259,7 @@ def enderecoAdicionar():
         )
         # Vincula ao cliente (é isso que preenche endereco.id_cliente) e grava
         cliente.adicionarEndereco(endereco)
-        repositorioUsuarios().salvarEndereco(endereco)
+        repo_clientes.salvarEndereco(endereco)
     except ValidacaoError as erro:
         flash(str(erro), "erro")
         pagina = render_template("loja/enderecos.html", enderecos=cliente.enderecos)
@@ -291,7 +293,7 @@ def enderecoRemoverConfirmado(id):
     endereco = _enderecoDoCliente(cliente, id)
     try:
         # Primeiro o banco: se um pedido usou o endereço, ele recusa e nada muda
-        repositorioUsuarios().removerEndereco(endereco)
+        repo_clientes.removerEndereco(endereco)
         cliente.removerEndereco(endereco)
     except ValidacaoError as erro:
         flash(str(erro), "erro")

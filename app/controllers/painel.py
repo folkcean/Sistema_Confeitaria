@@ -4,20 +4,24 @@ app / controllers / painel.py
 Área interna (funcionário e administrador): pedidos, estoque, receitas, produtos e gestão
 """
 import uuid
+from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 
 from flask import Blueprint, render_template, request, flash, redirect, url_for, abort, current_app
 
-from app.controllers.loja import repo_produtos
 from app.controllers.sessao import conferirEquipe, soAdmin, usuarioLogado
 from app.exceptions import ValidacaoError, AcessoNegadoError
-from app.models import Insumo, Estoque, Perfil, Produto, OpcaoPersonalizacao, Cliente
+from app.models import Insumo, Estoque, Perfil, Produto, OpcaoPersonalizacao, Cliente, Senha, Funcionario
+from app.repositories.clientes_rep import RepositorioClientes
 from app.repositories.conexao_rep import obterConexao
+from app.repositories.funcionarios_rep import RepositorioFuncionarios
 from app.repositories.insumos_rep import RepositorioInsumos
 from app.repositories.produtos_rep import RepositorioProdutos
+from app.repositories.relatorios_rep import RepositorioRelatorios
 from app.repositories.usuarios_rep import RepositorioUsuarios
-from app.validators.campos import garantir
+from app.validators.campos import garantir, Validador
+from app.validators.senha import ValidadorSenha
 
 painel = Blueprint("painel", __name__, url_prefix="/painel")
 
@@ -258,6 +262,8 @@ def _opcaoDoProduto(produto, id):
     pass
 
 
+@painel.post("/opcoes/<int:id>/alternar")
+@soAdmin
 def opcaoAlternar(id):
     """Liga ou desliga uma opção (o botão mostra "Ligar" ou "Desligar" conforme o estado)"""
     # O id da URL é o da OPÇÃO: o repositório acha o produto dono, já com as opções
@@ -536,9 +542,9 @@ def insumoDesativarConfirmado(id):
 @painel.post("/estoque/<int:id>/reativar")
 @soAdmin
 def insumoReativar(id):
-    insumo = repo_estoque.buscarPorId(id)
+    insumo = repo_estoque.buscarPorId(id) or abort(404)
     try:
-        garantir(not insumo.ativo, f"O {insumo.nome} já está reativado.")
+        garantir(not insumo.ativo, ValidacaoError("O {insumo.nome} já está reativado."))
         insumo.alternarAtivo()
         repo_estoque.salvar(insumo)
     except ValidacaoError as erro:
@@ -634,7 +640,7 @@ def fornecedores():
 @soAdmin
 def fornecedorNovo():
     """Formulário de fornecedor novo"""
-    return render_template("painel/fornecedores.html")
+    return render_template("painel/fornecedor_form.html", fornecedor=None)
 
 
 @painel.post("/fornecedores/novo")
@@ -681,6 +687,7 @@ def fornecedorReativar(id):
 
 # Clientes (Tarefa 9)
 repo_usuarios = RepositorioUsuarios(obterConexao)
+repo_clientes = RepositorioClientes(obterConexao)
 
 
 def _buscarUsuario(id_usuario, perfil):
@@ -717,7 +724,7 @@ def clientes():
     """Lista de clientes com abas (ativos, VIP, inativos) e busca por nome ou telefone"""
     filtro = request.args.get("filtro", "")
     busca = request.args.get("q", "")
-    lista = repo_usuarios.listarClientes(filtro=filtro, busca=busca)
+    lista = repo_clientes.listarClientes(filtro=filtro, busca=busca)
     return render_template("painel/clientes.html", clientes=lista, filtro=filtro, busca=busca)
 
 
@@ -745,7 +752,7 @@ def clienteNovoSalvar():
     """Cadastra o cliente. Sem senha: ele pode criar a conta depois, se quiser"""
     try:
         novo = _clienteDoFormulario()
-        repo_usuarios.cadastrarCliente(novo)
+        repo_clientes.cadastrarCliente(novo)
     except ValidacaoError as erro:
         flash(str(erro), "erro")
         return render_template("painel/cliente_form.html", cliente=None, dados=None), 400
@@ -778,7 +785,7 @@ def clienteEditarSalvar(id):
             data_cadastro=cliente_atual.data_cadastro,
         )
         # O atualizarCliente não mexe na senha: ela continua a que estava no banco
-        repo_usuarios.atualizarCliente(editado)
+        repo_clientes.atualizarCliente(editado)
     except ValidacaoError as erro:
         flash(str(erro), "erro")
         dados = usuarioLogado().consultarCliente(cliente_atual)
@@ -799,7 +806,7 @@ def clienteVip(id):
         False: cliente_atual.promoverVip,
     }
     alternar[cliente_atual.cliente_vip]()
-    repo_usuarios.atualizarCliente(cliente_atual)
+    repo_clientes.atualizarCliente(cliente_atual)
 
     mensagem = {True: "agora é VIP", False: "não é mais VIP"}[cliente_atual.cliente_vip]
     flash(f"{cliente_atual.nome} {mensagem}.", "sucesso")
@@ -830,7 +837,7 @@ def clienteDesativarConfirmado(id):
     try:
         garantir(cliente_atual.ativo, ValidacaoError(f"{cliente_atual.nome} já está inativo."))
         cliente_atual.desativar()
-        repo_usuarios.atualizarCliente(cliente_atual)
+        repo_clientes.atualizarCliente(cliente_atual)
     except ValidacaoError as erro:
         flash(str(erro), "erro")
         return redirect(url_for("painel.cliente", id=id))
@@ -848,7 +855,7 @@ def clienteReativar(id):
     try:
         garantir(not cliente_atual.ativo, ValidacaoError(f"{cliente_atual.nome} já está ativo."))
         cliente_atual.ativar()
-        repo_usuarios.atualizarCliente(cliente_atual)
+        repo_clientes.atualizarCliente(cliente_atual)
     except ValidacaoError as erro:
         flash(str(erro), "erro")
         return redirect(url_for("painel.cliente", id=id))
@@ -858,76 +865,286 @@ def clienteReativar(id):
 
 
 # Funcionários
+repo_funcionarios = RepositorioFuncionarios(obterConexao)
+
+
 @painel.get("/funcionarios")
 @soAdmin
 def funcionarios():
     """Lista da equipe"""
-    return render_template("painel/funcionarios.html")
+    lista = repo_funcionarios.listarFuncionarios()
+    return render_template("painel/funcionarios.html", funcionarios=lista)
 
 
 @painel.get("/funcionarios/novo")
 @soAdmin
 def funcionarioNovo():
     """Formulário de funcionário novo"""
-    return render_template("painel/funcionario_form.html")
+    return _telaFuncionario(None)
 
 
 @painel.post("/funcionarios/novo")
 @soAdmin
 def funcionarioNovoSalvar():
-    """Cadastra o funcionário"""
-    return "em construção"
+    """Cadastra o funcionário (a senha inicial é obrigatória: é com ela que ele entra no painel)"""
+    try:
+        # Senha.criar valida a força; vazia também é recusada (não tem 8 caracteres)
+        senha = Senha.criar(request.form.get("senha", ""))
+        novo = _funcionarioDoFormulario(senha=senha)
+        repo_funcionarios.cadastrarFuncionario(novo)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return _telaFuncionario(None), 400
+
+    flash(f"{novo.nome} entrou para a equipe.", "sucesso")
+    return redirect(url_for("painel.funcionarios"))
 
 
 @painel.get("/funcionarios/<int:id>/editar")
 @soAdmin
 def funcionarioEditar(id):
     """Formulário de edição do funcionário"""
-    return "em construção"
+    funcionario = _buscarUsuario(id, Perfil.FUNCIONARIO)
+    return _telaFuncionario(funcionario)
 
 
 @painel.post("/funcionarios/<int:id>/editar")
 @soAdmin
 def funcionarioEditarSalvar(id):
-    """Salva a edição do funcionário"""
-    return "em construção"
+    """
+    Salva a edição. CPF e data de contratação não têm setter, então o funcionário é montado
+    de novo com os dados do formulário (mantendo id, ativo e data de cadastro).
+    Senha em branco = mantém a atual
+    """
+    atual = _buscarUsuario(id, Perfil.FUNCIONARIO)
+    nova_senha = request.form.get("senha", "")
+    try:
+        editado = _funcionarioDoFormulario(
+            id_usuario=atual.id,
+            ativo=atual.ativo,
+            data_cadastro=atual.data_cadastro,
+        )
+        # Valida a senha nova ANTES de gravar qualquer coisa (sem senha nova, não faz nada)
+        nova_senha and editado.definirSenha(nova_senha)
+        repo_funcionarios.atualizarFuncionario(editado)
+        nova_senha and repo_funcionarios.atualizarSenha(editado)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return _telaFuncionario(atual), 400
+
+    flash(f"{editado.nome} atualizado.", "sucesso")
+    return redirect(url_for("painel.funcionarios"))
 
 
 @painel.get("/funcionarios/<int:id>/desativar")
 @soAdmin
 def funcionarioDesativar(id):
     """Pergunta antes de desligar o funcionário"""
-    return "em construção"
+    funcionario = _buscarUsuario(id, Perfil.FUNCIONARIO)
+    return render_template(
+        "confirmar.html",
+        titulo=f"Desligar {funcionario.nome}?",
+        mensagem="A pessoa deixa de entrar no painel, mas o histórico continua.",
+        acao=url_for("painel.funcionarioDesativar", id=id),
+        voltar=url_for("painel.funcionarios"),
+        rotulo_botao="Desligar",
+        perigo=True,
+    )
 
 
 @painel.post("/funcionarios/<int:id>/desativar")
 @soAdmin
 def funcionarioDesativarConfirmado(id):
-    """Desliga o funcionário"""
-    return "em construção"
+    """Desliga o funcionário e oferece desfazer (que reativa)"""
+    funcionario = _buscarUsuario(id, Perfil.FUNCIONARIO)
+    try:
+        garantir(funcionario.ativo, ValidacaoError(f"{funcionario.nome} já está desligado."))
+        funcionario.desativar()
+        repo_funcionarios.atualizarFuncionario(funcionario)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return redirect(url_for("painel.funcionarios"))
+
+    url_desfazer = url_for("painel.funcionarioReativar", id=id)
+    flash(f"{funcionario.nome} desligado.", "desfazer:" + url_desfazer)
+    return redirect(url_for("painel.funcionarios"))
 
 
 @painel.post("/funcionarios/<int:id>/reativar")
 @soAdmin
 def funcionarioReativar(id):
     """Reativa o funcionário"""
-    return "em construção"
+    funcionario = _buscarUsuario(id, Perfil.FUNCIONARIO)
+    try:
+        garantir(not funcionario.ativo, ValidacaoError(f"{funcionario.nome} já está ativo."))
+        funcionario.ativar()
+        repo_funcionarios.atualizarFuncionario(funcionario)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return redirect(url_for("painel.funcionarios"))
+
+    flash(f"{funcionario.nome} voltou para a equipe.", "sucesso")
+    return redirect(url_for("painel.funcionarios"))
+
+
+def _funcionarioDoFormulario(**extras):
+    """
+    Monta um Funcionario com os campos do funcionario_form.html (o construtor valida todos).
+    `extras`: o que não vem da tela (na edição: id, ativo, data de cadastro; no cadastro: a senha)
+    """
+    return Funcionario(
+        nome=request.form.get("nome"),
+        email=request.form.get("email"),
+        telefone=request.form.get("telefone"),
+        cpf=request.form.get("cpf"),
+        cargo=request.form.get("cargo"),
+        data_nascimento=request.form.get("data_nascimento"),
+        data_contratacao=request.form.get("data_contratacao"),
+        **extras,
+    )
+
+
+def _telaFuncionario(funcionario):
+    """O formulário de funcionário (novo quando `funcionario` é None), com o CPF e as regras de senha"""
+    cpf = funcionario and funcionario.obterCpf(usuarioLogado())
+    regras_senha = []
+    for regra in ValidadorSenha.REGRAS:
+        regras_senha.append(regra.descricao)
+    return render_template(
+        "painel/funcionario_form.html",
+        funcionario=funcionario,
+        cpf=cpf,
+        regras_senha=regras_senha,
+    )
 
 
 # Relatórios
+repo_relatorios = RepositorioRelatorios(obterConexao)
+
+
 @painel.get("/relatorios")
 @soAdmin
 def relatorios():
     """Relatórios de vendas, produtos e insumos"""
-    return render_template("painel/relatorios.html")
+    _exigirAcessoFinanceiro()
+    aba = _abaEscolhida()
+    periodo = request.args.get("periodo", "")
+    inicio, fim = _periodoDoRelatorio()
+
+    # Cada aba devolve só as variáveis dela
+    variaveis = ABAS_RELATORIO[aba](inicio, fim)
+
+    return render_template(
+        "painel/relatorios.html",
+        aba=aba,
+        periodo=periodo,
+        inicio=inicio,
+        fim=fim,
+        **variaveis,
+    )
 
 
 @painel.get("/relatorios/exportar")
 @soAdmin
 def relatorioExportar():
-    """Os mesmos relatórios em CSV"""
-    return "em construção"
+    return "Em construcao"
 
+
+def _abaEscolhida():
+    """A aba pedida na URL; aba desconhecida vira "vendas" (o template também usa este nome)"""
+    aba = request.args.get("aba", "vendas")
+    # `and`/`or`: se a aba existe, fica ela; senão, "vendas"
+    return (aba in ABAS_RELATORIO and aba) or "vendas"
+
+
+def _exigirAcessoFinanceiro():
+    """Faturamento é dado financeiro: só administrador com acesso_financeiro"""
+    garantir(
+        usuarioLogado().acesso_financeiro,
+        AcessoNegadoError("Seu usuário não tem acesso aos relatórios financeiros."),
+    )
+
+
+def _estaSemana(hoje):
+    """Segunda a domingo da semana de hoje (weekday(): segunda = 0 ... domingo = 6)"""
+    inicio = hoje - timedelta(days=hoje.weekday())
+    return inicio, inicio + timedelta(days=6)
+
+
+def _semanaPassada(hoje):
+    """A semana anterior à de hoje"""
+    inicio, fim = _estaSemana(hoje)
+    return inicio - timedelta(days=7), fim - timedelta(days=7)
+
+
+def _esteMes(hoje):
+    """Do dia 1 ao último dia do mês de hoje"""
+    inicio = hoje.replace(day=1)
+    # Dia 1 + 32 dias sempre cai no mês seguinte; o dia 1 dele menos um dia é o último deste mês
+    primeiro_do_proximo = (inicio + timedelta(days=32)).replace(day=1)
+    return inicio, primeiro_do_proximo - timedelta(days=1)
+
+
+def _periodoLivre(hoje):
+    """As datas do formulário (inicio e fim, AAAA-MM-DD)"""
+    inicio = Validador.data(request.args.get("inicio"), "início")
+    fim = Validador.data(request.args.get("fim"), "fim")
+    garantir(inicio <= fim, ValidacaoError("A data de início precisa ser antes da data de fim."))
+    return inicio, fim
+
+
+ATALHOS_DE_PERIODO = {
+    "semana": _estaSemana,
+    "semana_passada": _semanaPassada,
+    "mes": _esteMes,
+}
+
+
+def _periodoDoRelatorio():
+    """
+    (inicio, fim) do relatório: o atalho escolhido; sem atalho, as datas do formulário;
+    sem nada, esta semana. Datas inválidas viram mensagem e caem em "esta semana"
+    """
+    periodo = request.args.get("periodo", "")
+    tem_datas = bool(request.args.get("inicio") and request.args.get("fim"))
+    # `or` em cadeia, sem if: o primeiro que não for falso é o escolhido
+    escolher = ATALHOS_DE_PERIODO.get(periodo) or (tem_datas and _periodoLivre) or _estaSemana
+    try:
+        return escolher(date.today())
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return _estaSemana(date.today())
+
+
+def _abaVendas(inicio, fim):
+    """resumo e vendas_por_dia"""
+    resumo = repo_relatorios.resumoVendas(inicio, fim)
+    # Sem nenhum pedido no período, a lista vai vazia e a tela mostra "Sem vendas no período"
+    vendas_por_dia = (resumo["pedidos"] and repo_relatorios.vendasPorDia(inicio, fim)) or []
+    return {"resumo": resumo, "vendas_por_dia": vendas_por_dia}
+
+
+def _abaProdutos(inicio, fim):
+    """mais_vendidos, menos_vendidos e maior_faturamento"""
+    produtos = repo_relatorios.vendasPorProduto(inicio, fim)
+    vendidos = list(filter(lambda produto: produto["quantidade"] > 0, produtos))
+    return {
+        "mais_vendidos": sorted(vendidos, key=lambda produto: produto["quantidade"], reverse=True)[:10],
+        "menos_vendidos": sorted(produtos, key=lambda produto: produto["quantidade"])[:10],
+        "maior_faturamento": sorted(vendidos, key=lambda produto: produto["faturamento"], reverse=True)[:10],
+    }
+
+
+def _abaInsumos(inicio, fim):
+    """insumos_consumidos"""
+    return {"insumos_consumidos": repo_relatorios.insumosConsumidos(inicio, fim)}
+
+
+ABAS_RELATORIO = {
+    "vendas": _abaVendas,
+    "produtos": _abaProdutos,
+    "insumos": _abaInsumos,
+}
 
 EXTENSOES_FOTO = (".jpg", ".jpeg", ".png", ".webp")
 

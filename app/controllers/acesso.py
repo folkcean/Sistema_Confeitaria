@@ -7,13 +7,16 @@ Telas de entrada: início, entrar, criar conta e sair
 from flask import Blueprint, render_template, redirect, url_for, request, flash, session
 
 from app import usuarioLogado
-from app.controllers.sessao import autenticacao, repositorioUsuarios
+from app.controllers.sessao import autenticacao
 from app.exceptions import AutenticacaoError, ValidacaoError
 from app.models import Perfil, Cliente, Senha
+from app.repositories.clientes_rep import RepositorioClientes
+from app.repositories.conexao_rep import obterConexao
 from app.validators.campos import garantir, Validador
 from app.validators.senha import ValidadorSenha
 
 acesso = Blueprint("acesso", __name__)
+repo_clientes = RepositorioClientes(obterConexao)
 
 TIPOS_DE_SAIDA = {
     Perfil.CLIENTE: "loja.home",
@@ -107,7 +110,7 @@ def cadastroEnviar():
             senha=Senha.criar(senha_bruta),
         )
         # E-mail ou telefone repetido vira ValidacaoError dentro do repositório
-        repositorioUsuarios().cadastrarCliente(cliente)
+        repo_clientes.cadastrarCliente(cliente)
     except ValidacaoError as erro:
         flash(str(erro), "erro")
 
@@ -130,4 +133,4 @@ def sair():
     """Encerra a sessão e volta ao início"""
     session.clear()
     flash("Você saiu da sua conta.", "info")
-    return predirect(url_for("acesso.inicio"))
+    return redirect(url_for("acesso.inicio"))

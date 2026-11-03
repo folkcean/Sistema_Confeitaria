@@ -80,24 +80,6 @@ class RepositorioUsuarios(RepositorioBase):
     # Mensagem usada quando o banco recusa por e-mail, telefone ou CPF repetido (colunas UNIQUE)
     MENSAGEM_DUPLICADO = "Já existe uma conta com este e-mail, telefone ou CPF."
 
-    def cadastrarFuncionario(self, funcionario):
-        try:
-            with self._transacao():
-                linha = self._umaLinha(
-                    "INSERT INTO usuario (nome, email, telefone, senha_hash, data_cadastro, ativo, cpf, data_nascimento, perfil) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'funcionario') RETURNING id_usuario",
-                    (funcionario.nome, funcionario.email, funcionario.telefone, funcionario.senha_hash,
-                     funcionario.data_cadastro,
-                     funcionario.ativo, funcionario.cpf_persistencia, funcionario.data_nascimento),
-                )
-                funcionario.atribuirID(linha["id_usuario"])
-                self._executar("INSERT INTO funcionario (id_usuario, cargo, data_contratacao) "
-                               "VALUES (%s, %s, %s)",
-                               (funcionario.id, funcionario.cargo, funcionario.data_contratacao))
-        except UniqueViolation as erro:
-            raise ValidacaoError(self.MENSAGEM_DUPLICADO) from erro
-        return funcionario
-
     def cadastrarAdministrador(self, administrador):
         try:
             with self._transacao():
@@ -122,15 +104,3 @@ class RepositorioUsuarios(RepositorioBase):
             "UPDATE usuario SET senha_hash = %s WHERE id_usuario = %s",
             (usuario.senha_hash, usuario.id),
         )
-
-    def listarFuncionarios(self):
-        """Toda a equipe (ativos e desligados), em ordem de nome. Não inclui administradores"""
-        linhas = self._todasLinhas(
-            "SELECT * FROM usuario JOIN funcionario USING (id_usuario) ORDER BY nome",
-            (),
-        )
-
-        funcionarios = []
-        for linha in linhas:
-            funcionarios.append(Funcionario(**self._camposDeUsuario(linha)))
-        return funcionarios
