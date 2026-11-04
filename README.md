@@ -80,32 +80,71 @@ sistema-confeitaria/
 │   │   ├── administrador.py
 │   │   ├── base.py                  # Entidade (classe mãe de tudo que tem id)
 │   │   ├── cliente.py
-│   │   ├── contratos.py             # Protocols de Pedido, Estoque e Recomendador
+│   │   ├── contratos.py             # Protocols: PedidoAvancavel, Recomendador, ClienteConsultavel
 │   │   ├── endereco.py
-│   │   ├── enums.py                 # Perfil, StatusPedido, StatusPagamento...
+│   │   ├── enums.py                 # Perfil, StatusPedido (autômato), StatusPagamento, TipoMovimentacao...
+│   │   ├── estoque.py               # Estoque (coordena vários insumos; não é tabela)
 │   │   ├── funcionario.py
+│   │   ├── insumo.py                # Insumo (tabela INGREDIENTE): saldo, mínimo, conversão de unidades
+│   │   ├── movimentacao_estoque.py  # histórico imutável de entradas, consumos, perdas e ajustes
 │   │   ├── opcao_personalizacao.py
-│   │   ├── produto.py
+│   │   ├── pedido.py                # Pedido, ItemPedido, ItemPedidoOpcao e Pagamento
+│   │   ├── produto.py               # Produto e ProdutoReceita (liga o produto às receitas)
+│   │   ├── receita.py               # Receita e ItemReceita (escala por regra de três)
 │   │   ├── senha.py                 # Senha (hash) e SenhaAusente
 │   │   └── usuario.py               # Usuario (classe abstrata)
+│   ├── repositories/                # (a criar) acesso ao banco, sem regra de negócio
 │   ├── services/                    # casos de uso
 │   │   ├── __init__.py
 │   │   ├── autenticacao.py          # login e tokens
-│   │   └── controle_login.py        # bloqueio por tentativas
+│   │   ├── controle_login.py        # bloqueio por tentativas
+│   │   ├── conversor_unidades.py    # conversão entre unidades-padrão (kg<->g, l<->ml)
+│   │   └── precificacao.py          # CalculadoraPreco: custo, margem, personalização e taxa de entrega
 │   ├── templates/
 │   ├── validators/                  # validação de dados; não conhece nenhuma entidade
 │   │   ├── __init__.py
 │   │   ├── campos.py                # garantir() e Validador
 │   │   └── senha.py                 # regras de força da senha
 │   ├── __init__.py
-│   └── exceptions.py                # ValidacaoError, AcessoNegadoError...
+│   └── exceptions.py                # ValidacaoError, AcessoNegadoError, EstoqueInsuficienteError...
 ├── tests/
+│   ├── db/                          # testes do banco (usam o Docker)
+│   ├── models/
+│   │   ├── conftest.py              # fixtures compartilhadas (farinha, leite_condensado, caixa, estoque)
+│   │   ├── test_estoque.py
+│   │   ├── test_insumo.py
+│   │   ├── test_movimentacao_estoque.py
+│   │   ├── test_pedido.py
+│   │   ├── test_produto_receita.py
+│   │   ├── test_receita.py
+│   │   └── ...                      # demais testes dos models (um test_*.py por model)
+│   ├── services/
+│   │   ├── test_conversor_unidades.py
+│   │   └── test_precificacao.py
+│   └── validators/
+│       └── test_campos_estoque.py
 ├── .env                             # local, não vai para o GitHub
 ├── .gitignore
+├── pytest.ini                       # configuração do pytest (raiz do projeto e pasta tests/)
 ├── README.md
 ├── requirements.txt
 └── run.py
 ```
+
+### Como rodar os testes
+Os testes de models, services e validators não usam o banco -> não precisam do Docker
+'''
+Primeira vez: criar e ligar o ambiente virtual e instalar as dependências
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+Dia a dia: ligar o ambiente e rodar
+source venv/bin/activate
+pytest tests/models tests/services tests/validators     # tudo, sem o banco
+pytest tests/models/test_pedido.py -v                   # um arquivo só, mostrando cada teste
+pytest tests/models/test_pedido.py -x --tb=short        # para no primeiro erro, com mensagem curta
+'''
 
 ## Convenções de código
 
