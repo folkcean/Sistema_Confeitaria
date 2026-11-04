@@ -2,18 +2,52 @@
 app / models / produto.py
 
 Catálogo de produtos da confeitaria (tabela PRODUTO)
-Suas opções ficam em opcao_personalizacao.py.
+Suas opções ficam em opcao_personalizacao.py
+
+Atualização (semana 4): o produto também reconhece as receitas que o compõem, pela classe ProdutoReceita
 """
 
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from app.exceptions import ValidacaoError
 from app.validators.campos import Validador, garantir
 
 from .base import Entidade
 from .opcao_personalizacao import OpcaoPersonalizacao
+
+if TYPE_CHECKING:
+    from .insumo import Insumo
+    from .receita import Receita
+
+class ProdutoReceita:
+    """
+    Ligação entre um Produto e uma Receita -> tabela ProdutoReceita
+
+    DER: produtoID, receitaID, quantidade
+    """
+
+    def __init__(self, 
+                 receita: Receita, 
+                 quantidade = 1):
+        """
+        Guarda a receita e valida a quantidade
+        """
+        self._receita = receita
+        self._quantidade = Validador.quantidadePositiva(quantidade, "quantidade da receita")
+
+    @property
+    def receita(self) -> Receita: return self._receita
+    @property
+    def quantidade(self) -> Decimal: return self._quantidade
+
+    def __repr__(self) -> str:
+        """
+        Texto exibido ao imprimir o objeto
+        """
+        return f"<ProdutoReceita {self._quantidade} x {self._receita!r}>"
 
 
 class Produto(Entidade):
@@ -69,6 +103,8 @@ class Produto(Entidade):
         self._caminho_foto = Validador.textoOpcional(caminho_foto, "caminho da foto")
         # Lista das opções de personalização deste produto (relação 1:N). Começa vazia
         self._opcoes: list[OpcaoPersonalizacao] = []
+        # Receitas que compõem o produto (relação N:N via PRODUTO_RECEITA). Começa vazia
+        self._receitas: list[ProdutoReceita] = []
 
     # Leitura simples dos campos
     @property
@@ -206,6 +242,50 @@ class Produto(Entidade):
         self._opcoes.remove(opcao)
         opcao._vincular(None)
 
+    # Receitas (N:N, tabela PRODUTO_RECEITA)
+    @property
+    def receitas(self) -> tuple[ProdutoReceita, ...]:
+        """
+        Cópia imutável das ligações com receitas
+        """
+        return tuple(self._receitas)
+
+    def adicionarReceita(self, receita: Receita, quantidade=1) -> ProdutoReceita:
+        """
+        Liga uma receita ao produto. A mesma receita não pode ser ligada duas vezes
+        """
+        garantir(
+            not any(ligacao.receita is receita for ligacao in self._receitas),
+            ValidacaoError("Esta receita já faz parte do produto"),
+        )
+        ligacao = ProdutoReceita(receita, quantidade)
+        self._receitas.append(ligacao)
+        return ligacao
+
+    def removerReceita(self, receita: Receita) -> None:
+        """
+        Desliga a receita do produto
+        """
+        encontradas = list(filter(lambda ligacao: ligacao.receita is receita, self._receitas))
+        garantir(encontradas, ValidacaoError("Esta receita não faz parte do produto"))
+        self._receitas.remove(encontradas[0])
+
+    def necessidades(self, unidades: int = 1) -> list[tuple[Insumo, Decimal]]:
+        """
+        Insumos necessários para produzir `unidades` do produto, no formato de Estoque.consumir()
+        Cada receita é escalada por (quantidade da ligação x unidades)
+        Receita inativa não pode ser produzida
+        """
+        total = Validador.inteiroPositivo(unidades, "unidades")
+        pares: list[tuple[Insumo, Decimal]] = []
+        for ligacao in self._receitas:
+            garantir(
+                ligacao.receita.ativa,
+                ValidacaoError(f"A receita do produto {self._nome!r} está desativada"),
+            )
+            pares.extend(ligacao.receita.escalar(ligacao.quantidade * total))
+        return pares
+    
     # Cálculos
     def _exigirOpcaoEscolhivel(self, opcao: OpcaoPersonalizacao) -> None:
         """A opção precisa ser deste produto e estar ativa"""
