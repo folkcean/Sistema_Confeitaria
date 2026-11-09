@@ -72,6 +72,7 @@ def carrinho():
 def carrinhoAdicionar():
     """Põe um produto (com opções) no carrinho"""
     opcoes = []
+    ids_das_opcoes = request.form.getlist("opcoes", type=int)
     for id_op in ids_das_opcoes:
         quantidade_opcao = request.form.get(f"qtd_opcao_{id_op}", 1, type=int)
         opcoes.append([id_op, quantidade_opcao])
@@ -79,7 +80,6 @@ def carrinhoAdicionar():
     try:
         produto_id = request.form.get("produto_id", type=int)
         quantidade = request.form.get("quantidade", type=int)
-        ids_das_opcoes = request.form.getlist("opcoes", type=int)
         observacoes = request.form.get("observacoes", "")
 
         produto = repo_produtos.buscarAtivo(produto_id) or abort(404)
