@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING
 
 from app.exceptions import ValidacaoError
 from app.validators.campos import Validador, garantir
-
 from .base import Entidade
 from .enums import FormaPagamento, StatusPagamento, StatusPedido, TipoEntrega
 
@@ -59,9 +58,9 @@ class Pagamento:
     _FRACAO_SINAL = Decimal("0.5")
     _CENTAVOS = Decimal("0.01")
 
-    def __init__(self, 
+    def __init__(self,
                  status: StatusPagamento = StatusPagamento.AGUARDANDO_SINAL,
-                 forma_sinal: FormaPagamento | None = None, 
+                 forma_sinal: FormaPagamento | None = None,
                  forma_restante: FormaPagamento | None = None):
         """
         Aceita os Enums ou os textos vindos do banco (ex.: 'sinal_pago')
@@ -85,8 +84,10 @@ class Pagamento:
 
     @property
     def status(self) -> StatusPagamento: return self._status
+
     @property
     def forma_sinal(self) -> FormaPagamento | None: return self._forma_sinal
+
     @property
     def forma_restante(self) -> FormaPagamento | None: return self._forma_restante
 
@@ -175,9 +176,9 @@ class ItemPedidoOpcao:
     Exemplo (entrevista 5.4): brigadeiro no bolo, R$ 3,00 cada; 4 brigadeiros -> subtotal R$ 12,00
     """
 
-    def __init__(self, 
-                 opcao: OpcaoPersonalizacao, 
-                 quantidade: int = 1, 
+    def __init__(self,
+                 opcao: OpcaoPersonalizacao,
+                 quantidade: int = 1,
                  custo_cobrado=None):
         """
         Sem `custo_cobrado`, copia o custo atual da opção (fixa o preço). Ao recarregar do banco, passe o gravado
@@ -193,8 +194,10 @@ class ItemPedidoOpcao:
 
     @property
     def opcao(self) -> OpcaoPersonalizacao: return self._opcao
+
     @property
     def quantidade(self) -> int: return self._quantidade
+
     @property
     def custo_cobrado(self) -> Decimal: return self._custo_cobrado
 
@@ -222,13 +225,13 @@ class ItemPedido(Entidade):
     `custo_personalizacao` é o total das opções da LINHA inteira (não por unidade)
     """
 
-    def __init__(self, 
-                 produto: Produto, 
-                 quantidade: int, 
-                 preco_unitario, 
+    def __init__(self,
+                 produto: Produto,
+                 quantidade: int,
+                 preco_unitario,
                  custo_unitario,
-                 personalizacao: str = "", 
-                 desconto=0, observacoes: str = "", 
+                 personalizacao: str = "",
+                 desconto=0, observacoes: str = "",
                  id_item_pedido: int | None = None):
         """Valida tudo na criação. As opções são acrescentadas depois, por adicionarOpcao()"""
         super().__init__(id_item_pedido)
@@ -250,18 +253,25 @@ class ItemPedido(Entidade):
 
     @property
     def produto(self) -> Produto: return self._produto
+
     @property
     def quantidade(self) -> int: return self._quantidade
+
     @property
     def preco_unitario(self) -> Decimal: return self._preco_unitario
+
     @property
     def custo_unitario(self) -> Decimal: return self._custo_unitario
+
     @property
     def personalizacao(self) -> str | None: return self._personalizacao
+
     @property
     def desconto(self) -> Decimal: return self._desconto
+
     @property
     def observacoes(self) -> str | None: return self._observacoes
+
     @property
     def pedido(self) -> Pedido | None: return self._pedido
 
@@ -331,6 +341,11 @@ class ItemPedido(Entidade):
         """Impede novas alterações. Chamado pelo Pedido quando é confirmado"""
         self._travado = True
 
+    def _carregarOpcao(self, opcao, quantidade, custo_cobrado):
+        opcaoAdicionada = ItemPedidoOpcao(opcao, quantidade, custo_cobrado)
+        self._opcoes.append(opcaoAdicionada)
+        return opcaoAdicionada
+
     def __repr__(self) -> str:
         """Texto exibido ao imprimir o objeto"""
         return f"<ItemPedido {self._quantidade} x {self._produto.nome!r} R$ {self.subtotal}>"
@@ -347,19 +362,19 @@ class Pedido(Entidade):
     `valor_total` NÃO é guardado: é calculado (itens + taxa de entrega) e o repositório grava o resultado
     """
 
-    def __init__(self, 
-                 cliente: Cliente, 
-                 tipo_entrega: TipoEntrega, 
+    def __init__(self,
+                 cliente: Cliente,
+                 tipo_entrega: TipoEntrega,
                  data_entrega_ou_retirada: datetime,
-                 endereco: Endereco | None = None, 
-                 nome_recebedor: str = "", 
+                 endereco: Endereco | None = None,
+                 nome_recebedor: str = "",
                  observacoes: str = "",
-                 taxa_entrega=0, 
+                 taxa_entrega=0,
                  data_criacao: datetime | None = None,
-                 status: StatusPedido = StatusPedido.SOLICITADO, 
+                 status: StatusPedido = StatusPedido.SOLICITADO,
                  pagamento: Pagamento | None = None,
-                 motivo_cancelamento: str = "", 
-                 rastreamento: str = "", 
+                 motivo_cancelamento: str = "",
+                 rastreamento: str = "",
                  id_pedido: int | None = None):
         """Valida e normaliza. `data_criacao` pode ser informada (testes e recarga do banco); senão é agora"""
         super().__init__(id_pedido)
@@ -401,26 +416,37 @@ class Pedido(Entidade):
 
     @property
     def cliente(self) -> Cliente: return self._cliente
+
     @property
     def tipo_entrega(self) -> TipoEntrega: return self._tipo_entrega
+
     @property
     def data_criacao(self) -> datetime: return self._data_criacao
+
     @property
     def data_entrega_ou_retirada(self) -> datetime: return self._data_entrega_ou_retirada
+
     @property
     def endereco(self) -> Endereco | None: return self._endereco
+
     @property
     def nome_recebedor(self) -> str | None: return self._nome_recebedor
+
     @property
     def observacoes(self) -> str | None: return self._observacoes
+
     @property
     def taxa_entrega(self) -> Decimal: return self._taxa_entrega
+
     @property
     def status(self) -> StatusPedido: return self._status
+
     @property
     def pagamento(self) -> Pagamento: return self._pagamento
+
     @property
     def motivo_cancelamento(self) -> str | None: return self._motivo_cancelamento
+
     @property
     def rastreamento(self) -> str | None: return self._rastreamento
 
@@ -583,6 +609,21 @@ class Pedido(Entidade):
     def _aoCancelar(self, motivo: str) -> None:
         """Para virar Cancelado: exige motivo (entrevista 4.11). O sinal NÃO é devolvido(entrevista)"""
         self._motivo_cancelamento = Validador.texto(motivo, "motivo do cancelamento")
+
+    # Uso interno
+    def _carregarItem(self, item: ItemPedido) -> None:
+        """
+        Uso interno do repositório: anexa um item lido do banco, sem as checagens de adicionarItem.
+        Se o pedido já passou da fase editável, o item chega travado, igual ficaria após a confirmação
+        """
+        item._vincular(self)
+        self._itens.append(item)
+
+        opcoes = {True: item._travar, False: lambda: None}
+        chave = self._status not in _STATUS_EDITAVEIS
+
+        funcao = opcoes[chave]
+        funcao()
 
     def __repr__(self) -> str:
         """Texto exibido ao imprimir o objeto"""

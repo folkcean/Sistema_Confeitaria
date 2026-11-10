@@ -17,7 +17,7 @@
 
 {% set menu_ativo = "pedidos" %}
 {% set status = m.valor(pedido.status)|string %}
-{% set pagamento = m.valor(pedido.status_pagamento)|string %}
+{% set pagamento = m.valor(pedido.pagamento.status)|string %}
 
 {% block titulo %}Pedido nº&nbsp;{{ pedido.id }}{% endblock %}
 
@@ -64,7 +64,7 @@
                             <div>
                                 {{ item.quantidade }}× {{ item.produto.nome }}
                                 {% for opcao in item.opcoes %}<small>
-                                    {{ opcao.nome }}{% if opcao.quantidade and opcao.quantidade > 1 %} ×
+                                    {{ opcao.opcao.nome }}{% if opcao.quantidade and opcao.quantidade > 1 %} ×
                                         {{ opcao.quantidade }}{% endif %}</small>{% endfor %}
                                 {% if item.observacoes %}<small>“{{ item.observacoes }}”</small>{% endif %}
                             </div>
@@ -105,9 +105,9 @@
                     {% endif %}
                 </dl>
                 <div class="pagamento-situacao">
-                    {{ m.selo(m.STATUS_PAGAMENTO, pedido.status_pagamento) }}
-                    {% if pedido.forma_pagamento_sinal %}
-                        <span class="texto-suave texto-pequeno">Sinal via {{ m.rotulo(m.FORMA_PAGAMENTO, pedido.forma_pagamento_sinal) }}</span>
+                    {{ m.selo(m.STATUS_PAGAMENTO, pedido.pagamento.status) }}
+                    {% if pedido.pagamento.forma_restante %}
+                        <span class="texto-suave texto-pequeno">Sinal via {{ m.rotulo(m.FORMA_PAGAMENTO, pedido.pagamento.forma_restante) }}</span>
                     {% endif %}
                 </div>
             </section>

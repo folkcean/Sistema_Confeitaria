@@ -66,16 +66,15 @@ INSERT INTO insumo (id_insumo, nome, tipo, unidade_medida, unidade_receita, fato
   (26, 'Fita de cetim', 'decoracao', 'rolo 10m', 'm', 10, 26.2, 20, 7.87, false);
 
 -- ---------- Receitas ----------
--- A tabela receita ainda não tem coluna de nome: o nome vai no início do modo de preparo.
-INSERT INTO receita (id_receita, modo_preparo, tempo_preparo, rendimento_qtd, rendimento_un, complexidade, ativa) VALUES
-  (1, 'Massa branca: Bater ovos e acucar, juntar leite e oleo, incorporar farinha e fermento. Assar 40 min a 180C.', 50, 1, 'bolo 25cm', 'baixa', true),
-  (2, 'Massa de chocolate: Misturar secos com cacau, juntar ovos, leite e oleo. Assar 40 min a 180C.', 50, 1, 'bolo 25cm', 'baixa', true),
-  (3, 'Massa de cenoura: Bater cenoura, ovos e oleo no liquidificador; misturar farinha, acucar e fermento. Assar 40 min.', 50, 1, 'bolo 25cm', 'baixa', true),
-  (5, 'Brigadeiro: Cozinhar leite condensado, manteiga e chocolate ate desgrudar. Enrolar e passar no granulado.', 60, 50, 'unidades', 'baixa', true),
-  (6, 'Beijinho: Cozinhar leite condensado com manteiga e coco. Enrolar e passar no coco.', 60, 50, 'unidades', 'baixa', true),
-  (7, 'Ganache de chocolate: Derreter chocolate meio amargo com creme de leite.', 15, 1, 'cobertura de bolo', 'baixa', true),
-  (8, 'Recheio de brigadeiro de colher: Cozinhar leite condensado, creme de leite, cacau e manteiga ate ponto cremoso.', 25, 1, 'recheio de bolo', 'baixa', true),
-  (12, 'Brownie: Derreter chocolate com manteiga, juntar acucar, ovos, cacau e farinha. Assar 25 min.', 45, 16, 'pedacos', 'baixa', false);
+INSERT INTO receita (id_receita, nome, modo_preparo, tempo_preparo, rendimento_qtd, rendimento_un, complexidade, ativa) VALUES
+  (1, 'Massa branca', 'Bater ovos e acucar, juntar leite e oleo, incorporar farinha e fermento. Assar 40 min a 180C.', 50, 1, 'bolo 25cm', 'baixa', true),
+  (2, 'Massa de chocolate', 'Misturar secos com cacau, juntar ovos, leite e oleo. Assar 40 min a 180C.', 50, 1, 'bolo 25cm', 'baixa', true),
+  (3, 'Massa de cenoura', 'Bater cenoura, ovos e oleo no liquidificador; misturar farinha, acucar e fermento. Assar 40 min.', 50, 1, 'bolo 25cm', 'baixa', true),
+  (5, 'Brigadeiro', 'Cozinhar leite condensado, manteiga e chocolate ate desgrudar. Enrolar e passar no granulado.', 60, 50, 'unidades', 'baixa', true),
+  (6, 'Beijinho', 'Cozinhar leite condensado com manteiga e coco. Enrolar e passar no coco.', 60, 50, 'unidades', 'baixa', true),
+  (7, 'Ganache de chocolate', 'Derreter chocolate meio amargo com creme de leite.', 15, 1, 'cobertura de bolo', 'baixa', true),
+  (8, 'Recheio de brigadeiro de colher', 'Cozinhar leite condensado, creme de leite, cacau e manteiga ate ponto cremoso.', 25, 1, 'recheio de bolo', 'baixa', true),
+  (12, 'Brownie', 'Derreter chocolate com manteiga, juntar acucar, ovos, cacau e farinha. Assar 25 min.', 45, 16, 'pedacos', 'baixa', false);
 
 INSERT INTO item_receita (id_receita, id_insumo, quantidade_necessaria) VALUES
   (1, 1, 300), (1, 2, 250), (1, 3, 4), (1, 10, 240), (1, 11, 120), (1, 12, 15),

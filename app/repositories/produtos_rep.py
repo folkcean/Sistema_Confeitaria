@@ -78,6 +78,26 @@ class RepositorioProdutos(RepositorioBase):
         self._carregarOpcoes(produtos)
         return produtos
 
+    def listarPorReceita(self, id_receita):
+        """Produtos (ativos e inativos) que usam essa receita, em ordem de nome, já com as opções"""
+        sql = (
+            "SELECT p.* "
+            "FROM produto p "
+            "JOIN produto_receita pr USING (id_produto) "
+            "WHERE pr.id_receita = %s "
+            "ORDER BY p.nome"
+        )
+        parametros = (id_receita,)
+        linhas = self._todasLinhas(sql, parametros)
+
+        produtos = []
+        for linha in linhas:
+            produto = Produto(**linha)
+            produtos.append(produto)
+
+        self._carregarOpcoes(produtos)
+        return produtos
+
     def buscarPorId(self, id_produto):
         """Produto com essa PK, já com as opções (ativas e inativas), ou None. Usado no painel"""
         sql = "SELECT * FROM produto WHERE id_produto = %s"

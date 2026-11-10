@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING
 
 from app.exceptions import ValidacaoError
 from app.validators.campos import Validador, garantir
-
 from .base import Entidade
 
 if TYPE_CHECKING:
@@ -31,9 +30,9 @@ class ItemReceita(Entidade):
     `quantidade_necessaria` está na unidade de receita do insumo (ex.: gramas), não na do estoque (kg)
     """
 
-    def __init__(self, 
-                 insumo: Insumo, 
-                 quantidade_necessaria, 
+    def __init__(self,
+                 insumo: Insumo,
+                 quantidade_necessaria,
                  observacoes: str = "",
                  id_item_receita: int | None = None):
         """
@@ -49,10 +48,13 @@ class ItemReceita(Entidade):
 
     @property
     def insumo(self) -> Insumo: return self._insumo
+
     @property
     def quantidade_necessaria(self) -> Decimal: return self._quantidade_necessaria
+
     @property
     def observacoes(self) -> str | None: return self._observacoes
+
     @property
     def receita(self) -> Receita | None: return self._receita
 
@@ -102,13 +104,14 @@ class Receita(Entidade):
 
     _MILESIMOS = Decimal("0.001")
 
-    def __init__(self, 
-                 rendimento_qtd, 
-                 rendimento_un: str, 
-                 tempo_preparo: int = 0, 
+    def __init__(self,
+                 rendimento_qtd,
+                 rendimento_un: str,
+                 tempo_preparo: int = 0,
                  modo_preparo: str = "",
-                 complexidade: str = "", 
-                 ativa: bool = True, 
+                 complexidade: str = "",
+                 nome: str = "",
+                 ativa: bool = True,
                  data_criacao: datetime | None = None,
                  id_receita: int | None = None):
         """
@@ -127,19 +130,29 @@ class Receita(Entidade):
         self._data_criacao = data_criacao or datetime.now()
         # Ingredientes desta receita -> começa vazia
         self._itens: list[ItemReceita] = []
+        self._nome = Validador.textoOpcional(nome, "nome da receita")
+
+    @property
+    def nome(self) -> str | None: return self._nome
 
     @property
     def rendimento_qtd(self) -> Decimal: return self._rendimento_qtd
+
     @property
     def rendimento_un(self) -> str: return self._rendimento_un
+
     @property
     def tempo_preparo(self) -> int: return self._tempo_preparo
+
     @property
     def modo_preparo(self) -> str | None: return self._modo_preparo
+
     @property
     def complexidade(self) -> str | None: return self._complexidade
+
     @property
     def ativa(self) -> bool: return self._ativa
+
     @property
     def data_criacao(self) -> datetime: return self._data_criacao
 
@@ -152,6 +165,15 @@ class Receita(Entidade):
         return tuple(self._itens)
 
     # Alterações
+    def alterarNome(self, nome):
+        self._nome = Validador.textoOpcional(nome, "nome da receita")
+
+    def alterarTempoPreparo(self, minutos):
+        self._tempo_preparo = Validador.inteiroNaoNegativo(minutos, "tempo de preparo(minutos)")
+
+    def alterarComplexidade(self, texto):
+        self._complexidade = Validador.textoOpcional(texto, "complexidade")
+
     def alternarAtiva(self) -> None:
         """
         Liga/desliga a receita. `not` inverte True/False"""
@@ -183,7 +205,7 @@ class Receita(Entidade):
         `{i.insumo.nome for i in self._itens}` é um conjunto dos nomes já usados
         """
         garantir(
-            item.receita is None, 
+            item.receita is None,
             ValidacaoError("Este item já pertence a uma receita")
         )
         garantir(
@@ -198,7 +220,7 @@ class Receita(Entidade):
         Remove o ingrediente e desfaz o vínculo (o item volta a não ter dona)
         """
         garantir(
-            item in self._itens, 
+            item in self._itens,
             ValidacaoError("Este item não pertence a esta receita")
         )
         self._itens.remove(item)
@@ -233,4 +255,4 @@ class Receita(Entidade):
         """
         Texto exibido ao imprimir o objeto
         """
-        return f"<Receita id={self.id} rende {self._rendimento_qtd} {self._rendimento_un} ({len(self._itens)} itens)>"
+        return f"<Receita '{self.nome}', com id={self.id}, rende {self._rendimento_qtd} {self._rendimento_un} ({len(self._itens)} itens)>"

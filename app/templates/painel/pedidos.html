@@ -85,7 +85,7 @@
                             <small>{{ m.rotulo(m.TIPO_ENTREGA, pedido.tipo_entrega) }}</small>
                         </td>
                         <td class="num opcional-celular">{{ m.moeda(pedido.valor_total) }}</td>
-                        <td class="opcional-celular">{{ m.selo(m.STATUS_PAGAMENTO, pedido.status_pagamento) }}</td>
+                        <td class="opcional-celular">{{ m.selo(m.STATUS_PAGAMENTO, pedido.pagamento.status) }}</td>
                         <td>{{ m.selo(m.STATUS_PEDIDO, pedido.status) }}</td>
                         <td class="tabela__acoes">
                             <a class="botao botao--secundario botao--pequeno"
