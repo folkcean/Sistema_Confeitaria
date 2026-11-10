@@ -12,14 +12,17 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for,
 
 from app.controllers.sessao import conferirEquipe, soAdmin, usuarioLogado
 from app.exceptions import ValidacaoError, AcessoNegadoError
-from app.models import Insumo, Estoque, Perfil, Produto, OpcaoPersonalizacao, Cliente, Senha, Funcionario
+from app.models import Insumo, Estoque, Perfil, Produto, OpcaoPersonalizacao, Cliente, Senha, Funcionario, Receita, \
+    ItemReceita
 from app.repositories.clientes_rep import RepositorioClientes
 from app.repositories.conexao_rep import obterConexao
 from app.repositories.funcionarios_rep import RepositorioFuncionarios
 from app.repositories.insumos_rep import RepositorioInsumos
 from app.repositories.produtos_rep import RepositorioProdutos
+from app.repositories.receitas_rep import RepositorioReceita
 from app.repositories.relatorios_rep import RepositorioRelatorios
 from app.repositories.usuarios_rep import RepositorioUsuarios
+from app.services.precificacao import CalculadoraPreco
 from app.validators.campos import garantir, Validador
 from app.validators.senha import ValidadorSenha
 
@@ -140,9 +143,15 @@ def produtoNovoSalvar():
 @painel.get("/produtos/<int:id>")
 @soAdmin
 def produtoEditar(id):
-    """Formulário de edição do produto (com as opções de personalização)"""
-    produto = repo_produtos.buscarPorId(id) or abort(404)
-    return render_template("painel/produto_form.html", produto=produto)
+    """Formulário de edição do produto (com as opções de personalização e as receitas ligadas)"""
+    estoque = _estoqueAtual()
+    produto = _produtoComReceitas(id, estoque)
+    return render_template(
+        "painel/produto_form.html",
+        produto=produto,
+        preco_sugerido=_precoSugerido(produto),
+        receitas_disponiveis=_receitasDisponiveis(produto, estoque),
+    )
 
 
 @painel.post("/produtos/<int:id>")
@@ -278,80 +287,311 @@ def opcaoAlternar(id):
     return redirect(url_for("painel.produtoEditar", id=produto.id))
 
 
+def _produtoComReceitas(id_produto, estoque):
+    """O produto com essa PK, já com as opções e as receitas (insumos do `estoque`), ou 404"""
+    produto = repo_produtos.buscarPorId(id_produto) or abort(404)
+    repo_produtos.carregarReceitas([produto], repo_receitas, estoque)
+    return produto
+
+
+def _precoSugerido(produto):
+    """Preço sugerido do produto, ou None se não dá para calcular (receita desativada ou insumo sem custo)"""
+    try:
+        return produto.precoSugerido(CalculadoraPreco().custoIngredientes(produto))
+    except ValidacaoError:
+        return None
+
+
+def _receitasDisponiveis(produto, estoque):
+    """Receitas ativas que ainda não estão ligadas ao produto (o <select> de "ligar receita")"""
+    # Compara por id: as receitas do listar são outros objetos, `is` nunca acharia as ligadas
+    ligadas = {ligacao.receita.id for ligacao in produto.receitas}
+    # listar sem filtro já traz só as ativas
+    return list(filter(lambda receita: receita.id not in ligadas, repo_receitas.listar(estoque)))
+
+
 @painel.post("/produtos/<int:id>/receitas")
 @soAdmin
 def produtoReceitaAdicionar(id):
     """Liga uma receita ao produto"""
-    return "em construção"
+    estoque = _estoqueAtual()
+    produto = _produtoComReceitas(id, estoque)
+    try:
+        # Com type=int, um valor inválido vira None, e o validador recusa
+        id_receita = Validador.inteiroPositivo(request.form.get("receita_id", type=int), "receita")
+        receita = repo_receitas.buscarPorId(id_receita, estoque)
+        garantir(receita is not None, ValidacaoError("Receita não encontrada."))
+        # Só roda se a de cima passou: receita.nome nunca é lido de um None
+        garantir(receita.ativa, ValidacaoError(f"A receita {receita.nome} está fora de uso."))
+        # O model valida a quantidade. Receita repetida passa aqui (é outro objeto); quem barra é o banco
+        ligacao = produto.adicionarReceita(receita, request.form.get("quantidade"))
+        repo_produtos.salvarLigacaoReceita(produto, ligacao)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return redirect(url_for("painel.produtoEditar", id=id))
+
+    flash(f"Receita {receita.nome} ligada a {produto.nome}.", "sucesso")
+    return redirect(url_for("painel.produtoEditar", id=id))
 
 
 @painel.post("/produtos/<int:id>/receitas/<int:id_receita>/remover")
 @soAdmin
 def produtoReceitaRemover(id, id_receita):
     """Desliga uma receita do produto"""
-    return "em construção"
+    produto = repo_produtos.buscarPorId(id) or abort(404)
+    # Ligação inexistente: removerLigacaoReceita devolve False, e o `or` cai no 404
+    repo_produtos.removerLigacaoReceita(id, id_receita) or abort(404)
+    flash(f"Receita desligada de {produto.nome}.", "sucesso")
+    return redirect(url_for("painel.produtoEditar", id=id))
+
+
+repo_receitas = RepositorioReceita(obterConexao)
 
 
 # Receitas (Tarefa 12)
+def _estoqueAtual():
+    """
+    Estoque com todos os insumos (ativos e inativos), lido do banco agora.
+    """
+    return Estoque(repo_estoque.listar())
+
+
+def _receitaOu404(id_receita, estoque):
+    """A receita com essa PK, já com os ingredientes tirados do `estoque`, ou 404"""
+    return repo_receitas.buscarPorId(id_receita, estoque) or abort(404)
+
+
+def _insumosAtivos():
+    """Insumos ativos, em ordem de nome, para o <select> de ingrediente do formulário de receita"""
+    # A aba "" do estoque já é "só ativos" (RepositorioInsumos.FILTROS)
+    return repo_estoque.listarComFiltro(filtro="", busca="")
+
+
+def _custoDos(escalados):
+    """Custo dos insumos escalados, em reais (2 casas), ou None se algum insumo não tem custo cadastrado"""
+    try:
+        total = sum((insumo.custoDe(quantidade) for insumo, quantidade in escalados), Decimal("0"))
+        return total.quantize(Decimal("0.01"))
+    except ValidacaoError:
+        return None
+
+
+def _itensDoFormulario(estoque):
+    """
+    ItemReceita NOVOS a partir das três listas do formulário (uma posição = uma linha da tabela)
+    Linhas com o insumo em branco são ignoradas. Os insumos são os objetos de dentro do `estoque`
+    """
+    # Sem type=int: com type o Flask descarta os inválidos e as três listas ficam desalinhadas
+    ids = request.form.getlist("insumo_id")
+    quantidades = request.form.getlist("quantidade_necessaria")
+    observacoes = request.form.getlist("observacoes")
+
+    # Chave em texto para comparar direto com o que veio do formulário
+    insumos_por_texto = {}
+    for insumo in estoque.insumos:
+        insumos_por_texto[str(insumo.id)] = insumo
+
+    linhas = filter(lambda linha: linha[0], zip(ids, quantidades, observacoes))
+
+    itens = []
+    for id_texto, quantidade, observacao in linhas:
+        insumo = insumos_por_texto.get(id_texto)
+        garantir(insumo is not None, ValidacaoError("Um dos insumos escolhidos não existe."))
+        itens.append(ItemReceita(insumo, quantidade, observacao))
+
+    garantir(itens, ValidacaoError("Informe pelo menos um ingrediente."))
+    return itens
+
+
 @painel.get("/receitas")
 def receitas():
     """Lista de receitas"""
-    return render_template("painel/receitas.html")
+    filtro = request.args.get("filtro", "")
+    busca = request.args.get("q", "")
+    receitas = repo_receitas.listar(_estoqueAtual(), filtro, busca)
+    return render_template("painel/receitas.html", receitas=receitas, filtro=filtro, busca=busca)
 
 
 @painel.get("/receitas/<int:id>")
 def receita(id):
     """Receita com a regra de 3 (?quantidade=)"""
-    return "em construção"
+    estoque = _estoqueAtual()
+    receita = _receitaOu404(id, estoque)
+
+    texto = request.args.get("quantidade", "")
+    try:
+        # Vazio vira None; preenchido vira Decimal ou levanta erro
+        quantidade = Validador.opcional(Validador.quantidadePositiva, texto, "quantidade")
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        quantidade = None
+
+    # Sem quantidade, mostra a receita na quantidade original
+    escalados = receita.escalar(quantidade or receita.rendimento_qtd)
+
+    # escalar percorre os itens na mesma ordem de receita.itens: zip junta cada item com o seu par
+    itens = []
+    for item, (insumo, quantidade_escalada) in zip(receita.itens, escalados):
+        itens.append({"insumo": insumo, "quantidade": quantidade_escalada, "observacoes": item.observacoes})
+
+    # Custo é dado financeiro: só a administradora recebe (esconder no template não protege nada)
+    eh_admin = usuarioLogado().perfil is Perfil.ADMINISTRADOR
+    custo = {True: lambda: _custoDos(escalados),
+             False: lambda: None}[eh_admin]()
+
+    produtos = repo_produtos.listarPorReceita(id)
+
+    return render_template("painel/receita.html", receita=receita, quantidade=quantidade, itens=itens,
+                           custo=custo, produtos=produtos)
 
 
 @painel.get("/receitas/nova")
 @soAdmin
 def receitaNova():
     """Formulário de receita nova"""
-    return render_template("painel/receita_form.html")
+    return render_template("painel/receita_form.html", receita=None, insumos=_insumosAtivos())
 
 
 @painel.post("/receitas/nova")
 @soAdmin
 def receitaNovaSalvar():
-    """Cadastra a receita (ou só acrescenta dicionarios)"""
-    return "em construção"
+    """Cadastra a receita (ou só acrescenta linhas)"""
+    # "Mais linhas" só redesenha o formulário; qualquer outra ação salva
+    caminhos = {"mais_linhas": _formularioDeReceitaNova}
+    return caminhos.get(request.form.get("acao"), _salvarReceitaNova)()
+
+
+def _formularioDeReceitaNova():
+    """Redesenha o formulário vazio. O template relê o que foi digitado e põe 3 linhas a mais"""
+    return render_template("painel/receita_form.html", receita=None, insumos=_insumosAtivos())
+
+
+def _salvarReceitaNova():
+    """Monta a receita com o que veio do formulário e grava"""
+    try:
+        estoque = _estoqueAtual()
+        receita = Receita(
+            rendimento_qtd=request.form.get("rendimento_qtd"),
+            rendimento_un=request.form.get("rendimento_un"),
+            # Com type=int, um tempo vazio ou inválido vira 0
+            tempo_preparo=request.form.get("tempo_preparo", 0, type=int),
+            modo_preparo=request.form.get("modo_preparo", ""),
+            complexidade=request.form.get("complexidade", ""),
+        )
+        # alterarNome é quem recusa o nome vazio
+        receita.alterarNome(request.form.get("nome"))
+        for item in _itensDoFormulario(estoque):
+            receita.adicionarItem(item)
+        repo_receitas.salvar(receita)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return render_template("painel/receita_form.html", receita=None, insumos=_insumosAtivos()), 400
+
+    flash(f"Receita {receita.nome} cadastrada.", "sucesso")
+    return redirect(url_for("painel.receita", id=receita.id))
 
 
 @painel.get("/receitas/<int:id>/editar")
 @soAdmin
 def receitaEditar(id):
     """Formulário de edição da receita"""
-    return "em construção"
+    return _formularioDeEdicao(id)
 
 
 @painel.post("/receitas/<int:id>/editar")
 @soAdmin
 def receitaEditarSalvar(id):
-    """Salva a edição da receita (ou só acrescenta dicionarios)"""
-    return "em construção"
+    """Salva a edição da receita (ou só acrescenta linhas)"""
+    caminhos = {"mais_linhas": lambda: _formularioDeEdicao(id)}
+    return caminhos.get(request.form.get("acao"), lambda: _salvarEdicao(id))()
+
+
+def _formularioDeEdicao(id):
+    """Formulário com a receita carregada do banco"""
+    receita = _receitaOu404(id, _estoqueAtual())
+    return render_template("painel/receita_form.html", receita=receita, insumos=_insumosAtivos())
+
+
+def _salvarEdicao(id):
+    """Aplica o formulário na receita e grava (os ingredientes são substituídos todos)"""
+    estoque = _estoqueAtual()
+    receita = _receitaOu404(id, estoque)
+    try:
+        receita.alterarNome(request.form.get("nome"))
+        receita.alterarRendimento(request.form.get("rendimento_qtd"), request.form.get("rendimento_un"))
+        receita.alterarTempoPreparo(request.form.get("tempo_preparo", 0, type=int))
+        receita.alterarModoPreparo(request.form.get("modo_preparo", ""))
+        receita.alterarComplexidade(request.form.get("complexidade", ""))
+
+        # Lê antes de remover: se o formulário estiver errado, os itens antigos ainda estão lá
+        novos = _itensDoFormulario(estoque)
+        # receita.itens é uma cópia (tupla): dá para remover enquanto percorre
+        for item in receita.itens:
+            receita.removerItem(item)
+        for item in novos:
+            receita.adicionarItem(item)
+
+        repo_receitas.salvar(receita)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return render_template("painel/receita_form.html", receita=receita, insumos=_insumosAtivos()), 400
+
+    flash(f"Receita {receita.nome} atualizada.", "sucesso")
+    return redirect(url_for("painel.receita", id=id))
 
 
 @painel.get("/receitas/<int:id>/desativar")
 @soAdmin
 def receitaDesativar(id):
     """Pergunta antes de tirar a receita de uso"""
-    return "em construção"
+    receita = _receitaOu404(id, _estoqueAtual())
+    nomes = ", ".join(produto.nome for produto in repo_produtos.listarPorReceita(id)) or "nenhum produto"
+    return render_template(
+        "confirmar.html",
+        titulo=f"Tirar a receita {receita.nome} de uso?",
+        mensagem="Ela continua no histórico, mas os produtos que a usam ficam sem custo calculado "
+                 "e não podem ter pedidos confirmados até ela voltar.",
+        detalhe=f"Usada em: {nomes}.",
+        acao=url_for("painel.receitaDesativar", id=id),
+        voltar=url_for("painel.receita", id=id),
+        rotulo_botao="Tirar de uso",
+        perigo=True,
+    )
 
 
 @painel.post("/receitas/<int:id>/desativar")
 @soAdmin
 def receitaDesativarConfirmado(id):
-    """Tira a receita de uso"""
-    return "em construção"
+    """Tira a receita de uso e oferece desfazer (que reativa)"""
+    receita = _receitaOu404(id, _estoqueAtual())
+    try:
+        garantir(receita.ativa, ValidacaoError(f"A receita {receita.nome} já está fora de uso."))
+        receita.alternarAtiva()
+        repo_receitas.salvar(receita)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return redirect(url_for("painel.receitas"))
+
+    url_desfazer = url_for("painel.receitaReativar", id=id)
+    flash(f"Receita {receita.nome} fora de uso.", "desfazer:" + url_desfazer)
+    return redirect(url_for("painel.receitas"))
 
 
 @painel.post("/receitas/<int:id>/reativar")
 @soAdmin
 def receitaReativar(id):
-    """Volta a receita para uso"""
-    return "em construção"
+    """Volta a receita para uso (aba Fora de uso e o "desfazer" da desativação)"""
+    receita = _receitaOu404(id, _estoqueAtual())
+    try:
+        garantir(not receita.ativa, ValidacaoError(f"A receita {receita.nome} já está em uso."))
+        receita.alternarAtiva()
+        repo_receitas.salvar(receita)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return redirect(url_for("painel.receitas"))
+
+    flash(f"Receita {receita.nome} voltou a ser usada.", "sucesso")
+    return redirect(url_for("painel.receitas"))
 
 
 repo_estoque = RepositorioInsumos(obterConexao)

@@ -166,8 +166,8 @@ class Receita(Entidade):
 
     # Alterações
     def alterarNome(self, nome):
-        self._nome = Validador.textoOpcional(nome, "nome da receita")
-
+        self._nome = Validador.texto(nome, "nome da receita")
+        
     def alterarTempoPreparo(self, minutos):
         self._tempo_preparo = Validador.inteiroNaoNegativo(minutos, "tempo de preparo(minutos)")
 

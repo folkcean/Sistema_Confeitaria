@@ -5,7 +5,7 @@ Acesso às tabelas PRODUTO e OPCAO_PERSONALIZACAO
 """
 from typing import Any
 
-from psycopg.errors import CheckViolation
+from psycopg.errors import CheckViolation, UniqueViolation
 
 from app.exceptions import ValidacaoError
 from app.models import OpcaoPersonalizacao, Produto
@@ -97,6 +97,54 @@ class RepositorioProdutos(RepositorioBase):
 
         self._carregarOpcoes(produtos)
         return produtos
+
+    def carregarReceitas(self, produtos, repo_receitas, estoque):
+        """
+        Liga a cada produto as suas receitas (já com os ingredientes) e devolve a mesma lista
+        """
+
+        # Dicionário id -> produto, para achar o dono de cada ligação
+        produtos_por_id = {}
+        for produto in produtos:
+            produtos_por_id[produto.id] = produto
+
+        # Todas as ligações desses produtos numa consulta só
+        sql = "SELECT * FROM produto_receita WHERE id_produto = ANY(%s)"
+        parametros = (list(produtos_por_id),)
+        linhas = self._todasLinhas(sql, parametros)
+
+        # Ids das receitas, sem repetir (conjunto), e as receitas numa consulta só
+        ids_das_receitas = {linha["id_receita"] for linha in linhas}
+        receitas_por_id = repo_receitas.buscarVarias(ids_das_receitas, estoque)
+
+        # Cada linha vira uma ligação no produto dono
+        for linha in linhas:
+            produto = produtos_por_id[linha["id_produto"]]
+            receita = receitas_por_id[linha["id_receita"]]
+            produto.adicionarReceita(receita, linha["quantidade"])
+
+        return produtos
+
+    def salvarLigacaoReceita(self, produto, ligacao):
+        """Grava a ligação produto com receita (PK = id_produto + id_receita)"""
+        sql = "INSERT INTO produto_receita (id_produto, id_receita, quantidade) VALUES (%s, %s, %s)"
+        parametros = (produto.id, ligacao.receita.id, ligacao.quantidade)
+        try:
+            # A transação (savepoint) desfaz só este INSERT se o banco recusar,
+            # e a conexão continua utilizável depois do erro
+            with self._transacao():
+                self._executar(sql, parametros)
+        except UniqueViolation as erro:
+            raise ValidacaoError("Esta receita já faz parte do produto.") from erro
+        except CheckViolation as erro:
+            raise ValidacaoError("A quantidade da receita precisa ser maior que zero.") from erro
+
+    def removerLigacaoReceita(self, id_produto, id_receita):
+        """Apaga a ligação. True se apagou, False se ela não existia"""
+        sql = "DELETE FROM produto_receita WHERE id_produto = %s AND id_receita = %s RETURNING id_receita"
+        parametros = (id_produto, id_receita)
+        linha = self._umaLinha(sql, parametros)
+        return linha is not None
 
     def buscarPorId(self, id_produto):
         """Produto com essa PK, já com as opções (ativas e inativas), ou None. Usado no painel"""

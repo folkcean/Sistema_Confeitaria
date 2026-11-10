@@ -157,15 +157,20 @@ class RepositorioReceita(RepositorioBase):
         self._executar(sql, parametros)
 
     def _gravarItens(self, receita):
-        """Apaga os ingredientes gravados e insere os da receita. Os itens precisam ser novos (sem id)"""
+        """
+        Apaga os ingredientes gravados e insere os da receita
+        Item novo (sem id) ganha id da sequência; item que veio do banco volta com o mesmo id
+        """
         self._executar("DELETE FROM item_receita WHERE id_receita = %s", (receita.id,))
 
         sql = (
-            "INSERT INTO item_receita (id_insumo, id_receita, quantidade_necessaria, observacoes) "
-            "VALUES (%s, %s, %s, %s) "
+            "INSERT INTO item_receita (id_item_receita, id_insumo, id_receita, quantidade_necessaria, observacoes) "
+            "VALUES (COALESCE(%s, nextval(pg_get_serial_sequence('item_receita', 'id_item_receita'))), %s, %s, %s, %s) "
             "RETURNING id_item_receita"
         )
         for item in receita.itens:
-            parametros = (item.insumo_id, receita.id, item.quantidade_necessaria, item.observacoes)
+            parametros = (item.id, item.insumo_id, receita.id, item.quantidade_necessaria, item.observacoes)
             linha = self._umaLinha(sql, parametros)
-            item.atribuirID(linha["id_item_receita"])
+            # Só o item novo recebe o id; o que já tinha continua com o dele
+            atribuir = {True: item.atribuirID, False: lambda id_gerado: None}
+            atribuir[item.id is None](linha["id_item_receita"])
