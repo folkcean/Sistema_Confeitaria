@@ -106,8 +106,8 @@
                 </dl>
                 <div class="pagamento-situacao">
                     {{ m.selo(m.STATUS_PAGAMENTO, pedido.pagamento.status) }}
-                    {% if pedido.pagamento.forma_restante %}
-                        <span class="texto-suave texto-pequeno">Sinal via {{ m.rotulo(m.FORMA_PAGAMENTO, pedido.pagamento.forma_restante) }}</span>
+                    {% if pedido.pagamento.forma_sinal %}
+                        <span class="texto-suave texto-pequeno">Sinal via {{ m.rotulo(m.FORMA_PAGAMENTO, pedido.pagamento.forma_sinal) }}</span>
                     {% endif %}
                 </div>
             </section>

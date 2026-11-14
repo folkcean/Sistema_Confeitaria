@@ -18,6 +18,7 @@ from app.repositories.pedidos_rep import RepositorioPedidos
 from app.repositories.produtos_rep import RepositorioProdutos
 from app.repositories.receitas_rep import RepositorioReceita
 from app.services.carrinho import Carrinho
+from app.services.pedidos import valoresDoPedido
 from app.services.precificacao import CalculadoraPreco
 from app.validators.campos import Validador, garantir
 from app.validators.senha import ValidadorSenha
@@ -273,10 +274,6 @@ def pedidoEnviar():
 def pedidos():
     """Pedidos do cliente logado, do mais recente para o mais antigo"""
     return render_template("loja/pedidos.html", pedidos=repo_pedidos.listarDoCliente(usuarioLogado().id))
-
-
-def valoresDoPedido(pedido):
-    pass
 
 
 @loja.get("/pedidos/<int:id>")

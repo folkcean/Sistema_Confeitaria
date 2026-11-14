@@ -13,9 +13,11 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for,
 from app.controllers.sessao import conferirEquipe, soAdmin, usuarioLogado
 from app.exceptions import ValidacaoError, AcessoNegadoError, EstoqueInsuficienteError
 from app.models import Insumo, Estoque, Perfil, Produto, OpcaoPersonalizacao, Cliente, Senha, Receita, \
-    ItemReceita, Funcionario, StatusPedido
+    ItemReceita, Funcionario, StatusPedido, Fornecedor
 from app.repositories.clientes_rep import RepositorioClientes
+from app.repositories.compras_rep import RepositorioCompras
 from app.repositories.conexao_rep import obterConexao
+from app.repositories.fornecedores_rep import RepositorioFornecedores
 from app.repositories.funcionarios_rep import RepositorioFuncionarios
 from app.repositories.insumos_rep import RepositorioInsumos
 from app.repositories.pedidos_rep import RepositorioPedidos
@@ -23,6 +25,7 @@ from app.repositories.produtos_rep import RepositorioProdutos
 from app.repositories.receitas_rep import RepositorioReceita
 from app.repositories.relatorios_rep import RepositorioRelatorios
 from app.repositories.usuarios_rep import RepositorioUsuarios
+from app.services.compra_insumo_service import ServicoCompras
 from app.services.pedidos import valoresDoPedido
 from app.services.precificacao import CalculadoraPreco
 from app.validators.campos import garantir, Validador
@@ -31,6 +34,8 @@ from app.validators.senha import ValidadorSenha
 painel = Blueprint("painel", __name__, url_prefix="/painel")
 
 painel.before_request(conferirEquipe)
+repo_fornecedores = RepositorioFornecedores(obterConexao)
+repo_compras = RepositorioCompras(obterConexao, repo_fornecedores)
 
 
 # Início
@@ -901,7 +906,7 @@ def insumoDesativarConfirmado(id):
 def insumoReativar(id):
     insumo = repo_estoque.buscarPorId(id) or abort(404)
     try:
-        garantir(not insumo.ativo, ValidacaoError("O {insumo.nome} já está reativado."))
+        garantir(not insumo.ativo, ValidacaoError(f"O {insumo.nome} já está reativado."))
         insumo.alternarAtivo()
         repo_estoque.salvar(insumo)
     except ValidacaoError as erro:
@@ -935,62 +940,191 @@ def listaCompras():
     return render_template("painel/lista_compras.html", itens=itens, total_estimado=total_estimado)
 
 
-# Compras
+def _servicoCompras():
+    """O ServicoCompras com os repositórios de verdade"""
+    return ServicoCompras(repo_compras, repo_estoque)
+
+
+def _compraOu404(id_compra, estoque):
+    """A compra com essa PK, com os insumos tirados do `estoque`, ou 404"""
+    return repo_compras.buscarPorId(id_compra, estoque) or abort(404)
+
+
 @painel.get("/compras")
 @soAdmin
 def compras():
-    """Lista de compras de insumos"""
-    return render_template("painel/compras.html")
+    """Lista de compras de insumos (?status= pendente, recebida ou cancelada; vazio = todas)"""
+    status = request.args.get("status", "")
+    compras = repo_compras.listar(_estoqueAtual(), status)
+    return render_template("painel/compras.html", compras=compras, status_filtro=status)
 
 
 @painel.get("/compras/nova")
 @soAdmin
 def compraNova():
     """Formulário de compra nova"""
-    return render_template("painel/compra_form.html")
+    return render_template(
+        "painel/compra_form.html",
+        fornecedores=repo_fornecedores.listar(),
+        insumos=_insumosAtivos(),
+        linhas_extras=5,
+    )
 
 
 @painel.post("/compras/nova")
 @soAdmin
 def compraNovaSalvar():
-    """Registra a compra (ou só acrescenta dicionarios)"""
-    return "em construção"
+    """Registra a compra (ou só acrescenta linhas)"""
+    # "Mais linhas" só redesenha o formulário; qualquer outra ação salva
+    caminhos = {"mais_linhas": _formularioDeCompra}
+    return caminhos.get(request.form.get("acao"), _salvarCompraNova)()
+
+
+def _formularioDeCompra():
+    """
+    Redesenha o formulário. Sem linhas_extras: o template relê o que foi digitado e
+    põe 3 linhas a mais no "Mais linhas" (e nenhuma quando a rota volta com erro)
+    """
+    return render_template(
+        "painel/compra_form.html",
+        fornecedores=repo_fornecedores.listar(),
+        insumos=_insumosAtivos(),
+    )
+
+
+def _salvarCompraNova():
+    """Monta a compra com o que veio do formulário e grava pelo ServicoCompras"""
+    try:
+        # type=int: vazio ou texto inválido vira None, e o buscarPorId(None) devolve None
+        fornecedor = repo_fornecedores.buscarPorId(request.form.get("id_fornecedor", type=int))
+        garantir(fornecedor is not None, ValidacaoError("Escolha um fornecedor."))
+        compra = _servicoCompras().registrarCompra(
+            fornecedor,
+            _linhasDaCompra(_estoqueAtual()),
+            data_entrega=request.form.get("data_entrega"),
+            nota_fiscal=request.form.get("nota_fiscal"),
+        )
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return _formularioDeCompra(), 400
+
+    flash(f"Compra nº {compra.id} registrada.", "sucesso")
+    return redirect(url_for("painel.compras"))
+
+
+def _linhasDaCompra(estoque):
+    """
+    Trios (insumo, quantidade, custo_unitario) a partir das três listas do formulário
+    (uma posição = uma linha da tabela). Linhas com o insumo em branco são ignoradas
+    """
+    # Sem type=int: com type o Flask descarta os inválidos e as três listas ficam desalinhadas
+    ids = request.form.getlist("insumo_id")
+    quantidades = request.form.getlist("quantidade")
+    custos = request.form.getlist("custo_unitario")
+
+    # Chave em texto para comparar direto com o que veio do formulário
+    insumos_por_texto = {}
+    for insumo in estoque.insumos:
+        insumos_por_texto[str(insumo.id)] = insumo
+
+    linhas = []
+    for id_texto, quantidade, custo in filter(lambda linha: linha[0], zip(ids, quantidades, custos)):
+        insumo = insumos_por_texto.get(id_texto)
+        garantir(insumo is not None, ValidacaoError("Um dos insumos escolhidos não existe."))
+        linhas.append((insumo, quantidade, custo))
+    return linhas
 
 
 @painel.get("/compras/<int:id>/receber")
 @soAdmin
 def compraReceber(id):
     """Pergunta antes de dar entrada da compra no estoque"""
-    return "em construção"
+    compra = _compraOu404(id, _estoqueAtual())
+    return render_template(
+        "confirmar.html",
+        titulo=f"Receber a compra nº {compra.id}?",
+        mensagem=(
+            f"Os {len(compra.itens)} itens de {compra.fornecedor.nome} entram no estoque e o custo "
+            "dos insumos passa a ser o desta compra. Depois de recebida, a compra não pode ser cancelada."
+        ),
+        acao=url_for("painel.compraReceber", id=id),
+        voltar=url_for("painel.compras"),
+        rotulo_botao="Receber",
+    )
 
 
 @painel.post("/compras/<int:id>/receber")
 @soAdmin
 def compraReceberConfirmado(id):
     """Marca como recebida e dá entrada no estoque"""
-    return "em construção"
+    # A compra tem que ser montada com ESTE estoque: o Estoque.receber confere os insumos com `is`
+    estoque = _estoqueAtual()
+    compra = _compraOu404(id, estoque)
+    try:
+        _servicoCompras().receberCompra(compra, estoque)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return redirect(url_for("painel.compras"))
+
+    flash(f"Compra nº {compra.id} recebida. O estoque foi atualizado.", "sucesso")
+    return redirect(url_for("painel.compras"))
 
 
 @painel.get("/compras/<int:id>/cancelar")
 @soAdmin
 def compraCancelar(id):
     """Pergunta antes de cancelar a compra"""
-    return "em construção"
+    compra = _compraOu404(id, _estoqueAtual())
+    return render_template(
+        "confirmar.html",
+        titulo=f"Cancelar a compra nº {compra.id}?",
+        mensagem=f"A compra de {compra.fornecedor.nome} fica cancelada e nada entra no estoque.",
+        acao=url_for("painel.compraCancelar", id=id),
+        voltar=url_for("painel.compras"),
+        rotulo_botao="Cancelar compra",
+        perigo=True,
+    )
 
 
 @painel.post("/compras/<int:id>/cancelar")
 @soAdmin
 def compraCancelarConfirmado(id):
-    """Cancela a compra"""
-    return "em construção"
+    """Cancela a compra pendente"""
+    compra = _compraOu404(id, _estoqueAtual())
+    try:
+        _servicoCompras().cancelarCompra(compra)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return redirect(url_for("painel.compras"))
+
+    flash(f"Compra nº {compra.id} cancelada.", "sucesso")
+    return redirect(url_for("painel.compras"))
 
 
 # Fornecedores
+def _fornecedorDoFormulario(**extras):
+    """
+    Monta um Fornecedor com os campos do fornecedor_form.html (o construtor valida todos).
+    `extras`: o que não vem da tela (na edição: id e ativo)
+    """
+    return Fornecedor(
+        nome=request.form.get("nome"),
+        telefone=request.form.get("telefone"),
+        endereco=request.form.get("endereco"),
+        email=request.form.get("email"),
+        cnpj=request.form.get("cnpj"),
+        contato_principal=request.form.get("contato_principal"),
+        **extras,
+    )
+
+
 @painel.get("/fornecedores")
 @soAdmin
 def fornecedores():
-    """Lista de fornecedores"""
-    return render_template("painel/fornecedores.html")
+    """Lista de fornecedores (?filtro=inativos)"""
+    filtro = request.args.get("filtro", "")
+    fornecedores = repo_fornecedores.listar(filtro)
+    return render_template("painel/fornecedores.html", fornecedores=fornecedores, filtro=filtro)
 
 
 @painel.get("/fornecedores/novo")
@@ -1004,42 +1138,99 @@ def fornecedorNovo():
 @soAdmin
 def fornecedorNovoSalvar():
     """Cadastra o fornecedor"""
-    return "em construção"
+    try:
+        fornecedor = _fornecedorDoFormulario()
+        repo_fornecedores.salvar(fornecedor)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        # O formulário reaparece com o que foi digitado (o f.campo lê o request.form)
+        return render_template("painel/fornecedor_form.html", fornecedor=None), 400
+
+    flash(f"{fornecedor.nome} cadastrado.", "sucesso")
+    return redirect(url_for("painel.fornecedores"))
 
 
 @painel.get("/fornecedores/<int:id>/editar")
 @soAdmin
 def fornecedorEditar(id):
     """Formulário de edição do fornecedor"""
-    return "em construção"
+    fornecedor = repo_fornecedores.buscarPorId(id) or abort(404)
+    return render_template("painel/fornecedor_form.html", fornecedor=fornecedor)
 
 
 @painel.post("/fornecedores/<int:id>/editar")
 @soAdmin
 def fornecedorEditarSalvar(id):
-    """Salva a edição do fornecedor"""
-    return "em construção"
+    """Salva a edição do fornecedor (cada alterar... valida o próprio campo)"""
+    fornecedor = repo_fornecedores.buscarPorId(id) or abort(404)
+    try:
+        fornecedor.alterarNome(request.form.get("nome"))
+        fornecedor.alterarTelefone(request.form.get("telefone"))
+        fornecedor.alterarEndereco(request.form.get("endereco"))
+        fornecedor.alterarEmail(request.form.get("email"))
+        fornecedor.alterarCnpj(request.form.get("cnpj"))
+        fornecedor.alterarContatoPrincipal(request.form.get("contato_principal"))
+        repo_fornecedores.salvar(fornecedor)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return render_template("painel/fornecedor_form.html", fornecedor=fornecedor), 400
+
+    flash(f"{fornecedor.nome} atualizado.", "sucesso")
+    return redirect(url_for("painel.fornecedores"))
 
 
 @painel.get("/fornecedores/<int:id>/desativar")
 @soAdmin
 def fornecedorDesativar(id):
     """Pergunta antes de desativar o fornecedor"""
-    return "em construção"
+    fornecedor = repo_fornecedores.buscarPorId(id) or abort(404)
+    return render_template(
+        "confirmar.html",
+        titulo=f"Desativar {fornecedor.nome}?",
+        mensagem="O fornecedor some das compras novas, mas continua nas compras antigas.",
+        acao=url_for("painel.fornecedorDesativar", id=id),
+        voltar=url_for("painel.fornecedores"),
+        rotulo_botao="Desativar",
+        perigo=True,
+    )
 
 
 @painel.post("/fornecedores/<int:id>/desativar")
 @soAdmin
 def fornecedorDesativarConfirmado(id):
-    """Desativa o fornecedor"""
-    return "em construção"
+    """Desativa o fornecedor e oferece desfazer (que reativa)"""
+    fornecedor = repo_fornecedores.buscarPorId(id) or abort(404)
+    try:
+        # alternarAtivo INVERTE: sem esta conferência, "desativar" um inativo o reativaria
+        garantir(fornecedor.ativo, ValidacaoError(f"{fornecedor.nome} já está inativo."))
+        fornecedor.alternarAtivo()
+        repo_fornecedores.salvar(fornecedor)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return redirect(url_for("painel.fornecedores"))
+
+    url_desfazer = url_for("painel.fornecedorReativar", id=id)
+    flash(f"{fornecedor.nome} desativado.", "desfazer:" + url_desfazer)
+    return redirect(url_for("painel.fornecedores"))
 
 
 @painel.post("/fornecedores/<int:id>/reativar")
 @soAdmin
 def fornecedorReativar(id):
-    """Reativa o fornecedor"""
-    return "em construção"
+    """Reativa o fornecedor (aba Inativos e o "desfazer" da desativação)"""
+    fornecedor = repo_fornecedores.buscarPorId(id) or abort(404)
+    try:
+        garantir(not fornecedor.ativo, ValidacaoError(f"{fornecedor.nome} já está ativo."))
+        fornecedor.alternarAtivo()
+        repo_fornecedores.salvar(fornecedor)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return redirect(url_for("painel.fornecedores"))
+
+    # O "desfazer" da reativação faz POST em /desativar, que é o fornecedorDesativarConfirmado
+    url_desfazer = url_for("painel.fornecedorDesativar", id=id)
+    flash(f"{fornecedor.nome} reativado.", "desfazer:" + url_desfazer)
+    return redirect(url_for("painel.fornecedores"))
 
 
 # Clientes (Tarefa 9)

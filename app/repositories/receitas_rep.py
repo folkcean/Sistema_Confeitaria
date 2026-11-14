@@ -13,26 +13,6 @@ from app.repositories.base import RepositorioBase
 
 class RepositorioReceita(RepositorioBase):
 
-    def listar(self, filtro_ativas, busca):
-        sql = (
-            "SELECT * FROM receita "
-            "WHERE ativa = %s "
-            "AND COALESCE(nome, '') ILIKE '%%' || %s || '%%' "
-            "ORDER BY nome"
-        )
-        parametros = (filtro_ativas, busca)
-        self._todasLinhas(sql, parametros)
-
-        linhas = self._todasLinhas(sql, parametros)
-        linhas(sql, )
-
-        receitas = []
-        for linha in linhas:
-            receita = Receita(**linha)
-            receitas.append(receita)
-
-        return receitas
-
     def _insumosPorId(self, estoque):
         """Dicionário id -> insumo, com os mesmos objetos que estão dentro do estoque"""
         insumos_por_id = {}
