@@ -3,17 +3,22 @@ app / controllers / loja.py
 
 Área do cliente: cardápio, carrinho, pedidos e perfil
 """
+from datetime import datetime
 
 from flask import Blueprint, render_template, request, abort, session, redirect, url_for, flash
 
 from app import usuarioLogado
 from app.controllers.sessao import soCliente, repositorioUsuarios
 from app.exceptions import ValidacaoError
-from app.models import Endereco
+from app.models import Endereco, ItemPedido, Pedido, Estoque, Pagamento
 from app.repositories.clientes_rep import RepositorioClientes
 from app.repositories.conexao_rep import obterConexao
+from app.repositories.insumos_rep import RepositorioInsumos
+from app.repositories.pedidos_rep import RepositorioPedidos
 from app.repositories.produtos_rep import RepositorioProdutos
+from app.repositories.receitas_rep import RepositorioReceita
 from app.services.carrinho import Carrinho
+from app.services.precificacao import CalculadoraPreco
 from app.validators.campos import Validador, garantir
 from app.validators.senha import ValidadorSenha
 
@@ -21,6 +26,9 @@ loja = Blueprint("loja", __name__, url_prefix="/loja")
 repo_clientes = RepositorioClientes(obterConexao)
 
 repo_produtos = RepositorioProdutos(obterConexao)
+repo_estoque = RepositorioInsumos(obterConexao)
+repo_receitas = RepositorioReceita(obterConexao)
+repo_pedidos = RepositorioPedidos(obterConexao, repo_clientes, repo_produtos)
 
 
 # Vitrine (Tarefa 4)
@@ -147,22 +155,139 @@ def carrinhoRemover(indice):
 
 
 # Pedidos (Tarefa 10)
+def _dataHoraDoFormulario(texto):
+    """
+    O texto do <input type="datetime-local"> (AAAA-MM-DDTHH:MM) como datetime
+    Campo ausente (None) dá TypeError; vazio ou mal escrito dá ValueError: os dois viram a mesma mensagem
+    """
+    try:
+        return datetime.fromisoformat(texto)
+    except (TypeError, ValueError):
+        raise ValidacaoError("Informe a data e a hora da entrega ou da retirada.")
+
+
+def _enderecoEscolhido(cliente, tipo_entrega, id_endereco):
+    """
+    O endereço do cliente com esse id, só na entrega. Na retirada (ou tipo inválido) devolve None
+    Entrega sem endereço válido também dá None, e o Pedido recusa com a mensagem dele
+    """
+    # Tem que ser o objeto de dentro de cliente.enderecos: o Pedido confere com `in`
+    enderecos_por_id = {}
+    for endereco in cliente.enderecos:
+        enderecos_por_id[endereco.id] = endereco
+    # Só a chave "entrega" existe: qualquer outro tipo cai no None do .get
+    return {"entrega": enderecos_por_id.get(id_endereco)}.get(tipo_entrega)
+
+
+def _produtosDoCarrinho(linhas, estoque):
+    """
+    {produto_id: Produto} com um objeto por id, já com opções e receitas (insumos do `estoque`)
+    Produto que saiu do cardápio depois de ir para o carrinho é recusado
+    """
+    # Conjunto: o mesmo bolo em duas linhas vira um id só (carregarReceitas exige um objeto por id)
+    ids = {linha["produto_id"] for linha in linhas}
+
+    produtos = {}
+    for id_produto in ids:
+        produto = repo_produtos.buscarAtivo(id_produto)
+        garantir(
+            produto is not None,
+            ValidacaoError("Um produto do carrinho saiu do cardápio. Remova-o e envie de novo."),
+        )
+        produtos[id_produto] = produto
+
+    # O custo do item depende das receitas
+    repo_produtos.carregarReceitas(list(produtos.values()), repo_receitas, estoque)
+    return produtos
+
+
+def _itemDaLinha(linha, produto, calculadora):
+    """Transforma uma linha do carrinho num ItemPedido (decisões da Tarefa 0.6)"""
+    item = ItemPedido(
+        produto,
+        linha["quantidade"],
+        preco_unitario=produto.preco_base,
+        custo_unitario=calculadora.custoUnitario(produto),
+        observacoes=linha["observacoes"],
+    )
+
+    opcoes_por_id = {}
+    for opcao in produto.opcoes:
+        opcoes_por_id[opcao.id] = opcao
+
+    for id_opcao, quantidade_opcao in linha["opcoes"]:
+        opcao = opcoes_por_id.get(id_opcao)
+        # Sem isso, o adicionarOpcao quebraria com AttributeError ao ler opcao.nome de um None
+        garantir(
+            opcao is not None,
+            ValidacaoError("Uma opção escolhida não existe mais. Remova o item e adicione de novo."),
+        )
+        # No carrinho a opção é por unidade do produto; no item ela é da linha inteira
+        item.adicionarOpcao(opcao, quantidade_opcao * linha["quantidade"])
+
+    return item
+
+
 @loja.post("/carrinho/enviar")
+@soCliente
 def pedidoEnviar():
     """Transforma o carrinho em pedido"""
-    return "em construção"
+    carrinho = Carrinho(session)
+    cliente = usuarioLogado()
+    try:
+        garantir(carrinho.linhas, ValidacaoError("Seu carrinho está vazio."))
+
+        tipo_entrega = request.form.get("tipo_entrega", "")
+        pedido = Pedido(
+            cliente,
+            tipo_entrega,
+            _dataHoraDoFormulario(request.form.get("data_entrega_ou_retirada")),
+            endereco=_enderecoEscolhido(cliente, tipo_entrega, request.form.get("id_endereco_entrega", type=int)),
+            nome_recebedor=request.form.get("nome_recebedor", ""),
+            observacoes=request.form.get("observacoes", ""),
+            # Nasce com a forma do sinal escolhida, mas aguardando o sinal (quem marca como pago é a dona)
+            pagamento=Pagamento(forma_sinal=request.form.get("forma_pagamento_sinal") or None),
+        )
+
+        estoque = Estoque(repo_estoque.listar())
+        produtos = _produtosDoCarrinho(carrinho.linhas, estoque)
+        calculadora = CalculadoraPreco()
+        for linha in carrinho.linhas:
+            pedido.adicionarItem(_itemDaLinha(linha, produtos[linha["produto_id"]], calculadora))
+
+        # Recusa a data antes da antecedência dos produtos (ex.: 48 h para o bolo)
+        pedido.validarPrazo()
+        repo_pedidos.salvarNovo(pedido)
+    except ValidacaoError as erro:
+        # O carrinho continua na sessão: só os campos do formulário se perdem
+        flash(str(erro), "erro")
+        return redirect(url_for("loja.carrinho"))
+
+    carrinho.esvaziar()
+    flash(f"Pedido #{pedido.id} enviado. A confeitaria vai mandar o orçamento com o valor final.", "sucesso")
+    return redirect(url_for("loja.pedido", id=pedido.id))
 
 
 @loja.get("/pedidos")
+@soCliente
 def pedidos():
-    """Pedidos do cliente logado"""
-    return render_template("loja/pedidos.html")
+    """Pedidos do cliente logado, do mais recente para o mais antigo"""
+    return render_template("loja/pedidos.html", pedidos=repo_pedidos.listarDoCliente(usuarioLogado().id))
+
+
+def valoresDoPedido(pedido):
+    pass
 
 
 @loja.get("/pedidos/<int:id>")
+@soCliente
 def pedido(id):
     """Acompanhamento de um pedido do cliente"""
-    return "em construção"
+    pedido = repo_pedidos.buscarPorId(id)
+    # Só o dono abre. Pedido de outro cliente dá 404 (não revela que o número existe)
+    # Se pedido for None, o `and` já dá falso e cai no abort
+    (pedido and pedido.cliente_id == usuarioLogado().id) or abort(404)
+    return render_template("loja/pedido.html", pedido=pedido, valores=valoresDoPedido(pedido))
 
 
 # Perfil (Tarefa 6)

@@ -11,17 +11,19 @@ from pathlib import Path
 from flask import Blueprint, render_template, request, flash, redirect, url_for, abort, current_app
 
 from app.controllers.sessao import conferirEquipe, soAdmin, usuarioLogado
-from app.exceptions import ValidacaoError, AcessoNegadoError
-from app.models import Insumo, Estoque, Perfil, Produto, OpcaoPersonalizacao, Cliente, Senha, Funcionario, Receita, \
-    ItemReceita
+from app.exceptions import ValidacaoError, AcessoNegadoError, EstoqueInsuficienteError
+from app.models import Insumo, Estoque, Perfil, Produto, OpcaoPersonalizacao, Cliente, Senha, Receita, \
+    ItemReceita, Funcionario, StatusPedido
 from app.repositories.clientes_rep import RepositorioClientes
 from app.repositories.conexao_rep import obterConexao
 from app.repositories.funcionarios_rep import RepositorioFuncionarios
 from app.repositories.insumos_rep import RepositorioInsumos
+from app.repositories.pedidos_rep import RepositorioPedidos
 from app.repositories.produtos_rep import RepositorioProdutos
 from app.repositories.receitas_rep import RepositorioReceita
 from app.repositories.relatorios_rep import RepositorioRelatorios
 from app.repositories.usuarios_rep import RepositorioUsuarios
+from app.services.pedidos import valoresDoPedido
 from app.services.precificacao import CalculadoraPreco
 from app.validators.campos import garantir, Validador
 from app.validators.senha import ValidadorSenha
@@ -34,48 +36,163 @@ painel.before_request(conferirEquipe)
 # Início
 @painel.get("")
 def inicio():
-    """Resumo do dia"""
-    return render_template("painel/inicio.html")
+    """Resumo do dia: contadores, próximas entregas (7 dias) e vendas de hoje (só administradora)"""
+    hoje = date.today()
+    proximas = repo_pedidos.listarEntregasEntre(hoje, hoje + timedelta(days=7))
+
+    # Faturamento é dado financeiro: só a administradora recebe (como o custo da receita)
+    eh_admin = usuarioLogado().perfil is Perfil.ADMINISTRADOR
+    vendas_hoje = {
+        True: lambda: repo_relatorios.resumoVendas(hoje, hoje)["faturamento"],
+        False: lambda: None,
+    }[eh_admin]()
+
+    resumo = {
+        "pedidos_hoje": len(repo_pedidos.listarEntregasEntre(hoje, hoje)),
+        "em_producao": len(repo_pedidos.listar(status="em_producao")),
+        "abaixo_minimo": len(repo_estoque.listarComFiltro(filtro="baixo", busca="")),
+        "vendas_hoje": vendas_hoje,
+    }
+
+    # alertas e aniversariantes dependem de regras que ainda não existem: listas vazias
+    return render_template("painel/inicio.html", hoje=hoje, resumo=resumo, alertas=[],
+                           proximas_entregas=proximas, aniversariantes=[])
 
 
 # Pedidos
+def _pedidoOu404(id_pedido):
+    """O pedido com essa PK, com itens e opções, ou 404"""
+    return repo_pedidos.buscarPorId(id_pedido) or abort(404)
+
+
 @painel.get("/pedidos")
 def pedidos():
-    """Lista de pedidos com filtros"""
-    return render_template("painel/pedidos.html")
+    """Lista de pedidos com filtros (?q= nome ou telefone, ?status=, ?data=AAAA-MM-DD)"""
+    busca = request.args.get("q", "")
+    status = request.args.get("status", "")
+    data_texto = request.args.get("data", "")
+    try:
+        # Vazio vira None; preenchido vira date ou levanta erro
+        data = Validador.opcional(Validador.data, data_texto, "data")
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        # A lista sai sem o filtro de data
+        data = None
+
+    # Status inválido só devolve lista vazia, sem erro
+    pedidos = repo_pedidos.listar(busca, status, data)
+    return render_template("painel/pedidos.html", pedidos=pedidos, busca=busca,
+                           status_filtro=status, data_filtro=data_texto)
 
 
 @painel.get("/pedidos/<int:id>")
 def pedido(id):
     """Detalhe do pedido"""
-    return "em construção"
+    pedido = _pedidoOu404(id)
+    # Funcionário recebe os dados operacionais; administradora, os completos (a política é do model)
+    cliente_dados = usuarioLogado().consultarCliente(pedido.cliente)
+    proximos_status = [status.value for status in pedido.status.proximos()]
+    return render_template("painel/pedido.html", pedido=pedido, cliente_dados=cliente_dados,
+                           valores=valoresDoPedido(pedido), proximos_status=proximos_status)
+
+
+def _definirTaxaDoFormulario(pedido):
+    """
+    Antes de ir para orçamento: define a taxa de entrega (depois do orçamento o pedido trava)
+    Na retirada o campo não vem, e a taxa continua a que estava (0)
+    """
+    pedido.definirTaxaEntrega(request.form.get("taxa_entrega") or pedido.taxa_entrega)
+
+
+def _semPreparo(pedido):
+    """Os outros destinos não precisam de nada antes de mudar o status"""
+    pass
+
+
+def _gravarConfirmacao(pedido):
+    """Confirmação: dá baixa nos insumos e grava o status, numa transação só"""
+    estoque = _estoqueAtual()
+
+    # Pelo cache do repositório já é um objeto por id: o dicionário só tira as repetições da lista
+    produtos = {item.produto.id: item.produto for item in pedido.itens}
+    repo_produtos.carregarReceitas(list(produtos.values()), repo_receitas, estoque)
+
+    # Uma lista única de pares (insumo, quantidade) de todos os itens; o Estoque soma por insumo sozinho
+    necessidades = [par for item in pedido.itens for par in item.produto.necessidades(item.quantidade)]
+
+    # Tudo ou nada: se faltar algum insumo, levanta EstoqueInsuficienteError e nada é descontado
+    movimentacoes = estoque.consumir(necessidades, id_pedido=pedido.id)
+    repo_pedidos.atualizarComMovimentacoes(pedido, movimentacoes, repo_estoque)
 
 
 @painel.post("/pedidos/<int:id>/status")
 def pedidoStatus(id):
     """Avança o pedido para o próximo status"""
-    return "em construção"
+    pedido = _pedidoOu404(id)
+    try:
+        destino = Validador.opcaoDe(StatusPedido, request.form.get("novo_status"), "novo status")
+
+        # Orçamento define a taxa antes de mudar; os outros não fazem nada
+        {StatusPedido.ORCAMENTO: _definirTaxaDoFormulario}.get(destino, _semPreparo)(pedido)
+
+        # O model recusa transição proibida, confirmação sem sinal, finalização sem pagamento
+        # integral e cancelamento sem motivo
+        pedido.avancarStatus(destino)
+
+        # Confirmado dá baixa no estoque ao gravar; os outros só gravam o pedido
+        {StatusPedido.CONFIRMADO: _gravarConfirmacao}.get(destino, repo_pedidos.atualizar)(pedido)
+    except (ValidacaoError, EstoqueInsuficienteError) as erro:
+        # EstoqueInsuficienteError não é ValidacaoError (os dois são filhos de ConfeitariaError)
+        flash(str(erro), "erro")
+        return redirect(url_for("painel.pedido", id=id))
+
+    flash(f"Pedido #{id} agora está em {destino.value.replace('_', ' ')}.", "sucesso")
+    return redirect(url_for("painel.pedido", id=id))
 
 
 @painel.post("/pedidos/<int:id>/pagamento")
 @soAdmin
 def pedidoPagamento(id):
-    """Registra o sinal ou o restante"""
-    return "em construção"
+    """Registra o sinal ou o restante (não confirma o pedido sozinho)"""
+    pedido = _pedidoOu404(id)
+    try:
+        registros = {"sinal_pago": pedido.registrarSinal, "pago": pedido.registrarPagamentoRestante}
+        registrar = registros.get(request.form.get("status_pagamento"))
+        garantir(registrar is not None, ValidacaoError("Escolha qual pagamento registrar."))
+        # O model confere a forma e o momento (sinal só em orçamento; restante de confirmado até entregue)
+        registrar(request.form.get("forma_pagamento"))
+        repo_pedidos.atualizar(pedido)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        return redirect(url_for("painel.pedido", id=id))
+
+    flash(f"Pagamento registrado no pedido #{id}.", "sucesso")
+    return redirect(url_for("painel.pedido", id=id))
 
 
 @painel.get("/pedidos/<int:id>/cancelar")
 @soAdmin
 def pedidoCancelar(id):
-    """Formulário de cancelamento com o motivo"""
-    return "em construção"
+    """Formulário de cancelamento com o motivo (a própria página já é a confirmação)"""
+    return render_template("painel/pedido_cancelar.html", pedido=_pedidoOu404(id))
 
 
 @painel.post("/pedidos/<int:id>/cancelar")
 @soAdmin
 def pedidoCancelarConfirmado(id):
-    """Cancela o pedido"""
-    return "em construção"
+    """Cancela o pedido. Não devolve o sinal nem os insumos"""
+    pedido = _pedidoOu404(id)
+    try:
+        # Motivo vazio e pedido que ainda não foi confirmado são recusados pelo model
+        pedido.avancarStatus(StatusPedido.CANCELADO, request.form.get("motivo_cancelamento", ""))
+        repo_pedidos.atualizar(pedido)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        # A página volta com o que foi digitado
+        return render_template("painel/pedido_cancelar.html", pedido=pedido), 400
+
+    flash(f"Pedido #{id} cancelado. O sinal não é devolvido.", "sucesso")
+    return redirect(url_for("painel.pedido", id=id))
 
 
 # Produtos
@@ -928,6 +1045,7 @@ def fornecedorReativar(id):
 # Clientes (Tarefa 9)
 repo_usuarios = RepositorioUsuarios(obterConexao)
 repo_clientes = RepositorioClientes(obterConexao)
+repo_pedidos = RepositorioPedidos(obterConexao, repo_usuarios, repo_produtos)
 
 
 def _buscarUsuario(id_usuario, perfil):
@@ -976,7 +1094,8 @@ def cliente(id):
     # consultarCliente: o administrador recebe os dados completos (o CPF passa pelo obterCpf)
     dados = usuarioLogado().consultarCliente(cliente_atual)
     # pedidos: histórico do cliente, quando o Pedido existir (Tarefa 10)
-    return render_template("painel/cliente.html", cliente=cliente_atual, dados=dados, pedidos=[])
+    return render_template("painel/cliente.html", cliente=cliente_atual, dados=dados,
+                           pedidos=repo_pedidos.listarDoCliente(id))
 
 
 @painel.get("/clientes/novo")

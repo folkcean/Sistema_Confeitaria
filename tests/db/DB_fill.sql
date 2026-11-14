@@ -166,7 +166,7 @@ INSERT INTO item_pedido (id_item_pedido, id_pedido, id_produto, quantidade, prec
 -- custo_cobrado = custo da opção x quantidade
 INSERT INTO opcao_escolhida (id_item_pedido, id_opcao, quantidade, custo_cobrado) VALUES
   (1, 4, 1, 10.00),
-  (3, 6, 10, 30.00),
+  (3, 6, 10, 3.00),
   (5, 29, 1, 10.00);
 
 -- ---------- Compras ----------

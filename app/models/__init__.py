@@ -10,6 +10,7 @@ from .administrador import Administrador
 # Base
 from .base import Entidade
 from .cliente import Cliente
+from .compra_insumo import CompraInsumo
 from .endereco import Endereco
 from .enums import (FormaPagamento,
                     Perfil,
@@ -20,9 +21,11 @@ from .enums import (FormaPagamento,
                     TipoInsumo,
                     TipoMovimentacao)
 from .estoque import Estoque
+from .fornecedor import Fornecedor
 from .funcionario import Funcionario
 # Estoque  <- NOVO (incremento/modulo-estoque)
 from .insumo import Insumo
+from .item_compra_insumo import ItemCompraInsumo
 from .movimentacao_estoque import MovimentacaoEstoque
 from .opcao_personalizacao import OpcaoPersonalizacao
 # Pedidos
