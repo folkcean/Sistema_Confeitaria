@@ -19,12 +19,13 @@ Estoque.consumir() com os insumos de Produto.necessidades().
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
 
 from app.exceptions import ValidacaoError
 from app.validators.campos import Validador, garantir
+from app.validators.prazo_pedido import PrazoPedido
 
 from .base import Entidade
 from .enums import FormaPagamento, StatusPagamento, StatusPedido, TipoEntrega
@@ -515,20 +516,11 @@ class Pedido(Entidade):
 
     # Prazo mínimo
     def validarPrazo(self) -> None:
-        """Confere o prazo mínimo (relatório 2.3): data de entrega >= criação + maior antecedência entre os produtos
-
-        `max(gerador, default=0)`: o maior valor; se não houver itens, usa 0 (sem isso max() daria erro)
-        timedelta(hours=n) representa "n horas" e pode ser somado a um datetime
         """
-        antecedencia = max((item.produto.antecedencia_horas for item in self._itens), default=0)
-        minimo = self._data_criacao + timedelta(hours=antecedencia)
-        garantir(
-            self._data_entrega_ou_retirada >= minimo,
-            ValidacaoError(
-                f"Prazo insuficiente: os produtos pedem {antecedencia}h de antecedência "
-                f"(entrega a partir de {minimo:%d/%m/%Y %H:%M})"
-            ),
-        )
+        Confere o prazo mínimo usando as regras de validators/prazo_pedido.py
+        """
+        itens = [(item.produto.pronta_entrega, item.produto.antecedencia_horas) for item in self._itens]
+        PrazoPedido.validar(self._data_criacao, self._data_entrega_ou_retirada, itens)
 
     # Mudança de status (autômato em enums.StatusPedido + efeitos ao ENTRAR em cada status)
     def avancarStatus(self, novo_status: StatusPedido, motivo: str = "") -> None:
@@ -563,13 +555,29 @@ class Pedido(Entidade):
         garantir(self._itens, ValidacaoError("Adicione ao menos um item antes de gerar o orçamento"))
         self.validarPrazo()
 
-    def _aoConfirmar(self, motivo: str) -> None:
-        """Para virar Confirmado: o sinal precisa estar pago. Depois disso o pedido e os itens ficam travados"""
+    def _exigirSinalPago(self) -> None:
+        """
+        Confere que o sinal de 50% está pago (regra para confirmar)
+        """
         garantir(
             self._pagamento.sinal_pago,
             ValidacaoError("Não é possível confirmar o pedido: o sinal de 50% ainda não foi pago"),
         )
-        # for sem if: trava todos os itens (imutabilidade depois de confirmado).
+
+    def exigirConfirmavel(self) -> None:
+        """
+        Confere TUDO o que é preciso para confirmar, SEM alterar nada. O PedidoService chama isto ANTES
+        de baixar o estoque, para só descontar insumos de um pedido que com certeza pode ser confirmado
+        """
+        self._status.validarTransicao(StatusPedido.CONFIRMADO)
+        self._exigirSinalPago()
+
+    def _aoConfirmar(self, motivo: str) -> None:
+        """
+        Para virar Confirmado: o sinal precisa estar pago
+        Depois disso o pedido e os itens ficam travados
+        """
+        self._exigirSinalPago()
         for item in self._itens:
             item._travar()
 

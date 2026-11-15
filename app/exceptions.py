@@ -56,3 +56,20 @@ class EstoqueInsuficienteError(ConfeitariaError):
         )
         # super().__init__(texto) define a mensagem do erro (a que aparece ao imprimir a exceção)
         super().__init__(f"Estoque insuficiente: {detalhes}")
+
+class PedidoSemEstoqueError(EstoqueInsuficienteError):
+    """
+    Lançada quando um pedido não pode ser confirmado por falta de insumos
+
+    É um tipo de EstoqueInsuficienteError (herança): `erro.faltas` continua com a lista do que falta
+    Só muda a mensagem, que explica o que aconteceu e o que fazer
+    """
+
+    def __init__(self, faltas: list[dict]):
+        super().__init__(faltas)          # A classe mãe guarda `faltas` e monta a mensagem padrão
+        detalhes = "; ".join(
+            f"{falta['insumo']} (faltam {falta['faltam']} {falta['unidade']})" for falta in faltas
+        )
+        # Troca a mensagem
+        self.args = (f"Não foi possível confirmar o pedido por falta de insumos: {detalhes}. "
+                     f"Reponha o estoque e tente confirmar novamente",)
