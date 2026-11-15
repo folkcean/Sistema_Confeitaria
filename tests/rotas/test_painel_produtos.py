@@ -11,7 +11,10 @@ from decimal import Decimal
 
 import pytest
 
+from app.models import Estoque
+from app.repositories.insumos_rep import RepositorioInsumos
 from app.repositories.produtos_rep import RepositorioProdutos
+from app.repositories.receitas_rep import RepositorioReceita
 
 ATIVOS_EM_ORDEM = [
     "Beijinho",
@@ -345,3 +348,51 @@ def test_ligar_e_desligar_opcao(navegador, como_admin, mensagens, produtos):
     assert resposta.headers["Location"] == "/painel/produtos/1"
     assert mensagens == [("sucesso", "Opção Nozes no recheio desligada.")]
     assert produtos.buscarPorId(1).opcoes[1].ativo is False
+
+
+@pytest.fixture
+def receitas_do_produto(conexao, seed):
+    """Função que devolve os ids das receitas ligadas a um produto, lidos do banco na hora"""
+
+    def ids(id_produto):
+        estoque = Estoque(RepositorioInsumos(lambda: conexao).listar())
+        repo = RepositorioProdutos(lambda: conexao)
+        produto = repo.buscarPorId(id_produto)
+        repo.carregarReceitas([produto], RepositorioReceita(lambda: conexao), estoque)
+        return {ligacao.receita.id for ligacao in produto.receitas}
+
+    return ids
+
+
+def test_tela_do_produto_mostra_preco_sugerido_e_receitas_para_ligar(navegador, como_admin, templates):
+    navegador.get("/painel/produtos/1")
+    variaveis = templates[-1][1]
+
+    assert isinstance(variaveis["preco_sugerido"], Decimal)
+    ids = {receita.id for receita in variaveis["receitas_disponiveis"]}
+    # 2 e 8 já estão ligadas; 12 está inativa
+    assert ids.isdisjoint({2, 8, 12})
+
+
+def test_ligar_receita_ao_produto(navegador, como_admin, receitas_do_produto):
+    navegador.post("/painel/produtos/1/receitas", data={"receita_id": "1", "quantidade": "1"})
+    assert receitas_do_produto(1) == {1, 2, 8}
+
+
+def test_ligar_receita_repetida_da_erro(navegador, como_admin, mensagens):
+    navegador.post("/painel/produtos/1/receitas", data={"receita_id": "2", "quantidade": "1"})
+    assert "já faz parte do produto" in mensagens[-1][1]
+
+
+def test_ligar_receita_inativa_da_erro(navegador, como_admin, mensagens):
+    navegador.post("/painel/produtos/1/receitas", data={"receita_id": "12", "quantidade": "1"})
+    assert "está fora de uso" in mensagens[-1][1]
+
+
+def test_desligar_receita_do_produto(navegador, como_admin, receitas_do_produto):
+    navegador.post("/painel/produtos/1/receitas/2/remover")
+    assert receitas_do_produto(1) == {8}
+
+
+def test_desligar_ligacao_inexistente_da_404(navegador, como_admin):
+    assert navegador.post("/painel/produtos/1/receitas/999/remover").status_code == 404

@@ -138,17 +138,7 @@ SO_ADMIN = {
     "painel.relatorioExportar": ("GET", "/painel/relatorios/exportar"),
 }
 
-# Rotas que ainda não seguem a regra da lista em que estão: o teste delas é xfail
-# (falha esperada). Quando a rota for corrigida, o xfail(strict=True) vira erro para lembrar de tirar daqui
-SEM_SO_CLIENTE = pytest.mark.xfail(
-    strict=True,
-    reason="Em construção (Tarefa 10) e ainda sem @soCliente: hoje qualquer pessoa abre",
-)
-PENDENTES = {
-    "loja.pedidoEnviar": SEM_SO_CLIENTE,
-    "loja.pedidos": SEM_SO_CLIENTE,
-    "loja.pedido": SEM_SO_CLIENTE,
-}
+PENDENTES = {}
 
 
 def casos(rotas, pendentes=None):

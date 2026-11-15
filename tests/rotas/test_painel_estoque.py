@@ -346,11 +346,6 @@ def test_reativar_insumo_que_ja_esta_ativo_nao_o_desativa(navegador, como_admin,
     assert insumos.buscarPorId(1).ativo is True
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="insumoReativar monta a mensagem sem o f da f-string: aparece \"O {insumo.nome} já "
-           "está reativado.\" em vez do nome do insumo",
-)
 def test_reativar_insumo_ativo_avisa_com_o_nome_dele(navegador, como_admin, mensagens):
     navegador.post("/painel/estoque/1/reativar")
 
