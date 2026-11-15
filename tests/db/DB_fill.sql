@@ -4,8 +4,7 @@ TRUNCATE usuario, produto, insumo, fornecedor, receita, compra_insumo RESTART ID
 
 -- ---------- Usuários ----------
 INSERT INTO usuario (id_usuario, nome, email, telefone, senha_hash, perfil, ativo, cpf, data_nascimento) VALUES
-  (1, 'Rosangela Almeida Crespo', 'rosangela@confeitaria.local', '22999990001', 'scrypt:32768:8:1$KNHQ2UIqfEyRYZta$f2a4c47b27836331c8107debda39bd434b9240f7b44d37fc7ef158a66464ad8f5c4fa9f6ffd2cdb0ec07fd0bf87b1e5b0afbaf856fa69e743f9145d4ed6020ac', 'administrador', true, '15881399803', '1966-03-14'),
-  (2, 'Joao Pedro Viana', 'joao@confeitaria.local', '22999990002', 'scrypt:32768:8:1$KNHQ2UIqfEyRYZta$f2a4c47b27836331c8107debda39bd434b9240f7b44d37fc7ef158a66464ad8f5c4fa9f6ffd2cdb0ec07fd0bf87b1e5b0afbaf856fa69e743f9145d4ed6020ac', 'funcionario', true, '87973091173', '1999-07-02'),
+  (1, 'Ana Beatriz Garcia', 'anabeatriz@confeitaria.local', '22999990001', 'scrypt:32768:8:1$1kk1oyfv90MnRdqz$f5d75322deb026695df453595ffaae2f133141767f0ddc8af50cbdd90ad083fff8e2d6288a25de59248fc17d2370b483bb3737e964546b26ea826b2b0a86a9ff', 'administrador', true, '41827365080', '1998-08-21'),  (2, 'Joao Pedro Viana', 'joao@confeitaria.local', '22999990002', 'scrypt:32768:8:1$KNHQ2UIqfEyRYZta$f2a4c47b27836331c8107debda39bd434b9240f7b44d37fc7ef158a66464ad8f5c4fa9f6ffd2cdb0ec07fd0bf87b1e5b0afbaf856fa69e743f9145d4ed6020ac', 'funcionario', true, '87973091173', '1999-07-02'),
   (3, 'Larissa Nunes Rangel', 'larissa@confeitaria.local', '22999990003', 'scrypt:32768:8:1$KNHQ2UIqfEyRYZta$f2a4c47b27836331c8107debda39bd434b9240f7b44d37fc7ef158a66464ad8f5c4fa9f6ffd2cdb0ec07fd0bf87b1e5b0afbaf856fa69e743f9145d4ed6020ac', 'funcionario', true, '70753645530', '2002-11-19'),
   -- Ana faz aniversário daqui a 3 dias (aparece em "Aniversários da semana")
   (10, 'Ana Souza', 'ana@exemplo.com', '22999990010', 'scrypt:32768:8:1$KNHQ2UIqfEyRYZta$f2a4c47b27836331c8107debda39bd434b9240f7b44d37fc7ef158a66464ad8f5c4fa9f6ffd2cdb0ec07fd0bf87b1e5b0afbaf856fa69e743f9145d4ed6020ac', 'cliente', true, '52998224725', (current_date + 3 - interval '34 years')::date),
@@ -67,16 +66,15 @@ INSERT INTO insumo (id_insumo, nome, tipo, unidade_medida, unidade_receita, fato
   (26, 'Fita de cetim', 'decoracao', 'rolo 10m', 'm', 10, 26.2, 20, 7.87, false);
 
 -- ---------- Receitas ----------
--- A tabela receita ainda não tem coluna de nome: o nome vai no início do modo de preparo.
-INSERT INTO receita (id_receita, modo_preparo, tempo_preparo, rendimento_qtd, rendimento_un, complexidade, ativa) VALUES
-  (1, 'Massa branca: Bater ovos e acucar, juntar leite e oleo, incorporar farinha e fermento. Assar 40 min a 180C.', 50, 1, 'bolo 25cm', 'baixa', true),
-  (2, 'Massa de chocolate: Misturar secos com cacau, juntar ovos, leite e oleo. Assar 40 min a 180C.', 50, 1, 'bolo 25cm', 'baixa', true),
-  (3, 'Massa de cenoura: Bater cenoura, ovos e oleo no liquidificador; misturar farinha, acucar e fermento. Assar 40 min.', 50, 1, 'bolo 25cm', 'baixa', true),
-  (5, 'Brigadeiro: Cozinhar leite condensado, manteiga e chocolate ate desgrudar. Enrolar e passar no granulado.', 60, 50, 'unidades', 'baixa', true),
-  (6, 'Beijinho: Cozinhar leite condensado com manteiga e coco. Enrolar e passar no coco.', 60, 50, 'unidades', 'baixa', true),
-  (7, 'Ganache de chocolate: Derreter chocolate meio amargo com creme de leite.', 15, 1, 'cobertura de bolo', 'baixa', true),
-  (8, 'Recheio de brigadeiro de colher: Cozinhar leite condensado, creme de leite, cacau e manteiga ate ponto cremoso.', 25, 1, 'recheio de bolo', 'baixa', true),
-  (12, 'Brownie: Derreter chocolate com manteiga, juntar acucar, ovos, cacau e farinha. Assar 25 min.', 45, 16, 'pedacos', 'baixa', false);
+INSERT INTO receita (id_receita, nome, modo_preparo, tempo_preparo, rendimento_qtd, rendimento_un, complexidade, ativa) VALUES
+  (1, 'Massa branca', 'Bater ovos e acucar, juntar leite e oleo, incorporar farinha e fermento. Assar 40 min a 180C.', 50, 1, 'bolo 25cm', 'baixa', true),
+  (2, 'Massa de chocolate', 'Misturar secos com cacau, juntar ovos, leite e oleo. Assar 40 min a 180C.', 50, 1, 'bolo 25cm', 'baixa', true),
+  (3, 'Massa de cenoura', 'Bater cenoura, ovos e oleo no liquidificador; misturar farinha, acucar e fermento. Assar 40 min.', 50, 1, 'bolo 25cm', 'baixa', true),
+  (5, 'Brigadeiro', 'Cozinhar leite condensado, manteiga e chocolate ate desgrudar. Enrolar e passar no granulado.', 60, 50, 'unidades', 'baixa', true),
+  (6, 'Beijinho', 'Cozinhar leite condensado com manteiga e coco. Enrolar e passar no coco.', 60, 50, 'unidades', 'baixa', true),
+  (7, 'Ganache de chocolate', 'Derreter chocolate meio amargo com creme de leite.', 15, 1, 'cobertura de bolo', 'baixa', true),
+  (8, 'Recheio de brigadeiro de colher', 'Cozinhar leite condensado, creme de leite, cacau e manteiga ate ponto cremoso.', 25, 1, 'recheio de bolo', 'baixa', true),
+  (12, 'Brownie', 'Derreter chocolate com manteiga, juntar acucar, ovos, cacau e farinha. Assar 25 min.', 45, 16, 'pedacos', 'baixa', false);
 
 INSERT INTO item_receita (id_receita, id_insumo, quantidade_necessaria) VALUES
   (1, 1, 300), (1, 2, 250), (1, 3, 4), (1, 10, 240), (1, 11, 120), (1, 12, 15),
@@ -168,7 +166,7 @@ INSERT INTO item_pedido (id_item_pedido, id_pedido, id_produto, quantidade, prec
 -- custo_cobrado = custo da opção x quantidade
 INSERT INTO opcao_escolhida (id_item_pedido, id_opcao, quantidade, custo_cobrado) VALUES
   (1, 4, 1, 10.00),
-  (3, 6, 10, 30.00),
+  (3, 6, 10, 3.00),
   (5, 29, 1, 10.00);
 
 -- ---------- Compras ----------

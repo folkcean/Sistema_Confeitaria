@@ -78,7 +78,7 @@ class Validador:
         # str() garante que é texto e strip() remove espações e quebras de linha no começo e no fim
         limpo = str(valor or "").strip()
         garantir(
-            limpo, 
+            limpo,
             ValidacaoError(f"O campo '{campo}' é obrigatório")
         )
         garantir(
@@ -153,8 +153,22 @@ class Validador:
         # Para o segundo verificador, o recorte são os 10 primeiros
         segundo = cls._digitoVerificadorCpf(digitos[:10]) == int(digitos[10])
         garantir(
-            primeiro and segundo, 
+            primeiro and segundo,
             ValidacaoError("CPF inválido"))
+        return digitos
+
+    @classmethod
+    def cnpj(cls, valor) -> str:
+        """
+        Valida o formato do CNPJ (14 dígitos, sem sequência repetida) e devolve só os dígitos (coluna varchar(14))
+
+        Os dígitos verificadores não são conferidos: os CNPJs do seed são fictícios e não passariam
+        """
+        digitos = re.sub(r"\D", "", cls.texto(valor, "CNPJ"))
+        garantir(
+            len(digitos) == 14 and digitos != digitos[0] * 14,
+            ValidacaoError("CNPJ inválido: informe os 14 dígitos"),
+        )
         return digitos
 
     @staticmethod
@@ -193,7 +207,7 @@ class Validador:
         # Procura o conversor pelo tipo exato do valor; tipo desconhecido -> None -> erro
         conversor = cls._CONVERSORES_DATA.get(type(valor))
         garantir(
-            conversor, 
+            conversor,
             ValidacaoError(f"O campo '{campo}' deve ser uma data válida")
         )
         # Tenta executar, se der ValueError cai no except
@@ -262,7 +276,7 @@ class Validador:
         """
         numero = cls._decimalNaoNegativo(valor, campo).quantize(cls._CENTAVOS, rounding=ROUND_HALF_UP)
         garantir(
-            numero <= 100, 
+            numero <= 100,
             ValidacaoError(f"O campo '{campo}' deve estar entre 0 e 100")
         )
         return numero
@@ -277,14 +291,14 @@ class Validador:
             ValidacaoError(f"O campo '{campo}' deve ser um número inteiro")
         )
         garantir(
-            valor >= 0, 
+            valor >= 0,
             ValidacaoError(f"O campo '{campo}' não pode ser negativo")
         )
         return valor
 
     # MÓDULO ESTOQUE
     @staticmethod
-    def inteiroPositivo(valor, campo:str) -> int:
+    def inteiroPositivo(valor, campo: str) -> int:
         """
         Inteiro >= 1. Rejeita True/False
         """
@@ -297,7 +311,7 @@ class Validador:
             ValidacaoError(f"O campo '{campo}' deve ser maior que zero")
         )
         return valor
-    
+
     @staticmethod
     def opcionalSeInformado(validador, valor, *argumentos):
         """
@@ -308,7 +322,7 @@ class Validador:
 
         O dicionário escolhe o caminho pelo resultado de 'valor is None', cada valor é um lambda
         """
-        tratamentos={
+        tratamentos = {
             True: lambda: None,
             False: lambda: validador(valor, *argumentos)
         }
@@ -348,11 +362,11 @@ class Validador:
         """
         numero = cls.quantidade(valor, campo)
         garantir(
-            numero > 0, 
+            numero > 0,
             ValidacaoError(f"O campo '{campo}' deve ser maior que zero")
-            )
+        )
         return numero
- 
+
     @classmethod
     def quantidadeAjuste(cls, valor, campo: str) -> Decimal:
         """
@@ -371,7 +385,7 @@ class Validador:
             ValidacaoError(f"O campo '{campo}' não pode ser zero")
         )
         return numero
- 
+
     @classmethod
     def custoUnitario(cls, valor, campo: str) -> Decimal:
         """
@@ -383,5 +397,5 @@ class Validador:
         garantir(
             numero < cls._LIMITE_CUSTO_UNITARIO,
             ValidacaoError(f"O campo '{campo}' excede o valor máximo permitido")
-            )
+        )
         return numero.quantize(cls._DECIMILESIMOS, rounding=ROUND_HALF_UP)

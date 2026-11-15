@@ -206,12 +206,6 @@ def test_adicionar_produto_que_nao_esta_a_venda_da_404(navegador, produto_id):
     assert linhas_do_carrinho(navegador) == []
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=ValidacaoError,
-    reason="carrinhoAdicionar valida as observações FORA do try: com mais de 255 caracteres "
-           "o ValidacaoError não é tratado e a loja dá erro 500 em vez de mostrar a mensagem",
-)
 def test_observacoes_longas_demais_voltam_com_mensagem(navegador, mensagens):
     resposta = adicionar(navegador, observacoes="a" * 256)
 

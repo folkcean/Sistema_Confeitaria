@@ -25,7 +25,7 @@
 
 {% set menu_ativo = "pedidos" %}
 {% set status = m.valor(pedido.status)|string %}
-{% set pagamento = m.valor(pedido.status_pagamento)|string %}
+{% set pagamento = m.valor(pedido.pagamento.status)|string %}
 {% set tipo = m.valor(pedido.tipo_entrega)|string %}
 {# Aceita tanto ["em_producao", ...] quanto [StatusPedido.EM_PRODUCAO, ...] #}
 {% set proximos = (proximos_status|default([]))|map("string")|list %}
@@ -39,7 +39,7 @@
 
 {% block acoes %}
     {{ m.selo(m.STATUS_PEDIDO, pedido.status) }}
-    {{ m.selo(m.STATUS_PAGAMENTO, pedido.status_pagamento) }}
+    {{ m.selo(m.STATUS_PAGAMENTO, pedido.pagamento.status) }}
 {% endblock %}
 
 {% block conteudo %}
@@ -70,7 +70,7 @@
                                 <td class="tabela__principal">{{ item.produto.nome }}</td>
                                 <td class="num">{{ item.quantidade }}</td>
                                 <td>
-                                    {% for opcao in item.opcoes %}{{ opcao.nome }}
+                                    {% for opcao in item.opcoes %}{{ opcao.opcao.nome }}
                                         {% if opcao.quantidade and opcao.quantidade > 1 %} ×
                                             {{ opcao.quantidade }}{% endif %}{{ ", " if not loop.last }}{% else %}
                                         <span class="texto-suave">—</span>{% endfor %}
@@ -212,12 +212,12 @@
                         </div>
                     {% endif %}
                 </dl>
-                {% if pedido.forma_pagamento_sinal or pedido.forma_pagamento_restante %}
+                {% if pedido.pagamento.forma_sinal or pedido.pagamento.forma_restante %}
                     <p class="nota-bloco">
-                        {% if pedido.forma_pagamento_sinal %}Sinal via
-                            {{ m.rotulo(m.FORMA_PAGAMENTO, pedido.forma_pagamento_sinal) }}.{% endif %}
-                        {% if pedido.forma_pagamento_restante %}Restante via
-                            {{ m.rotulo(m.FORMA_PAGAMENTO, pedido.forma_pagamento_restante) }}.{% endif %}
+                        {% if pedido.pagamento.forma_sinal %}Sinal via
+                            {{ m.rotulo(m.FORMA_PAGAMENTO, pedido.pagamento.forma_sinal) }}.{% endif %}
+                        {% if pedido.pagamento.forma_restante %}Restante via
+                            {{ m.rotulo(m.FORMA_PAGAMENTO, pedido.pagamento.forma_restante) }}.{% endif %}
                     </p>
                 {% endif %}
 
@@ -230,7 +230,7 @@
                             <label for="forma_pagamento">Forma de pagamento</label>
                             <select id="forma_pagamento" name="forma_pagamento" required>
                                 {% for valor, texto in m.FORMA_PAGAMENTO.items() %}
-                                    <option value="{{ valor }}"{% if m.valor(pedido.forma_pagamento_sinal) == valor %}
+                                    <option value="{{ valor }}"{% if m.valor(pedido.pagamento.forma_sinal) == valor %}
                                             selected{% endif %}>{{ texto }}</option>
                                 {% endfor %}
                             </select>

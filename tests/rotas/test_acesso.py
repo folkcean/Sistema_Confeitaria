@@ -268,11 +268,6 @@ def test_cadastro_com_problema_volta_para_o_formulario(navegador, banco, templat
     assert token_na_sessao(navegador) is None
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=NameError,
-    reason="acesso.sair chama `predirect` (erro de digitação de `redirect`): sair da conta dá erro 500",
-)
 def test_sair_limpa_a_sessao_e_volta_para_o_inicio(navegador, como_cliente, mensagens):
     resposta = navegador.get("/sair")
 
