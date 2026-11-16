@@ -38,6 +38,8 @@ class Config:
     # Duração da sessão com "Lembrar de mim" marcado
     PERMANENT_SESSION_LIFETIME = timedelta(days=14)
 
+    ABACATEPAY_API_KEY = os.getenv("ABACATEPAY_API_KEY", "")
+
 
 class ConfigTeste(Config):
     """

@@ -40,24 +40,6 @@ CREATE TABLE ENDERECO (
   cidade      varchar(255) NOT NULL, 
   cep         char(8) NOT NULL, 
   PRIMARY KEY (ID_endereco));
-CREATE TABLE PEDIDO (
-  ID_pedido                SERIAL NOT NULL, 
-  ID_endereco_entrega      int4, 
-  ID_cliente               int4 NOT NULL, 
-  data_criacao             timestamp(6) DEFAULT now() NOT NULL, 
-  data_entrega_ou_retirada timestamp(6) NOT NULL, 
-  valor_total              numeric(10, 2) NOT NULL, 
-  taxa_entrega             numeric(10, 2) DEFAULT 0 NOT NULL, 
-  status                   varchar(255) DEFAULT 'solicitado' NOT NULL CHECK(status IN ('solicitado', 'orcamento', 'confirmado', 'em_producao', 'pronto', 'entregue', 'finalizado', 'cancelado')), 
-  status_pagamento         varchar(255) DEFAULT 'aguardando_sinal' NOT NULL CHECK(status_pagamento IN ('aguardando_sinal', 'sinal_pago', 'pago')), 
-  tipo_entrega             varchar(255) NOT NULL CHECK(tipo_entrega IN ('entrega', 'retirada')), 
-  motivo_cancelamento      varchar(255), 
-  rastreamento             varchar(255), 
-  observacoes              varchar(255), 
-  forma_pagamento_sinal    varchar(20) CHECK(forma_pagamento_sinal IN ('pix', 'dinheiro', 'cartao')), 
-  forma_pagamento_restante varchar(20) CHECK(forma_pagamento_restante IN ('pix', 'dinheiro', 'cartao')), 
-  nome_recebedor           varchar(255), 
-  PRIMARY KEY (ID_pedido));
 CREATE TABLE ITEM_PEDIDO (
   ID_item_pedido       SERIAL NOT NULL, 
   ID_produto           int4 NOT NULL, 
@@ -176,6 +158,26 @@ CREATE TABLE OPCAO_ESCOLHIDA (
   custo_cobrado  numeric(10, 2) NOT NULL, 
   PRIMARY KEY (ID_item_pedido, 
   ID_opcao));
+CREATE TABLE PEDIDO (
+  ID_pedido                SERIAL NOT NULL, 
+  ID_endereco_entrega      int4, 
+  ID_cliente               int4 NOT NULL, 
+  data_criacao             timestamp(6) DEFAULT now() NOT NULL, 
+  data_entrega_ou_retirada timestamp(6) NOT NULL, 
+  valor_total              numeric(10, 2) NOT NULL, 
+  taxa_entrega             numeric(10, 2) DEFAULT 0 NOT NULL, 
+  status                   varchar(255) DEFAULT 'solicitado' NOT NULL CHECK(status IN ('solicitado', 'orcamento', 'confirmado', 'em_producao', 'pronto', 'entregue', 'finalizado', 'cancelado')), 
+  status_pagamento         varchar(255) DEFAULT 'aguardando_sinal' NOT NULL CHECK(status_pagamento IN ('aguardando_sinal', 'sinal_pago', 'pago')), 
+  tipo_entrega             varchar(255) NOT NULL CHECK(tipo_entrega IN ('entrega', 'retirada')), 
+  motivo_cancelamento      varchar(255), 
+  rastreamento             varchar(255), 
+  observacoes              varchar(255), 
+  forma_pagamento_sinal    varchar(20) CHECK(forma_pagamento_sinal IN ('pix', 'dinheiro', 'cartao')), 
+  forma_pagamento_restante varchar(20) CHECK(forma_pagamento_restante IN ('pix', 'dinheiro', 'cartao')), 
+  nome_recebedor           varchar(255), 
+  cobranca_sinal           varchar(64), 
+  cobranca_restante        varchar(64), 
+  PRIMARY KEY (ID_pedido));
 ALTER TABLE ENDERECO ADD CONSTRAINT FKENDERECO612842 FOREIGN KEY (ID_cliente) REFERENCES CLIENTE (ID_usuario) ON DELETE Cascade;
 ALTER TABLE PEDIDO ADD CONSTRAINT FKPEDIDO797951 FOREIGN KEY (ID_endereco_entrega) REFERENCES ENDERECO (ID_endereco);
 ALTER TABLE ITEM_PEDIDO ADD CONSTRAINT FKITEM_PEDID563675 FOREIGN KEY (ID_pedido) REFERENCES PEDIDO (ID_pedido) ON DELETE Cascade;
