@@ -160,6 +160,16 @@ class Produto(Entidade):
         return self._caminho_foto
 
     @property
+    def pronta_entrega(self) -> bool:
+        """
+        True quando a disponibilidade é "pronta entrega" (regra de prazo diferente da encomenda)
+
+        Aceita 'Pronta entrega', 'pronta entrega' e 'pronta_entrega' (valor do banco): .strip() tira espaços,
+        .lower() põe em minúsculas e .replace("_", " ") troca o _ por espaço
+        """
+        return self._disponibilidade.strip().lower().replace("_", " ") == "pronta entrega"
+
+    @property
     def opcoes(self) -> tuple[OpcaoPersonalizacao, ...]:
         """
         Cópia imutável da lista: ninguém altera a lista interna por fora

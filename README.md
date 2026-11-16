@@ -74,18 +74,23 @@ O DER no Visual Paradigm é a fonte da verdade do banco. Toda alteração começ
 ```
 sistema-confeitaria/
 ├── app/
-│   ├── controllers/                 # (a criar) rotas Flask, sem regra de negócio
+│   ├── controllers/                 # rotas Flask, sem regra de negócio
+│   │   ├── loja.py                  # área do cliente
+│   │   └── painel.py                # área interna
 │   ├── models/                      # entidades e regras do negócio; sem Flask e sem SQL
 │   │   ├── __init__.py              # índice dos models
 │   │   ├── administrador.py
 │   │   ├── base.py                  # Entidade (classe mãe de tudo que tem id)
 │   │   ├── cliente.py
+│   │   ├── compra_insumo.py
 │   │   ├── contratos.py             # Protocols: PedidoAvancavel, Recomendador, ClienteConsultavel
 │   │   ├── endereco.py
 │   │   ├── enums.py                 # Perfil, StatusPedido (autômato), StatusPagamento, TipoMovimentacao...
 │   │   ├── estoque.py               # Estoque (coordena vários insumos; não é tabela)
+│   │   ├── fornecedor.py
 │   │   ├── funcionario.py
 │   │   ├── insumo.py                # Insumo (tabela INGREDIENTE): saldo, mínimo, conversão de unidades
+│   │   ├── item_compra_insumo.py
 │   │   ├── movimentacao_estoque.py  # histórico imutável de entradas, consumos, perdas e ajustes
 │   │   ├── opcao_personalizacao.py
 │   │   ├── pedido.py                # Pedido, ItemPedido, ItemPedidoOpcao e Pagamento
@@ -93,36 +98,60 @@ sistema-confeitaria/
 │   │   ├── receita.py               # Receita e ItemReceita (escala por regra de três)
 │   │   ├── senha.py                 # Senha (hash) e SenhaAusente
 │   │   └── usuario.py               # Usuario (classe abstrata)
-│   ├── repositories/                # (a criar) acesso ao banco, sem regra de negócio
+│   ├── repositories/                # acesso ao banco, sem regra de negócio
+│   │   ├── base.py                  # RepositorioBase: conexão e transação
+│   │   ├── clientes_rep.py
+│   │   ├── compras_rep.py
+│   │   ├── fornecedores_rep.py
+│   │   ├── funcionarios_rep.py
+│   │   ├── insumos_rep.py
+│   │   ├── pedidos_rep.py
+│   │   ├── produtos_rep.py
+│   │   ├── receitas_rep.py
+│   │   ├── relatorios_rep.py
+│   │   └── usuarios_rep.py
 │   ├── services/                    # casos de uso
 │   │   ├── __init__.py
+│   │   ├── alerta_estoque.py        # alerta de estoque mínimo e lista de compras sugerida
 │   │   ├── autenticacao.py          # login e tokens
+│   │   ├── baixa_estoque.py         # desconta os insumos do pedido na confirmação (tudo ou nada)
+│   │   ├── compra_insumo_service.py # compra de insumos
 │   │   ├── controle_login.py        # bloqueio por tentativas
 │   │   ├── conversor_unidades.py    # conversão entre unidades-padrão (kg<->g, l<->ml)
+│   │   ├── pedido_service.py        # Carrinho e PedidoService: criar, confirmar (baixa o estoque), cancelar
+│   │   ├── pedidos.py               # serviço de pedidos usado pelas rotas
 │   │   └── precificacao.py          # CalculadoraPreco: custo, margem, personalização e taxa de entrega
 │   ├── templates/
 │   ├── validators/                  # validação de dados; não conhece nenhuma entidade
 │   │   ├── __init__.py
 │   │   ├── campos.py                # garantir() e Validador
+│   │   ├── prazo_pedido.py          # prazo de encomenda e limite de pronta entrega
 │   │   └── senha.py                 # regras de força da senha
 │   ├── __init__.py
-│   └── exceptions.py                # ValidacaoError, AcessoNegadoError, EstoqueInsuficienteError...
+│   └── exceptions.py                # ValidacaoError, AcessoNegadoError, EstoqueInsuficienteError, PedidoSemEstoqueError...
 ├── tests/
 │   ├── db/                          # testes do banco (usam o Docker)
+│   ├── rotas/                       # testes das rotas Flask
 │   ├── models/
 │   │   ├── conftest.py              # fixtures compartilhadas (farinha, leite_condensado, caixa, estoque)
 │   │   ├── test_estoque.py
 │   │   ├── test_insumo.py
 │   │   ├── test_movimentacao_estoque.py
 │   │   ├── test_pedido.py
+│   │   ├── test_pedido_prazo.py     # Pedido x PrazoPedido, Produto.pronta_entrega, exigirConfirmavel
 │   │   ├── test_produto_receita.py
 │   │   ├── test_receita.py
 │   │   └── ...                      # demais testes dos models (um test_*.py por model)
 │   ├── services/
+│   │   ├── conftest.py              # fixtures da semana 5 (estoque, bolo, cliente)
+│   │   ├── test_alerta_estoque.py
+│   │   ├── test_baixa_estoque.py
 │   │   ├── test_conversor_unidades.py
+│   │   ├── test_pedido_service.py
 │   │   └── test_precificacao.py
 │   └── validators/
-│       └── test_campos_estoque.py
+│       ├── test_campos_estoque.py
+│       └── test_prazo_pedido.py
 ├── .env                             # local, não vai para o GitHub
 ├── .gitignore
 ├── pytest.ini                       # configuração do pytest (raiz do projeto e pasta tests/)
