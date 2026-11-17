@@ -75,7 +75,7 @@
     {%- set id_campo = id or nome -%}
     <div class="campo {{ classe }}">
         {{ _rotulo(id_campo, rotulo, opcional) }}
-        <textarea id="{{ id_campo }}" name="{{ nome }}" rows="{{ linhas }}"
+        <textarea id="{{ id_campo }}" name="{{ nome }}" rows="{{ dicionarios }}"
                 {%- if not opcional %} required{% endif %}
                 {%- if dica %} aria-describedby="{{ id_campo }}-dica"{% endif %}
                 {{- _extras(kwargs) }}>{{ _atual(nome, objeto, valor) }}</textarea>

@@ -1097,6 +1097,91 @@ a.indicador:hover {
     margin-top: 10px;
 }
 
+/* 8. ASSISTENTE IA (painel/ia.html) ---------------------------------------- */ 
+/* Resumo que a IA escreve acima da lista */
+.resumo-ia {
+    margin-bottom: 4px;
+    font-size: 0.9375rem;
+}
+
+/* Uma recomendação por item (insumo + selo, quanto comprar, motivo com a conta) */
+.recomendacoes {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.recomendacao {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--linha);
+}
+
+.recomendacao:last-child {
+    border-bottom: 0;
+}
+
+.recomendacao__topo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.recomendacao__compra {
+    margin: 4px 0 10px;
+    color: var(--suave);
+    font-size: 0.875rem;
+}
+
+/* Os fatores ficam alinhados com o texto do summary (depois do ícone) */
+.recomendacao .expansivel__conteudo {
+    margin: 0;
+    padding-left: 34px;
+    font-size: 0.875rem;
+}
+
+.recomendacao .expansivel__conteudo li + li {
+    margin-top: 4px;
+}
+
+/* Formulário da pergunta: atalhos, insumo, texto e botão, um embaixo do outro */
+.pergunta-ia {
+    display: grid;
+    gap: 14px;
+    justify-items: start;
+}
+
+.pergunta-ia .campo {
+    width: 100%;
+}
+
+/* Atalhos são <button class="escolha">: tira o visual padrão do botão e deixa o texto quebrar */
+.atalhos-ia .escolha {
+    min-height: 36px;
+    padding: 6px 14px;
+    font-family: inherit;
+    font-size: 0.8125rem;
+    text-align: left;
+}
+
+/* A resposta vem em texto puro; pre-line mantém as quebras de linha da IA */
+.resposta-ia {
+    margin-top: 18px;
+    padding: 14px 16px;
+    border-radius: var(--raio-m);
+    background: var(--rosa-claro);
+}
+
+.resposta-ia__pergunta {
+    margin-bottom: 8px;
+    color: var(--suave);
+    font-size: 0.8125rem;
+}
+
+.resposta-ia__texto {
+    white-space: pre-line;
+}
+
 @media print {
     .lateral,
     .lateral__fundo,
