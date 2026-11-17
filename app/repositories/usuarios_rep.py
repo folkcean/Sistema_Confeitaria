@@ -84,11 +84,13 @@ class RepositorioUsuarios(RepositorioBase):
         try:
             with self._transacao():
                 linha = self._umaLinha(
-                    "INSERT INTO usuario (nome, email, telefone, senha_hash, data_cadastro, ativo, cpf, data_nascimento, perfil) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'administrador') RETURNING id_usuario",
+                    "INSERT INTO usuario (nome, email, telefone, senha_hash, data_cadastro, ativo, cpf, data_nascimento, "
+                    "email_verificado, perfil) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'administrador') RETURNING id_usuario",
                     (administrador.nome, administrador.email, administrador.telefone, administrador.senha_hash,
                      administrador.data_cadastro,
-                     administrador.ativo, administrador.cpf_persistencia, administrador.data_nascimento),
+                     administrador.ativo, administrador.cpf_persistencia, administrador.data_nascimento,
+                     administrador.email_verificado),
                 )
                 administrador.atribuirID(linha["id_usuario"])
                 self._executar("INSERT INTO administrador (id_usuario, nivel_privilegio, acesso_financeiro) "
@@ -97,6 +99,13 @@ class RepositorioUsuarios(RepositorioBase):
         except UniqueViolation as erro:
             raise ValidacaoError(self.MENSAGEM_DUPLICADO) from erro
         return administrador
+
+    def marcarEmailVerificado(self, usuario):
+        """Grava que o e-mail do usuário foi confirmado (serve para os três perfis)"""
+        self._executar(
+            "UPDATE usuario SET email_verificado = %s WHERE id_usuario = %s",
+            (usuario.email_verificado, usuario.id),
+        )
 
     def atualizarSenha(self, usuario):
         """Grava o hash novo da senha (serve para os três perfis)"""

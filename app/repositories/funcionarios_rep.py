@@ -33,11 +33,12 @@ class RepositorioFuncionarios(RepositorioUsuarios):
         try:
             with self._transacao():
                 linha = self._umaLinha(
-                    "INSERT INTO usuario (nome, email, telefone, senha_hash, data_cadastro, ativo, cpf, data_nascimento, perfil) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'funcionario') RETURNING id_usuario",
+                    "INSERT INTO usuario (nome, email, telefone, senha_hash, data_cadastro, ativo, cpf, data_nascimento, "
+                    "email_verificado, perfil) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'funcionario') RETURNING id_usuario",
                     (funcionario.nome, funcionario.email, funcionario.telefone, funcionario.senha_hash,
                      funcionario.data_cadastro, funcionario.ativo, funcionario.cpf_persistencia,
-                     funcionario.data_nascimento),
+                     funcionario.data_nascimento, funcionario.email_verificado),
                 )
                 funcionario.atribuirID(linha["id_usuario"])
                 self._executar(
@@ -57,10 +58,11 @@ class RepositorioFuncionarios(RepositorioUsuarios):
             with self._transacao():
                 self._executar(
                     "UPDATE usuario SET nome = %s, email = %s, telefone = %s, ativo = %s, "
-                    "cpf = %s, data_nascimento = %s "
+                    "cpf = %s, data_nascimento = %s, email_verificado = %s "
                     "WHERE id_usuario = %s",
                     (funcionario.nome, funcionario.email, funcionario.telefone, funcionario.ativo,
-                     funcionario.cpf_persistencia, funcionario.data_nascimento, funcionario.id),
+                     funcionario.cpf_persistencia, funcionario.data_nascimento, funcionario.email_verificado,
+                     funcionario.id),
                 )
                 self._executar(
                     "UPDATE funcionario SET cargo = %s, data_contratacao = %s WHERE id_usuario = %s",

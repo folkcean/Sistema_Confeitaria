@@ -9,7 +9,8 @@ from app.repositories.usuarios_rep import RepositorioUsuarios
 from app.services.autenticacao import Autenticacao
 from app.services.carrinho import Carrinho
 from app.services.gateway_abacatepay import GatewayAbacatePay
-
+from app.services.envio_email import criarEnviador
+from app.services.verificacao_email import VerificacaoEmail
 
 def paginaNaoEncontrada(erro):
     """404: endereço que não existe (ou abort(404) numa rota)"""
@@ -58,6 +59,10 @@ def create_app(config=Config):
     app.extensions["autenticacao"] = Autenticacao(repositorio, app.config["SECRET_KEY"])
     # Gateway de pagamento (Pix do sinal).
     app.extensions["pagamentos"] = GatewayAbacatePay(app.config["ABACATEPAY_API_KEY"])
+    # Verificação de e-mail: o enviador (SMTP ou terminal) é escolhido pelo .env
+    app.extensions["verificacao_email"] = VerificacaoEmail(
+        criarEnviador(app.config), repositorio, app.config["SECRET_KEY"]
+    )
     # Tratadores de erro: códigos HTTP e exceções do projeto
     app.register_error_handler(404, paginaNaoEncontrada)
     app.register_error_handler(403, acessoNegado)

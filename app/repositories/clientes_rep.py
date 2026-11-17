@@ -42,10 +42,11 @@ class RepositorioClientes(RepositorioUsuarios):
         try:
             with self._transacao():
                 linha = self._umaLinha(
-                    "INSERT INTO usuario (nome, email, telefone, senha_hash, data_cadastro, ativo, cpf, data_nascimento, perfil) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'cliente') RETURNING id_usuario",
+                    "INSERT INTO usuario (nome, email, telefone, senha_hash, data_cadastro, ativo, cpf, data_nascimento, "
+                    "email_verificado, perfil) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'cliente') RETURNING id_usuario",
                     (cliente.nome, cliente.email, cliente.telefone, cliente.senha_hash, cliente.data_cadastro,
-                     cliente.ativo, cliente.cpf_persistencia, cliente.data_nascimento),
+                     cliente.ativo, cliente.cpf_persistencia, cliente.data_nascimento, cliente.email_verificado),
                 )
                 cliente.atribuirID(linha["id_usuario"])
                 self._executar(
@@ -68,10 +69,10 @@ class RepositorioClientes(RepositorioUsuarios):
             with self._transacao():
                 self._executar(
                     "UPDATE usuario SET nome = %s, email = %s, telefone = %s, ativo = %s, "
-                    "cpf = %s, data_nascimento = %s "
+                    "cpf = %s, data_nascimento = %s, email_verificado = %s "
                     "WHERE id_usuario = %s",
                     (cliente.nome, cliente.email, cliente.telefone, cliente.ativo,
-                     cliente.cpf_persistencia, cliente.data_nascimento, cliente.id),
+                     cliente.cpf_persistencia, cliente.data_nascimento, cliente.email_verificado, cliente.id),
                 )
                 self._executar(
                     "UPDATE cliente SET apelido = %s, cliente_vip = %s, instagram = %s, "

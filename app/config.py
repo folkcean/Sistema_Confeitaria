@@ -42,10 +42,22 @@ class Config:
 
     ABACATEPAY_API_KEY = os.getenv("ABACATEPAY_API_KEY", "")
 
-
+    # E-mail (verificação do e-mail do cliente). Sem EMAIL_SMTP_HOST nada é enviado de verdade:
+    # o e-mail aparece no terminal do Flask (modo desenvolvimento)
+    EMAIL_SMTP_HOST = os.getenv("EMAIL_SMTP_HOST", "")
+    EMAIL_SMTP_PORTA = os.getenv("EMAIL_SMTP_PORTA", "587")
+    EMAIL_SMTP_USUARIO = os.getenv("EMAIL_SMTP_USUARIO", "")
+    EMAIL_SMTP_SENHA = os.getenv("EMAIL_SMTP_SENHA", "")
+    # "sim" liga o STARTTLS (criptografia). Servidor de teste local (Mailpit) usa "nao"
+    EMAIL_SMTP_TLS = os.getenv("EMAIL_SMTP_TLS", "sim").strip().lower() == "sim"
+    EMAIL_REMETENTE = os.getenv("EMAIL_REMETENTE", "Dolce Bea <noreply@localhost>")
+    
 class ConfigTeste(Config):
     """
     Configuração dos testes: herda tudo e liga o modo de teste do Flask
     """
 
     TESTING = True
+
+    # Os testes nunca enviam e-mail de verdade, mesmo que o .env de quem roda tenha SMTP configurado
+    EMAIL_SMTP_HOST = ""
