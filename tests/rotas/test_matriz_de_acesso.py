@@ -31,6 +31,7 @@ ABERTAS = {
     "acesso.cadastro": ("GET", "/cadastro"),
     "acesso.cadastroEnviar": ("POST", "/cadastro"),
     "acesso.sair": ("GET", "/sair"),
+    "acesso.verificarEmail": ("GET", "/verificar-email/token-qualquer"),
     "loja.home": ("GET", "/loja"),
     "loja.catalogo": ("GET", "/loja/cardapio"),
     "loja.produto": ("GET", "/loja/produtos/1"),
@@ -50,6 +51,7 @@ DO_CLIENTE = {
     "loja.enderecoAdicionar": ("POST", "/loja/perfil/enderecos/novo"),
     "loja.enderecoRemover": ("GET", "/loja/perfil/enderecos/1/remover"),
     "loja.enderecoRemoverConfirmado": ("POST", "/loja/perfil/enderecos/1/remover"),
+    "acesso.reenviarVerificacao": ("POST", "/verificar-email/reenviar"),
     "loja.pedidoEnviar": ("POST", "/loja/carrinho/enviar"),
     "loja.pedidos": ("GET", "/loja/pedidos"),
     "loja.pedido": ("GET", "/loja/pedidos/1"),
@@ -201,7 +203,8 @@ def test_funcionario_nao_entra_no_que_e_so_da_administracao(navegador, como_func
 PAGINAS_ABERTAS = so_get(ABERTAS)
 # O /sair é GET, mas não é página: ele redireciona (está em test_acesso.py)
 PAGINAS_ABERTAS.pop("acesso.sair")
-
+# O link de confirmação sempre redireciona (testado em test_verificacao_email_rotas.py)
+PAGINAS_ABERTAS.pop("acesso.verificarEmail")
 
 @pytest.mark.parametrize("metodo, url", casos(PAGINAS_ABERTAS))
 def test_visitante_abre_as_paginas_abertas(navegador, metodo, url):

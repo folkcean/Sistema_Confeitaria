@@ -13,7 +13,8 @@ from flask import g, message_flashed, template_rendered
 from app import create_app
 from app.config import ConfigTeste
 from app.repositories.usuarios_rep import RepositorioUsuarios
-from tests.falsos import GatewayFalso
+from app.services.verificacao_email import VerificacaoEmail
+from tests.falsos import EnviadorFalso, GatewayFalso
 
 # O mesmo DB_fill.sql da fixture `seed` (tests/conftest.py)
 SEED = Path(__file__).resolve().parent.parent / "db" / "DB_fill.sql"
@@ -51,6 +52,13 @@ def app_com_a_conexao_de_teste(conexao):
     aplicacao = create_app(ConfigTeste)
     # Gateway de pagamento em memória: nenhum teste de rota chama a AbacatePay de verdade
     aplicacao.extensions["pagamentos"] = GatewayFalso()
+
+    # E-mail em memória: nenhum teste de rota envia e-mail de verdade nem escreve no terminal
+    enviador = EnviadorFalso()
+    aplicacao.extensions["enviador_falso"] = enviador
+    aplicacao.extensions["verificacao_email"] = VerificacaoEmail(
+        enviador, aplicacao.extensions["usuarios"], aplicacao.config["SECRET_KEY"]
+    )
 
     def usar_conexao_de_teste():
         g.conexao = ConexaoDeTeste(conexao)

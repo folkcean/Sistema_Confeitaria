@@ -1,0 +1,17 @@
+{#
+  _aviso_email.html
+  Faixa "Confirme seu e-mail", mostrada na loja para o cliente logado cujo e-mail ainda não foi confirmado.
+  Já é incluída pelo loja/base.html. O botão pede outro link (POST /verificar-email/reenviar).
+#}
+{% import "_macros.html" as m %}
+{% if usuario_atual is defined and usuario_atual and usuario_atual.email and not usuario_atual.email_verificado %}
+<div class="mensagens" role="status">
+  <div class="mensagem mensagem--aviso">
+    <p>Confirme seu e-mail: enviamos um link para <strong>{{ usuario_atual.email }}</strong>.</p>
+    <form method="post" action="{{ url_for('acesso.reenviarVerificacao') }}">
+      {{ m.csrf() }}
+      <button class="botao botao--fantasma botao--pequeno" type="submit">Reenviar e-mail</button>
+    </form>
+  </div>
+</div>
+{% endif %}

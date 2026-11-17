@@ -3,12 +3,13 @@ app / controllers / acesso.py
 
 Telas de entrada: início, entrar, criar conta e sair
 """
+import time
 
-from flask import Blueprint, render_template, redirect, url_for, request, flash, session
+from flask import Blueprint, current_app, render_template, redirect, url_for, request, flash, session
 
 from app import usuarioLogado
-from app.controllers.sessao import autenticacao
-from app.exceptions import AutenticacaoError, ValidacaoError
+from app.controllers.sessao import autenticacao, soCliente
+from app.exceptions import AutenticacaoError, ValidacaoError, EnvioEmailError
 from app.models import Perfil, Cliente, Senha
 from app.repositories.clientes_rep import RepositorioClientes
 from app.repositories.conexao_rep import obterConexao
@@ -17,6 +18,9 @@ from app.validators.senha import ValidadorSenha
 
 acesso = Blueprint("acesso", __name__)
 repo_clientes = RepositorioClientes(obterConexao)
+
+# Intervalo mínimo entre dois e-mails de confirmação pedidos pela mesma pessoa (evita spam no provedor)
+INTERVALO_REENVIO_EM_SEGUNDOS = 60 
 
 TIPOS_DE_SAIDA = {
     Perfil.CLIENTE: "loja.home",
@@ -125,8 +129,56 @@ def cadastroEnviar():
     # Já entra logado: o mesmo token que o login gera
     session["token"] = autenticacao().gerarToken(cliente)
     flash("Conta criada! Que bom ter você aqui.", "sucesso")
+    # A conta já existe: se o e-mail de confirmação falhar, a pessoa não perde o cadastro.
+    # O aviso no topo da loja oferece reenviar
+    try:
+        enviarLinkDeVerificacao(cliente)
+    except EnvioEmailError:
+        flash("Não conseguimos enviar o e-mail de confirmação agora. Peça um novo link no aviso do topo da loja.",
+              "aviso")
     return redirect(url_for("loja.home"))
 
+def enviarLinkDeVerificacao(usuario):
+    """
+    Manda o e-mail com o link de confirmação e anota na sessão a hora do envio (para o intervalo do reenvio)
+
+    O lambda monta o endereço completo: url_for(..., _external=True) devolve 'http://host/verificar-email/<token>'
+    """
+    montarLink = lambda token: url_for("acesso.verificarEmail", token=token, _external=True)
+    current_app.extensions["verificacao_email"].enviarLink(usuario, montarLink)
+    session["ultimo_envio_verificacao"] = time.time()
+
+
+@acesso.get("/verificar-email/<token>")
+def verificarEmail(token):
+    """
+    Abre o link recebido por e-mail e confirma o e-mail. Não exige login: a pessoa pode abrir o
+    e-mail em outro aparelho. Sempre volta para o início (quem está logado segue para a sua área)
+    """
+    try:
+        current_app.extensions["verificacao_email"].confirmar(token)
+        flash("E-mail confirmado! Obrigada.", "sucesso")
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+    return redirect(url_for("acesso.inicio"))
+
+
+@acesso.post("/verificar-email/reenviar")
+@soCliente
+def reenviarVerificacao():
+    """Envia outro link de confirmação para o cliente logado (no máximo um por minuto)"""
+    cliente = usuarioLogado()
+    try:
+        segundos_desde_o_ultimo = time.time() - session.get("ultimo_envio_verificacao", 0)
+        garantir(
+            segundos_desde_o_ultimo >= INTERVALO_REENVIO_EM_SEGUNDOS,
+            ValidacaoError("Aguarde um minuto antes de pedir outro e-mail de confirmação."),
+        )
+        enviarLinkDeVerificacao(cliente)
+        flash(f"Enviamos um novo link para {cliente.email}.", "sucesso")
+    except (ValidacaoError, EnvioEmailError) as erro:
+        flash(str(erro), "erro")
+    return redirect(url_for("loja.home"))
 
 @acesso.get("/sair")
 def sair():
