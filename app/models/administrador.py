@@ -8,13 +8,11 @@ from __future__ import annotations
 
 from app.exceptions import AcessoNegadoError
 from app.validators.campos import Validador, garantir
-
 from .contratos import ClienteConsultavel, Recomendador
 from .enums import Perfil
-from .usuario import Usuario
 from .estoque import Estoque
-from .insumo import Insumo
 from .movimentacao_estoque import MovimentacaoEstoque
+from .usuario import Usuario
 
 
 class Administrador(Usuario):
@@ -23,16 +21,15 @@ class Administrador(Usuario):
     """
 
     def __init__(
-        self,
-        nome: str,
-        email: str | None,
-        telefone: str,
-        cpf: str | None,
-        nivel_privilegio: str = "total",
-        acesso_financeiro: bool = False,
-        **kwargs,
+            self,
+            nome: str,
+            email: str | None,
+            telefone: str,
+            cpf: str | None,
+            nivel_privilegio: str = "total",
+            acesso_financeiro: bool = False,
+            **kwargs,
     ):
-
         # acesso_financeiro nasce False (default do DER): quem precisa de relatórios recebe a permissão de forma explícita
         # `**kwargs` recebe o restante dos parâmetros (senha, id_usuario...) e repassa à classe mãe.
         super().__init__(nome, email, telefone, cpf, **kwargs)
@@ -95,7 +92,7 @@ class Administrador(Usuario):
         """
         return cliente.obterCpf(self)
 
-    def gerarRelatorioReposicao(self, recomendador: Recomendador, estoque: Estoque, historico) -> list[dict]:
+    def gerarRelatorioReposicao(self, recomendador: Recomendador, contexto: dict) -> dict:
         """
         Aciona o módulo de recomendação de compras. Exige a permissão de acesso financeiro
         """
@@ -103,4 +100,4 @@ class Administrador(Usuario):
             self._acesso_financeiro,
             AcessoNegadoError("Este administrador não possui acesso a relatórios financeiros")
         )
-        return recomendador.recomendar(estoque, historico)
+        return recomendador.recomendar(contexto)

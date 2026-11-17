@@ -13,6 +13,7 @@ Hierarquia:
             ├── AutenticacaoError          (falha de login / token)
             ├── AutenticacaoError          (falha de login / token)
             ├── GatewayPagamentoError      (o gateway de pagamento recusou ou não respondeu)
+            ├── GatewayIAError             (a API de IA recusou, não respondeu ou respondeu fora do formato)
             └── AcessoNegadoError          (perfil sem permissão)
 """
 
@@ -39,6 +40,10 @@ class AutenticacaoError(ConfeitariaError):
 
 class GatewayPagamentoError(ConfeitariaError):
     """Lançada quando o gateway de pagamento recusa o pedido ou não responde (chave errada, sem internet etc.)"""
+
+
+class GatewayIAError(ConfeitariaError):
+    """Lançada quando a API de IA recusa, não responde ou devolve uma resposta cortada ou fora do formato"""
 
 
 class AcessoNegadoError(ConfeitariaError):
