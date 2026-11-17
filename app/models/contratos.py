@@ -21,7 +21,6 @@ from .enums import StatusPedido
 from .estoque import Estoque
 
 
-# '...'
 # Em um Protocol o método só descreve a assinatura, sem implementar, então o corpo fica sendo '...'
 class PedidoAvancavel(Protocol):
     """
@@ -38,11 +37,12 @@ class PedidoAvancavel(Protocol):
 class Recomendador(Protocol):
     """
     Módulo que sugere compras de reposição
+    A implementação real é a RecomendadorIA (app / services / recomendador_ia.py)
     """
 
-    def recomendar(self, estoque: Estoque, historico) -> list[dict]:
+    def recomendar(self, contexto: dict) -> dict:
         """
-        Devolve a lista de itens a repor
+        Recebe o retrato do banco (RepositorioContextoIA.montar) e devolve resumo, recomendações e avisos
         """
         ...
 
@@ -87,5 +87,18 @@ class GatewayPagamento(Protocol):
     def simularPagamento(self, id_cobranca: str) -> Cobranca:
         """
         Só no modo de teste: simula que o cliente pagou o Pix
+        """
+        ...
+
+
+class ModeloLinguagem(Protocol):
+    """
+    API de IA que responde a uma mensagem seguindo as instruções
+    A implementação real é a GatewayIA (app / services / gateway_ia.py); nos testes, ModeloFalso
+    """
+
+    def responder(self, instrucoes: str, mensagem: str, esquema: dict | None = None) -> str:
+        """
+        Texto da resposta. Com 'esquema' (JSON Schema), a resposta é um JSON nesse formato
         """
         ...
