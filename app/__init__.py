@@ -7,6 +7,7 @@ from app.repositories.conexao_rep import fecharConexao, obterConexao
 from app.repositories.usuarios_rep import RepositorioUsuarios
 from app.services.autenticacao import Autenticacao
 from app.services.carrinho import Carrinho
+from app.services.gateway_abacatepay import GatewayAbacatePay
 
 
 def paginaNaoEncontrada(erro):
@@ -54,7 +55,8 @@ def create_app(config=Config):
     repositorio = RepositorioUsuarios(obterConexao)
     app.extensions["usuarios"] = repositorio
     app.extensions["autenticacao"] = Autenticacao(repositorio, app.config["SECRET_KEY"])
-
+    # Gateway de pagamento (Pix do sinal).
+    app.extensions["pagamentos"] = GatewayAbacatePay(app.config["ABACATEPAY_API_KEY"])
     # Tratadores de erro: códigos HTTP e exceções do projeto
     app.register_error_handler(404, paginaNaoEncontrada)
     app.register_error_handler(403, acessoNegado)

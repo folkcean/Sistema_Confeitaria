@@ -13,6 +13,7 @@ from flask import g, message_flashed, template_rendered
 from app import create_app
 from app.config import ConfigTeste
 from app.repositories.usuarios_rep import RepositorioUsuarios
+from tests.falsos import GatewayFalso
 
 # O mesmo DB_fill.sql da fixture `seed` (tests/conftest.py)
 SEED = Path(__file__).resolve().parent.parent / "db" / "DB_fill.sql"
@@ -48,6 +49,8 @@ def app_com_a_conexao_de_teste(conexao):
     usam a transação do teste, e nada é gravado de verdade no seu banco
     """
     aplicacao = create_app(ConfigTeste)
+    # Gateway de pagamento em memória: nenhum teste de rota chama a AbacatePay de verdade
+    aplicacao.extensions["pagamentos"] = GatewayFalso()
 
     def usar_conexao_de_teste():
         g.conexao = ConexaoDeTeste(conexao)

@@ -11,6 +11,8 @@ Hierarquia:
             │     └── TransicaoStatusError (mudança de status proibida é um tipo de dado inválido)
             ├── EstoqueInsuficienteError   (falta de ingrediente, guarda a lista do que falta)
             ├── AutenticacaoError          (falha de login / token)
+            ├── AutenticacaoError          (falha de login / token)
+            ├── GatewayPagamentoError      (o gateway de pagamento recusou ou não respondeu)
             └── AcessoNegadoError          (perfil sem permissão)
 """
 
@@ -35,8 +37,13 @@ class AutenticacaoError(ConfeitariaError):
     """Lançada em falhas de login ou tokens inválidos/expirados"""
 
 
+class GatewayPagamentoError(ConfeitariaError):
+    """Lançada quando o gateway de pagamento recusa o pedido ou não responde (chave errada, sem internet etc.)"""
+
+
 class AcessoNegadoError(ConfeitariaError):
     """Lançada quando um perfil tenta acessar uma funcionalidade restrita"""
+
 
 class EstoqueInsuficienteError(ConfeitariaError):
     """
@@ -57,6 +64,7 @@ class EstoqueInsuficienteError(ConfeitariaError):
         # super().__init__(texto) define a mensagem do erro (a que aparece ao imprimir a exceção)
         super().__init__(f"Estoque insuficiente: {detalhes}")
 
+
 class PedidoSemEstoqueError(EstoqueInsuficienteError):
     """
     Lançada quando um pedido não pode ser confirmado por falta de insumos
@@ -66,7 +74,7 @@ class PedidoSemEstoqueError(EstoqueInsuficienteError):
     """
 
     def __init__(self, faltas: list[dict]):
-        super().__init__(faltas)          # A classe mãe guarda `faltas` e monta a mensagem padrão
+        super().__init__(faltas)  # A classe mãe guarda `faltas` e monta a mensagem padrão
         detalhes = "; ".join(
             f"{falta['insumo']} (faltam {falta['faltam']} {falta['unidade']})" for falta in faltas
         )

@@ -169,6 +169,17 @@ class Pagamento:
         )
         self._cobranca_sinal = Validador.texto(id_cobranca, "cobrança do sinal", max_len=64)
 
+    def vincularCobrancaRestante(self, id_cobranca: str) -> None:
+        """
+        Guarda o id da cobrança online do restante (ex.: o Pix gerado no gateway)
+        Só vale depois do sinal e antes da quitação. Trocar de cobrança (Pix vencido) é permitido
+        """
+        garantir(
+            self._status is StatusPagamento.SINAL_PAGO,
+            ValidacaoError("O restante só pode ser pago depois do sinal e uma única vez")
+        )
+        self._cobranca_restante = Validador.texto(id_cobranca, "cobrança do restante", max_len=64)
+
     def registrarRestante(self, forma: FormaPagamento) -> None:
         """
         Marca o restante como pago
@@ -575,6 +586,29 @@ class Pedido(Entidade):
     def vincularCobrancaSinal(self, id_cobranca: str) -> None:
         self.exigirSinalPendente()
         self._pagamento.vincularCobrancaSinal(id_cobranca)
+
+    def exigirRestantePendente(self) -> None:
+        """
+        Confere, SEM alterar nada, que o restante ainda pode ser pago: pedido entre Confirmado e Entregue,
+        sinal pago e restante ainda não pago.
+        """
+        garantir(
+            self._status in _STATUS_QUITAVEIS,
+            ValidacaoError("O restante só pode ser pago depois que o pedido foi confirmado"),
+        )
+        garantir(
+            self._pagamento.sinal_pago,
+            ValidacaoError("O sinal deste pedido ainda não foi pago"),
+        )
+        garantir(
+            not self._pagamento.quitado,
+            ValidacaoError("O restante deste pedido já foi pago"),
+        )
+
+    def vincularCobrancaRestante(self, id_cobranca: str) -> None:
+        """Guarda o id da cobrança online do restante. Só enquanto o restante está pendente (exigirRestantePendente)"""
+        self.exigirRestantePendente()
+        self._pagamento.vincularCobrancaRestante(id_cobranca)
 
     # Prazo mínimo
     def validarPrazo(self) -> None:

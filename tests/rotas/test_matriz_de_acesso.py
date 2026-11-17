@@ -53,6 +53,10 @@ DO_CLIENTE = {
     "loja.pedidoEnviar": ("POST", "/loja/carrinho/enviar"),
     "loja.pedidos": ("GET", "/loja/pedidos"),
     "loja.pedido": ("GET", "/loja/pedidos/1"),
+    "loja.sinalPix": ("GET", "/loja/pedidos/1/sinal/pix"),
+    "loja.sinalSimular": ("POST", "/loja/pedidos/1/sinal/pix/simular"),
+    "loja.restantePix": ("GET", "/loja/pedidos/1/restante/pix"),
+    "loja.restanteSimular": ("POST", "/loja/pedidos/1/restante/pix/simular"),
 }
 
 # Painel, funcionário e administrador (só o conferirEquipe do before_request)
@@ -204,7 +208,13 @@ def test_visitante_abre_as_paginas_abertas(navegador, metodo, url):
     assert navegador.open(url, method=metodo).status_code == 200
 
 
-@pytest.mark.parametrize("metodo, url", casos(so_get(DO_CLIENTE)))
+PAGINAS_DO_CLIENTE = so_get(DO_CLIENTE)
+# As páginas do Pix são GET, mas o pedido 1 já está quitado: elas redirecionam (testadas em test_loja_pedidos.py)
+PAGINAS_DO_CLIENTE.pop("loja.sinalPix")
+PAGINAS_DO_CLIENTE.pop("loja.restantePix")
+
+
+@pytest.mark.parametrize("metodo, url", casos(PAGINAS_DO_CLIENTE))
 def test_cliente_abre_as_paginas_dele(navegador, como_cliente, metodo, url):
     assert navegador.open(url, method=metodo).status_code == 200
 

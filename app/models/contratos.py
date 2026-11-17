@@ -13,10 +13,13 @@ Pra que serve aqui:
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Protocol
 
+from .cobranca import Cobranca
 from .enums import StatusPedido
 from .estoque import Estoque
+
 
 # '...'
 # Em um Protocol o método só descreve a assinatura, sem implementar, então o corpo fica sendo '...'
@@ -30,6 +33,7 @@ class PedidoAvancavel(Protocol):
         Muda o status do pedido, validando a transição
         """
         ...
+
 
 class Recomendador(Protocol):
     """
@@ -57,5 +61,31 @@ class ClienteConsultavel(Protocol):
     def dadosOperacionais(self) -> dict:
         """
         Só o que a produção/entrega precisa
+        """
+        ...
+
+
+class GatewayPagamento(Protocol):
+    """
+    Gateway de pagamento que cria e consulta cobranças Pix
+    A implementação real é a GatewayAbacatePay (app / services / gateway_abacatepay.py);
+    nos testes entra a GatewayFalso (tests / falsos.py), que não usa internet
+    """
+
+    def criarPix(self, valor: Decimal, referencia: str, descricao: str) -> Cobranca:
+        """
+        Cria um Pix de 'valor' reais. 'referencia' identifica a cobrança no nosso sistema (ex.: 'pedido-6-sinal')
+        """
+        ...
+
+    def consultar(self, id_cobranca: str) -> Cobranca:
+        """
+        Busca a cobrança inteira (status e QR Code) pelo id do gateway
+        """
+        ...
+
+    def simularPagamento(self, id_cobranca: str) -> Cobranca:
+        """
+        Só no modo de teste: simula que o cliente pagou o Pix
         """
         ...

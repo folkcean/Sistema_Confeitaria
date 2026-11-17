@@ -135,3 +135,80 @@ def test_acompanhar_pedido_mostra_os_valores(navegador, como_cliente, templates)
 def test_pedido_de_outro_cliente_da_404(navegador, como_cliente):
     # O pedido 2 é do cliente 11
     assert navegador.get("/loja/pedidos/2").status_code == 404
+
+
+def test_pagina_do_pix_mostra_o_qr_e_guarda_a_cobranca(navegador, entrar_como, templates, pedidos_no_banco):
+    entrar_como(14)
+
+    resposta = navegador.get("/loja/pedidos/6/sinal/pix")
+
+    assert resposta.status_code == 200
+    nome, variaveis = templates[-1]
+    assert nome == "loja/pagar_pix.html"
+    assert variaveis["pix"].status == "PENDING"
+    assert pedidos_no_banco.buscarPorId(6).pagamento.cobranca_sinal == variaveis["pix"].id
+
+
+def test_simular_e_voltar_registra_o_sinal(navegador, entrar_como, mensagens, pedidos_no_banco):
+    entrar_como(14)
+    navegador.get("/loja/pedidos/6/sinal/pix")
+
+    navegador.post("/loja/pedidos/6/sinal/pix/simular")
+    resposta = navegador.get("/loja/pedidos/6/sinal/pix")
+
+    assert resposta.status_code == 302
+    assert resposta.headers["Location"].endswith("/loja/pedidos/6")
+    assert mensagens[-1][0] == "sucesso"
+    pagamento = pedidos_no_banco.buscarPorId(6).pagamento
+    assert pagamento.status is StatusPagamento.SINAL_PAGO
+    assert pagamento.forma_sinal is FormaPagamento.PIX
+
+
+def test_pix_de_pedido_fora_de_orcamento_volta_com_erro(navegador, como_cliente, mensagens):
+    # Pedido 1 do seed é da Ana (id 10) e já está finalizado
+    resposta = navegador.get("/loja/pedidos/1/sinal/pix")
+
+    assert resposta.status_code == 302
+    assert mensagens[-1] == ("erro", "O sinal só pode ser pago quando o pedido está em orçamento")
+
+
+def test_pix_de_pedido_de_outro_cliente_da_404(navegador, como_cliente):
+    assert navegador.get("/loja/pedidos/6/sinal/pix").status_code == 404
+
+
+def test_pagina_do_pedido_confirmado_oferece_o_restante(navegador, como_cliente):
+    pagina = navegador.get("/loja/pedidos/5").get_data(as_text=True)
+
+    assert "/loja/pedidos/5/restante/pix" in pagina
+
+
+def test_pix_do_restante_cobra_a_outra_metade(navegador, como_cliente, templates, pedidos_no_banco):
+    resposta = navegador.get("/loja/pedidos/5/restante/pix")
+
+    assert resposta.status_code == 200
+    nome, variaveis = templates[-1]
+    assert nome == "loja/pagar_pix.html"
+    assert variaveis["valor"] == Decimal("106.50")
+    assert pedidos_no_banco.buscarPorId(5).pagamento.cobranca_restante == variaveis["pix"].id
+
+
+def test_simular_e_voltar_quita_o_pedido(navegador, como_cliente, mensagens, pedidos_no_banco):
+    navegador.get("/loja/pedidos/5/restante/pix")
+
+    navegador.post("/loja/pedidos/5/restante/pix/simular")
+    resposta = navegador.get("/loja/pedidos/5/restante/pix")
+
+    assert resposta.headers["Location"].endswith("/loja/pedidos/5")
+    assert mensagens[-1] == ("sucesso", "Pagamento recebido! Seu pedido está quitado.")
+    pagamento = pedidos_no_banco.buscarPorId(5).pagamento
+    assert pagamento.status is StatusPagamento.PAGO
+    assert pagamento.forma_restante is FormaPagamento.PIX
+
+
+def test_restante_de_pedido_em_orcamento_volta_com_erro(navegador, entrar_como, mensagens):
+    entrar_como(14)
+
+    resposta = navegador.get("/loja/pedidos/6/restante/pix")
+
+    assert resposta.status_code == 302
+    assert mensagens[-1] == ("erro", "O restante só pode ser pago depois que o pedido foi confirmado")
