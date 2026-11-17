@@ -6,7 +6,7 @@ Dublês ("falsos") usados nos testes no lugar de serviços de fora
 from dataclasses import replace
 from decimal import Decimal
 
-from app.exceptions import GatewayPagamentoError
+from app.exceptions import GatewayPagamentoError, EnvioEmailError
 from app.models.cobranca import Cobranca
 from app.validators.campos import garantir
 
@@ -55,3 +55,19 @@ class GatewayFalso:
     def _trocarStatus(self, id_cobranca: str, status: str) -> Cobranca:
         self.cobrancas[id_cobranca] = replace(self.cobrancas[id_cobranca], status=status)
         return self.cobrancas[id_cobranca]
+
+
+
+class EnviadorFalso:
+    """
+    Enviador de e-mail em memória (contrato EnviadorEmail): guarda o que seria enviado, sem rede
+    """
+
+    def __init__(self, falhar: bool = False):
+        self.enviados: list[dict] = []
+        self.falhar = falhar
+
+    def enviar(self, destinatario: str, assunto: str, texto: str) -> None:
+        """Anota o e-mail. Com falhar=True, simula servidor de e-mail fora do ar"""
+        garantir(not self.falhar, EnvioEmailError("Não foi possível enviar o e-mail agora."))
+        self.enviados.append({"para": destinatario, "assunto": assunto, "texto": texto})
