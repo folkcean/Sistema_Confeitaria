@@ -18,9 +18,9 @@ from typing import Protocol
 
 from .cobranca import Cobranca
 from .enums import StatusPedido
+from .estoque import Estoque
 
 
-# '...'
 # Em um Protocol o método só descreve a assinatura, sem implementar, então o corpo fica sendo '...'
 class PedidoAvancavel(Protocol):
     """
