@@ -28,7 +28,9 @@ class Config:
     POSTGRES_USER = os.environ["POSTGRES_USER"]
     POSTGRES_PASSWORD = os.environ["POSTGRES_PASSWORD"]
     POSTGRES_DB = os.environ["POSTGRES_DB"]
-
+    IA_URL_BASE = os.getenv("IA_URL_BASE", "https://api.groq.com/openai/v1")
+    IA_CHAVE = os.getenv("IA_CHAVE", "")
+    IA_MODELO = os.getenv("IA_MODELO", "openai/gpt-oss-120b")
     # Upload de fotos até 5 MB (acima disso o Flask responde 413)
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024
 

@@ -11,9 +11,9 @@ class RecomendadorEspiao:
     def __init__(self):
         self.chamadas = []
 
-    def recomendar(self, estoque, historico):
-        self.chamadas.append((estoque, historico))
-        return [{"ingrediente": "farinha", "comprar": 10}]
+    def recomendar(self, contexto):
+        self.chamadas.append(contexto)
+        return {"recomendacoes": [{"insumo": "farinha", "comprar": 10}]}
 
 
 class EstoqueFalso:
@@ -48,12 +48,12 @@ def test_ajustar_estoque_repassa_os_tres_argumentos_ao_estoque(administrador):
 
 
 def test_relatorio_sem_acesso_financeiro_levanta_erro_e_nao_chama_o_recomendador(
-    administrador,
+        administrador,
 ):
     recomendador = RecomendadorEspiao()
 
     with pytest.raises(AcessoNegadoError, match="acesso a relatórios financeiros"):
-        administrador.gerarRelatorioReposicao(recomendador, EstoqueFalso(), [])
+        administrador.gerarRelatorioReposicao(recomendador, {})
 
     assert recomendador.chamadas == []
 
@@ -63,10 +63,9 @@ def test_relatorio_com_acesso_financeiro_devolve_a_lista_do_recomendador():
         "Rosângela Crespo", None, "22999990003", None, acesso_financeiro=True
     )
     recomendador = RecomendadorEspiao()
-    estoque = EstoqueFalso()
-    historico = ["historico de exemplo"]
+    contexto = {"insumos": []}
 
-    resultado = administrador.gerarRelatorioReposicao(recomendador, estoque, historico)
+    resultado = administrador.gerarRelatorioReposicao(recomendador, contexto)
 
-    assert resultado == [{"ingrediente": "farinha", "comprar": 10}]
-    assert recomendador.chamadas == [(estoque, historico)]
+    assert resultado == {"recomendacoes": [{"insumo": "farinha", "comprar": 10}]}
+    assert recomendador.chamadas == [contexto]

@@ -1,3 +1,4 @@
+from app.services.gateway_ia import GatewayIA
 from flask import Flask, render_template, session
 
 from app.config import Config
@@ -68,7 +69,7 @@ def create_app(config=Config):
     app.register_error_handler(500, erroInterno)
     app.register_error_handler(AutenticacaoError, tratarNaoLogado)
     app.register_error_handler(AcessoNegadoError, tratarAcessoNegado)
-
+    app.extensions["ia"] = GatewayIA(app.config["IA_URL_BASE"], app.config["IA_CHAVE"], app.config["IA_MODELO"])
     # usuario_atual e qtd_carrinho em todo template
     app.context_processor(variaveisGlobais)
 

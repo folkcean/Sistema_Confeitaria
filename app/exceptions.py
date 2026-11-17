@@ -14,6 +14,7 @@ Hierarquia:
             ├── AutenticacaoError          (falha de login / token)
             ├── EnvioEmailError            (falha na verificação do email)
             ├── GatewayPagamentoError      (o gateway de pagamento recusou ou não respondeu)
+            ├── GatewayIAError             (a API de IA recusou, não respondeu ou respondeu fora do formato)
             └── AcessoNegadoError          (perfil sem permissão)
 """
 
@@ -43,6 +44,10 @@ class GatewayPagamentoError(ConfeitariaError):
 
 class EnvioEmailError(ConfeitariaError):
     """Não foi possível enviar um e-mail (servidor de e-mail fora do ar, senha errada, sem internet...)"""
+
+class GatewayIAError(ConfeitariaError):
+    """Lançada quando a API de IA recusa, não responde ou devolve uma resposta cortada ou fora do formato"""
+
 
 class AcessoNegadoError(ConfeitariaError):
     """Lançada quando um perfil tenta acessar uma funcionalidade restrita"""
