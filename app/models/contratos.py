@@ -89,3 +89,15 @@ class GatewayPagamento(Protocol):
         Só no modo de teste: simula que o cliente pagou o Pix
         """
         ...
+
+class EnviadorEmail(Protocol):
+    """
+    Serviço que envia emails de texto
+    A implementação real é a EnviadorEmailSMTP (app / services / envio_email.py)
+    em desenvolvimento entra a EnviadorEmailNoTerminal, e nos testes a EnviadorFalso (tests / falsos.py
+    """
+    def enviar(self, destinatario: str, assunto: str, texto: str) -> None:
+        """
+        Envia um e-mail de texto simples. Levanta EnvioEmailError se não conseguir
+        """
+        ...

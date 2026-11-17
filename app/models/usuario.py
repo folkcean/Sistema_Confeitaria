@@ -17,7 +17,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from datetime import date, datetime
 
-from app.exceptions import AcessoNegadoError
+from app.exceptions import AcessoNegadoError, ValidacaoError
 from app.validators.campos import Validador, garantir
 
 from .base import Entidade
@@ -43,6 +43,7 @@ class Usuario(Entidade, ABC):
         id_usuario: int | None = None,
         data_cadastro: datetime | None = None,
         ativo: bool = True,
+        email_verificado: bool =False,
     ):
         """
         Valida e normaliza cada campo. A senha chega pronta (objeto Senha), criada por Senha.criar ou Senha.deHash
@@ -65,6 +66,7 @@ class Usuario(Entidade, ABC):
         self._data_cadastro = data_cadastro or datetime.now()
         # bool(x) converte para True/False
         self._ativo = bool(ativo)
+        self._email_verificado = bool(email_verificado)
 
     # Leitura e alteração dos dados cadastrais (cada setter revalida o valor recebido)
     # `@property` cria o getter (obj.nome) e `@nome.setter` cria o setter (obj.nome = "x")
@@ -89,8 +91,29 @@ class Usuario(Entidade, ABC):
         """
         Altera o e-mail (aceita vazio/None, pois a coluna é nula)
         """
-        self._email = Validador.opcional(Validador.email, valor)
+        novo_email = Validador.opcional(Validador.email, valor)
+        # `a and b`: continua verificado só se o e-mail novo for igual ao que foi confirmado.
+        # Trocou o e-mail: a confirmação antiga não vale para o endereço novo
+        self._email_verificado = self._email_verificado and novo_email == self._email
+        self._email = novo_email
 
+    @property
+    def email_verificado(self) -> bool:
+        """
+        True quando a pessoa confirmou o e-mail pelo link que recebeu
+        """
+        return self._email_verificado
+
+    def marcarEmailVerificado(self) -> None:
+        """
+        Registra que o e-mail foi confirmado. Sem e-mail cadastrado não há o que confirmar
+        """
+        garantir(
+            self._email is not None,
+            ValidacaoError("Cadastre um e-mail antes de confirmá-lo"),
+        )
+        self._email_verificado = True
+        
     @property
     def telefone(self) -> str:
         return self._telefone

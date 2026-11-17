@@ -10,8 +10,9 @@ Hierarquia:
             │     ├── SenhaFracaError      (senha fraca é um tipo de dado inválido)
             │     └── TransicaoStatusError (mudança de status proibida é um tipo de dado inválido)
             ├── EstoqueInsuficienteError   (falta de ingrediente, guarda a lista do que falta)
+            │     └── PedidoSemEstoque     (Falta de ingredientes)
             ├── AutenticacaoError          (falha de login / token)
-            ├── AutenticacaoError          (falha de login / token)
+            ├── EnvioEmailError            (falha na verificação do email)
             ├── GatewayPagamentoError      (o gateway de pagamento recusou ou não respondeu)
             └── AcessoNegadoError          (perfil sem permissão)
 """
@@ -40,6 +41,8 @@ class AutenticacaoError(ConfeitariaError):
 class GatewayPagamentoError(ConfeitariaError):
     """Lançada quando o gateway de pagamento recusa o pedido ou não responde (chave errada, sem internet etc.)"""
 
+class EnvioEmailError(ConfeitariaError):
+    """Não foi possível enviar um e-mail (servidor de e-mail fora do ar, senha errada, sem internet...)"""
 
 class AcessoNegadoError(ConfeitariaError):
     """Lançada quando um perfil tenta acessar uma funcionalidade restrita"""
