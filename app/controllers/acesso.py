@@ -134,6 +134,8 @@ def cadastroEnviar():
     try:
         enviarLinkDeVerificacao(cliente)
     except EnvioEmailError:
+        # O detalhe técnico vai só para o log, a tela mostra a mensagem genérica
+        current_app.logger.exception("Falha ao enviar o e-mail de verificação no cadastro")
         flash("Não conseguimos enviar o e-mail de confirmação agora. Peça um novo link no aviso do topo da loja.",
               "aviso")
     return redirect(url_for("loja.home"))
@@ -177,6 +179,10 @@ def reenviarVerificacao():
         enviarLinkDeVerificacao(cliente)
         flash(f"Enviamos um novo link para {cliente.email}.", "sucesso")
     except (ValidacaoError, EnvioEmailError) as erro:
+        flash(str(erro), "erro")
+    except EnvioEmailError as erro:
+        # Mesmo motivo do cadastro: o detalhe técnico fica no log, a tela recebe a mensagem genérica
+        current_app.logger.exception("Falha ao reenciar o e-mail de verificação")
         flash(str(erro), "erro")
     return redirect(url_for("loja.home"))
 
