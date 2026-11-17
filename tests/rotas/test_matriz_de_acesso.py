@@ -142,6 +142,9 @@ SO_ADMIN = {
     "painel.funcionarioReativar": ("POST", "/painel/funcionarios/2/reativar"),
     "painel.relatorios": ("GET", "/painel/relatorios"),
     "painel.relatorioExportar": ("GET", "/painel/relatorios/exportar"),
+    "painel.ia": ("GET", "/painel/ia"),
+    "painel.iaRecomendacoes": ("POST", "/painel/ia/recomendacoes"),
+    "painel.iaPergunta": ("POST", "/painel/ia/pergunta"),
 }
 
 PENDENTES = {}
