@@ -58,3 +58,6 @@ class ConfigTeste(Config):
     """
 
     TESTING = True
+
+    # Os testes nunca enviam e-mail de verdade, mesmo que o .env de quem roda tenha SMTP configurado
+    EMAIL_SMTP_HOST = ""
