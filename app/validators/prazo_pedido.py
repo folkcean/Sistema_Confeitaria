@@ -84,5 +84,8 @@ class PrazoPedido:
         cls.validarEncomenda(criacao, entrega, antecedencia)
 
         # Passa o limite para uma variável para só rodar a conferência quando há pronta entrega.
+        # O limite das 17h só vale quando há pronta entrega E a entrega é no MESMO dia do pedido
+        # (pedir às 19h para amanhã é permitido).
+        para_hoje = bool(prontas) and entrega.date() == criacao.date()
         conferencias = {True: lambda: cls.validarProntaEntrega(criacao, fechamento), False: lambda: None}
-        conferencias[bool(prontas)]()
+        conferencias[para_hoje]()

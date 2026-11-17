@@ -1,0 +1,52 @@
+{#
+  Rotas: loja.sinalPix      GET /loja/pedidos/<int:id>/sinal/pix      (só o dono do pedido)
+         loja.restantePix   GET /loja/pedidos/<int:id>/restante/pix   (só o dono do pedido)
+
+  Variáveis:
+    pedido    o Pedido (id)
+    pix       Cobranca pendente: br_code (copia e cola), br_code_base64 (imagem do QR, já como data URI), dev_mode
+    validade  datetime da validade do Pix no fuso da confeitaria (ou None)
+    valor     quanto esta parcela cobra
+    tela      textos e rotas da parcela (TELAS_PIX em controllers/loja.py): rotulo, titulo, rota, rota_simular
+
+#}
+{% extends "loja/base.html" %}
+{% import "/_icones.html" as i %}
+{% import "/_macros.html" as m %}
+
+{% set menu_ativo = "pedidos" %}
+
+{% block titulo %}Pagar {{ tela.titulo }} do pedido nº&nbsp;{{ pedido.id }}{% endblock %}
+
+{% block conteudo %}
+    <a class="voltar" href="{{ url_for('loja.pedido', id=pedido.id) }}">{{ i.icone("voltar") }} Voltar ao pedido</a>
+
+    <h1>Pagar {{ tela.titulo }} com Pix</h1>
+
+    <section class="painel-claro pix" aria-labelledby="titulo-pix">
+        <h2 id="titulo-pix">{{ tela.rotulo }} de {{ m.moeda(valor) }}</h2>
+        <p class="texto-suave">Abra o app do seu banco, escolha pagar com Pix e leia o QR Code ou cole o código.</p>
+
+        <img class="pix__qr" src="{{ pix.br_code_base64 }}" alt="QR Code do Pix" width="228" height="228">
+
+        <div class="campo">
+            <label for="pix-copia-e-cola">Pix copia e cola</label>
+            <textarea id="pix-copia-e-cola" rows="3" readonly>{{ pix.br_code }}</textarea>
+        </div>
+
+        <p class="texto-pequeno texto-suave">Válido até {{ m.dataHora(validade) }}.</p>
+
+        <div class="pix__acoes">
+            <a class="botao botao--largo" href="{{ url_for(tela.rota, id=pedido.id) }}">Já paguei</a>
+
+            {# Só aparece com a chave de teste da AbacatePay #}
+            {% if pix.dev_mode %}
+                <form method="post" action="{{ url_for(tela.rota_simular, id=pedido.id) }}">
+                    {{ m.csrf() }}
+                    <button class="botao botao--secundario botao--largo" type="submit">Simular pagamento (modo teste)
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+    </section>
+{% endblock %}

@@ -12,7 +12,7 @@ def repo_usuarios(conexao, seed):
 
 
 def test_buscar_por_email_da_administradora_devolve_administrador(repo_usuarios):
-    usuario = repo_usuarios.buscarPorEmail("rosangela@confeitaria.local")
+    usuario = repo_usuarios.buscarPorEmail("anabeatriz@confeitaria.local")
 
     assert isinstance(usuario, Administrador)
     assert usuario.id == 1

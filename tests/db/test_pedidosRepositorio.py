@@ -110,3 +110,26 @@ def test_atualizar_grava_o_pagamento(repo_pedidos):
     repo_pedidos.atualizar(pedido)
 
     assert repo_pedidos.buscarPorId(6).pagamento.status is StatusPagamento.SINAL_PAGO
+
+
+def test_atualizar_grava_a_cobranca_do_sinal(repo_pedidos):
+    # Pedido 6 do seed: em orçamento, aguardando o sinal por Pix
+    pedido = repo_pedidos.buscarPorId(6)
+    pedido.vincularCobrancaSinal("pix_char_teste")
+
+    repo_pedidos.atualizar(pedido)
+
+    assert repo_pedidos.buscarPorId(6).pagamento.cobranca_sinal == "pix_char_teste"
+
+
+def test_pedido_sem_cobranca_vem_com_none(repo_pedidos):
+    pagamento = repo_pedidos.buscarPorId(6).pagamento
+
+    assert pagamento.cobranca_sinal is None
+    assert pagamento.cobranca_restante is None
+
+
+def test_nao_vincula_cobranca_em_pedido_fora_de_orcamento(repo_pedidos):
+    # Pedido 1 do seed já está finalizado
+    with pytest.raises(ValidacaoError, match="orçamento"):
+        repo_pedidos.buscarPorId(1).vincularCobrancaSinal("pix_char_teste")

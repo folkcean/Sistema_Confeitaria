@@ -2,6 +2,7 @@ import pytest
 
 from app.exceptions import AutenticacaoError, ValidacaoError
 from app.models.cliente import Cliente
+from app.models.senha import Senha
 from app.services.autenticacao import Autenticacao
 from app.services.controle_login import ControleLogin, PoliticaBloqueio
 
@@ -14,6 +15,12 @@ class RepositorioFalso:
 
     def buscarPorEmail(self, email):
         return self._por_email.get(email)
+
+
+@pytest.fixture
+def cliente(senha_forte):
+    return Cliente("Ana Souza", "ana@exemplo.com", "(22) 99999-0001", "529.982.247-25",
+                   apelido="Aninha", id_usuario=10, senha=Senha.criar(senha_forte))
 
 
 @pytest.fixture
@@ -51,7 +58,7 @@ def test_chave_secreta_vazia_levanta_erro():
 
 # Login
 def test_login_com_credenciais_certas_devolve_o_proprio_cliente(
-    auth, cliente, senha_forte
+        auth, cliente, senha_forte
 ):
     assert auth.autenticar("ana@exemplo.com", senha_forte) is cliente
 

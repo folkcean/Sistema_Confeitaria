@@ -38,6 +38,25 @@
                 <strong>Pague o sinal de {{ m.moeda(valores.sinal) }} para confirmar</strong>
                 O orçamento está pronto. Assim que o sinal (50% do valor) for recebido, o pedido entra na agenda de
                 produção.
+                {% set PAGAR_SINAL = {"pix": "loja.sinalPix"} %}
+                {% set rota_pagar = PAGAR_SINAL.get(m.valor(pedido.pagamento.forma_sinal)|string) %}
+                {% if rota_pagar %}
+                    <a class="botao" href="{{ url_for(rota_pagar, id=pedido.id) }}">Pagar o sinal</a>
+                {% else %}
+                    <span class="texto-suave">Combine o pagamento do sinal com a confeitaria.</span>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+    
+    {% set QUITAVEIS = ["confirmado", "em_producao", "pronto", "entregue"] %}
+    {% if status in QUITAVEIS and pagamento == "sinal_pago" %}
+        <div class="chamada-sinal" role="note">
+            {{ i.icone("pagamento") }}
+            <div>
+                <strong>Falta pagar {{ m.moeda(valores.restante) }}</strong>
+                Pague o restante agora por Pix ou combine com a confeitaria.
+                <a class="botao" href="{{ url_for('loja.restantePix', id=pedido.id) }}">Pagar o restante com Pix</a>
             </div>
         </div>
     {% endif %}

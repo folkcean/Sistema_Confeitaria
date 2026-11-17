@@ -66,7 +66,7 @@ def test_tela_de_login_recebe_o_proximo_da_url(navegador, templates):
     [
         ("ana@exemplo.com", "/loja"),
         ("joao@confeitaria.local", "/painel"),
-        ("rosangela@confeitaria.local", "/painel"),
+        ("anabeatriz@confeitaria.local", "/painel"),
     ],
     ids=["cliente", "funcionario", "administradora"],
 )

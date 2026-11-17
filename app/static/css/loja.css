@@ -1244,3 +1244,25 @@
 .painel-claro + .expansivel {
     margin-top: 16px;
 }
+
+/* Página do Pix do sinal (loja/pagar_pix.html) */
+.pix {
+    max-width: 30rem;
+}
+
+.pix__qr {
+    display: block;
+    margin: 1rem auto;
+    image-rendering: pixelated;
+}
+
+.pix textarea {
+    font-family: monospace;
+    word-break: break-all;
+}
+
+.pix__acoes {
+    display: grid;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}

@@ -107,7 +107,8 @@ class RepositorioPedidos(RepositorioBase):
             endereco = enderecos_por_id.get(linha["id_endereco_entrega"])
 
             pagamento = Pagamento(
-                linha["status_pagamento"], linha["forma_pagamento_sinal"], linha["forma_pagamento_restante"]
+                linha["status_pagamento"], linha["forma_pagamento_sinal"], linha["forma_pagamento_restante"],
+                linha["cobranca_sinal"], linha["cobranca_restante"],
             )
 
             # valor_total não é lido: o Pedido calcula o total pelos itens
@@ -239,7 +240,7 @@ class RepositorioPedidos(RepositorioBase):
         sql = (
             "UPDATE pedido SET valor_total = %s, taxa_entrega = %s, status = %s, status_pagamento = %s, "
             "forma_pagamento_sinal = %s, forma_pagamento_restante = %s, motivo_cancelamento = %s, "
-            "rastreamento = %s "
+            "rastreamento = %s, cobranca_sinal = %s, cobranca_restante = %s "
             "WHERE id_pedido = %s"
         )
         pagamento = pedido.pagamento
@@ -248,6 +249,7 @@ class RepositorioPedidos(RepositorioBase):
             pagamento.forma_sinal and pagamento.forma_sinal.value,
             pagamento.forma_restante and pagamento.forma_restante.value,
             pedido.motivo_cancelamento, pedido.rastreamento,
+            pagamento.cobranca_sinal, pagamento.cobranca_restante,
             pedido.id,
         )
         try:

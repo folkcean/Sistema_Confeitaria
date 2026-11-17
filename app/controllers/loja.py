@@ -4,12 +4,13 @@ app / controllers / loja.py
 Área do cliente: cardápio, carrinho, pedidos e perfil
 """
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
-from flask import Blueprint, render_template, request, abort, session, redirect, url_for, flash
+from flask import Blueprint, render_template, request, abort, session, redirect, url_for, flash, current_app
 
 from app import usuarioLogado
 from app.controllers.sessao import soCliente, repositorioUsuarios
-from app.exceptions import ValidacaoError
+from app.exceptions import ValidacaoError, GatewayPagamentoError
 from app.models import Endereco, ItemPedido, Pedido, Estoque, Pagamento
 from app.repositories.clientes_rep import RepositorioClientes
 from app.repositories.conexao_rep import obterConexao
@@ -18,6 +19,8 @@ from app.repositories.pedidos_rep import RepositorioPedidos
 from app.repositories.produtos_rep import RepositorioProdutos
 from app.repositories.receitas_rep import RepositorioReceita
 from app.services.carrinho import Carrinho
+from app.services.pagamento_online import RESTANTE, SINAL
+from app.services.pagamento_online import ServicoPagamentoOnline
 from app.services.pedidos import valoresDoPedido
 from app.services.precificacao import CalculadoraPreco
 from app.validators.campos import Validador, garantir
@@ -30,6 +33,28 @@ repo_produtos = RepositorioProdutos(obterConexao)
 repo_estoque = RepositorioInsumos(obterConexao)
 repo_receitas = RepositorioReceita(obterConexao)
 repo_pedidos = RepositorioPedidos(obterConexao, repo_clientes, repo_produtos)
+# A AbacatePay manda a validade do Pix em UTC; a tela mostra no horário da confeitaria
+FUSO_DA_CONFEITARIA = ZoneInfo("America/Sao_Paulo")
+
+
+def gatewayPagamento():
+    """O gateway de pagamento criado uma vez na fábrica (create_app)"""
+    return current_app.extensions["pagamentos"]
+
+
+def _servicoPagamento() -> ServicoPagamentoOnline:
+    """Serviço do Pix do sinal, gravando o pedido com o repositório da loja"""
+    return ServicoPagamentoOnline(gatewayPagamento(), repo_pedidos.atualizar)
+
+
+def _pedidoDoClienteOu404(id):
+    """
+    Busca o pedido e confere que é do cliente logado
+    Pedido de outro cliente dá 404 (não revela que o número existe). Se pedido for None, o `and` já dá falso
+    """
+    pedido = repo_pedidos.buscarPorId(id)
+    (pedido and pedido.cliente_id == usuarioLogado().id) or abort(404)
+    return pedido
 
 
 # Vitrine (Tarefa 4)
@@ -279,12 +304,98 @@ def pedidos():
 @loja.get("/pedidos/<int:id>")
 @soCliente
 def pedido(id):
-    """Acompanhamento de um pedido do cliente"""
-    pedido = repo_pedidos.buscarPorId(id)
-    # Só o dono abre. Pedido de outro cliente dá 404 (não revela que o número existe)
-    # Se pedido for None, o `and` já dá falso e cai no abort
-    (pedido and pedido.cliente_id == usuarioLogado().id) or abort(404)
+    """Acompanhamento de um pedido do cliente (só o dono abre)"""
+    pedido = _pedidoDoClienteOu404(id)
     return render_template("loja/pedido.html", pedido=pedido, valores=valoresDoPedido(pedido))
+
+
+# Pix (pagamento online do sinal e do restante)
+# O que muda na tela de cada parcela. A chave é Parcela.nome (app / services / pagamento_online.py)
+TELAS_PIX = {
+    "sinal": {
+        "rotulo": "Sinal",
+        "titulo": "o sinal",
+        "rota": "loja.sinalPix",
+        "rota_simular": "loja.sinalSimular",
+        "aviso_pago": "Sinal recebido! Agora a confeitaria confirma o seu pedido.",
+    },
+    "restante": {
+        "rotulo": "Restante",
+        "titulo": "o restante",
+        "rota": "loja.restantePix",
+        "rota_simular": "loja.restanteSimular",
+        "aviso_pago": "Pagamento recebido! Seu pedido está quitado.",
+    },
+}
+
+
+@loja.get("/pedidos/<int:id>/sinal/pix")
+@soCliente
+def sinalPix(id):
+    """Página do Pix do sinal (o "Já paguei" é esta mesma página)"""
+    return _abrirPix(id, SINAL)
+
+
+@loja.post("/pedidos/<int:id>/sinal/pix/simular")
+@soCliente
+def sinalSimular(id):
+    """Só no Modo Teste: finge que o cliente pagou o sinal"""
+    return _simularPix(id, SINAL)
+
+
+@loja.get("/pedidos/<int:id>/restante/pix")
+@soCliente
+def restantePix(id):
+    """Página do Pix do restante (o "Já paguei" é esta mesma página)"""
+    return _abrirPix(id, RESTANTE)
+
+
+@loja.post("/pedidos/<int:id>/restante/pix/simular")
+@soCliente
+def restanteSimular(id):
+    """Só no Modo Teste: finge que o cliente pagou o restante"""
+    return _simularPix(id, RESTANTE)
+
+
+def _abrirPix(id, parcela):
+    """
+    Abre o Pix da parcela. Cada vez que abre, confere o pagamento
+
+    TABELA: `cobranca.paga` escolhe a resposta. Pago -> registra e volta ao pedido; pendente -> mostra o QR
+    ValidacaoError e GatewayPagamentoError são irmãs (filhas de ConfeitariaError), por isso as duas no except
+    """
+    pedido = _pedidoDoClienteOu404(id)
+    try:
+        cobranca = _servicoPagamento().obterPix(pedido, parcela)
+    except (ValidacaoError, GatewayPagamentoError) as erro:
+        flash(str(erro), "erro")
+        return redirect(url_for("loja.pedido", id=id))
+    respostas = {True: _pixPago, False: _mostrarPix}
+    return respostas[cobranca.paga](pedido, parcela, cobranca)
+
+
+def _pixPago(pedido, parcela, cobranca):
+    """O Pix foi pago: avisa e volta para o acompanhamento do pedido"""
+    flash(TELAS_PIX[parcela.nome]["aviso_pago"], "sucesso")
+    return redirect(url_for("loja.pedido", id=pedido.id))
+
+
+def _mostrarPix(pedido, parcela, cobranca):
+    """O Pix ainda está pendente: mostra o QR e o copia e cola"""
+    # `a and b`: só converte o fuso quando a validade veio
+    validade = cobranca.expira_em and cobranca.expira_em.astimezone(FUSO_DA_CONFEITARIA)
+    return render_template("loja/pagar_pix.html", pedido=pedido, pix=cobranca, validade=validade,
+                           valor=parcela.valor(pedido), tela=TELAS_PIX[parcela.nome])
+
+
+def _simularPix(id, parcela):
+    """Finge o pagamento e volta para a página do Pix da parcela, que registra o pagamento"""
+    pedido = _pedidoDoClienteOu404(id)
+    try:
+        _servicoPagamento().simularPix(pedido, parcela)
+    except (ValidacaoError, GatewayPagamentoError) as erro:
+        flash(str(erro), "erro")
+    return redirect(url_for(TELAS_PIX[parcela.nome]["rota"], id=id))
 
 
 # Perfil (Tarefa 6)

@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING
 from app.exceptions import ValidacaoError
 from app.validators.campos import Validador, garantir
 from app.validators.prazo_pedido import PrazoPedido
-
 from .base import Entidade
 from .enums import FormaPagamento, StatusPagamento, StatusPedido, TipoEntrega
 
@@ -63,14 +62,19 @@ class Pagamento:
     def __init__(self,
                  status: StatusPagamento = StatusPagamento.AGUARDANDO_SINAL,
                  forma_sinal: FormaPagamento | None = None,
-                 forma_restante: FormaPagamento | None = None):
+                 forma_restante: FormaPagamento | None = None,
+                 cobranca_sinal: str | None = None,
+                 cobranca_restante: str | None = None):
         """
         Aceita os Enums ou os textos vindos do banco (ex.: 'sinal_pago')
-        As formas são anuláveis no DER
+        As formas e as cobranças são anuláveis no DER
         """
         self._status = Validador.opcaoDe(StatusPagamento, status, "status do pagamento")
         self._forma_sinal = self._formaOpcional(forma_sinal, "forma de pagamento do sinal")
         self._forma_restante = self._formaOpcional(forma_restante, "forma de pagamento do restante")
+        # Id da cobrança online no gateway (ex.: 'pix_char_...'). None enquanto não houver cobrança online
+        self._cobranca_sinal = Validador.textoOpcional(cobranca_sinal, "cobrança do sinal", max_len=64)
+        self._cobranca_restante = Validador.textoOpcional(cobranca_restante, "cobrança do restante", max_len=64)
 
     @staticmethod
     def _formaOpcional(forma, campo: str) -> FormaPagamento | None:
@@ -92,6 +96,12 @@ class Pagamento:
 
     @property
     def forma_restante(self) -> FormaPagamento | None: return self._forma_restante
+
+    @property
+    def cobranca_sinal(self) -> str | None: return self._cobranca_sinal
+
+    @property
+    def cobranca_restante(self) -> str | None: return self._cobranca_restante
 
     @property
     def sinal_pago(self) -> bool:
@@ -147,6 +157,28 @@ class Pagamento:
         )
         self._forma_sinal = forma_valida
         self._status = StatusPagamento.SINAL_PAGO
+
+    def vincularCobrancaSinal(self, id_cobranca: str) -> None:
+        """
+        Guarda o id da cobrança online do sinal (ex.: o Pix gerado no gateway)
+        Só vale enquanto o sinal não foi pago. Trocar de cobrança (Pix vencido) é permitido
+        """
+        garantir(
+            self._status is StatusPagamento.AGUARDANDO_SINAL,
+            ValidacaoError("O sinal deste pedido já foi registrado")
+        )
+        self._cobranca_sinal = Validador.texto(id_cobranca, "cobrança do sinal", max_len=64)
+
+    def vincularCobrancaRestante(self, id_cobranca: str) -> None:
+        """
+        Guarda o id da cobrança online do restante (ex.: o Pix gerado no gateway)
+        Só vale depois do sinal e antes da quitação. Trocar de cobrança (Pix vencido) é permitido
+        """
+        garantir(
+            self._status is StatusPagamento.SINAL_PAGO,
+            ValidacaoError("O restante só pode ser pago depois do sinal e uma única vez")
+        )
+        self._cobranca_restante = Validador.texto(id_cobranca, "cobrança do restante", max_len=64)
 
     def registrarRestante(self, forma: FormaPagamento) -> None:
         """
@@ -540,6 +572,43 @@ class Pedido(Entidade):
             ValidacaoError("O restante só pode ser pago depois que o pedido foi confirmado"),
         )
         self._pagamento.registrarRestante(forma)
+
+    def exigirSinalPendente(self) -> None:
+        garantir(
+            self._status is StatusPedido.ORCAMENTO,
+            ValidacaoError("O sinal só pode ser pago quando o pedido está em orçamento"),
+        )
+        garantir(
+            not self._pagamento.sinal_pago,
+            ValidacaoError("O sinal deste pedido já foi pago"),
+        )
+
+    def vincularCobrancaSinal(self, id_cobranca: str) -> None:
+        self.exigirSinalPendente()
+        self._pagamento.vincularCobrancaSinal(id_cobranca)
+
+    def exigirRestantePendente(self) -> None:
+        """
+        Confere, SEM alterar nada, que o restante ainda pode ser pago: pedido entre Confirmado e Entregue,
+        sinal pago e restante ainda não pago.
+        """
+        garantir(
+            self._status in _STATUS_QUITAVEIS,
+            ValidacaoError("O restante só pode ser pago depois que o pedido foi confirmado"),
+        )
+        garantir(
+            self._pagamento.sinal_pago,
+            ValidacaoError("O sinal deste pedido ainda não foi pago"),
+        )
+        garantir(
+            not self._pagamento.quitado,
+            ValidacaoError("O restante deste pedido já foi pago"),
+        )
+
+    def vincularCobrancaRestante(self, id_cobranca: str) -> None:
+        """Guarda o id da cobrança online do restante. Só enquanto o restante está pendente (exigirRestantePendente)"""
+        self.exigirRestantePendente()
+        self._pagamento.vincularCobrancaRestante(id_cobranca)
 
     # Prazo mínimo
     def validarPrazo(self) -> None:

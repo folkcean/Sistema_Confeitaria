@@ -118,7 +118,9 @@
 {#
   Escolha única em "pílulas" (rádios estilizados). Mesmo formato de `opcoes` da selecao.
 #}
-{% macro escolhas(nome, rotulo, opcoes, objeto=none, valor=none, dica="", opcional=false) -%}
+{% macro escolhas(nome, rotulo, opcoes, objeto=none, valor=none, dica="", opcional=false, indisponiveis=none) -%}
+    {#- `indisponiveis`: {valor: motivo}. A opção aparece em cinza, não pode ser marcada e mostra o motivo no hover -#}
+    {%- set indisponiveis = indisponiveis or {} -%}
     {%- set atual = _atual(nome, objeto, valor)|string -%}
     {%- set pares = opcoes.items() if opcoes.items is defined else opcoes -%}
     <fieldset class="campo">
@@ -127,10 +129,17 @@
         <div class="escolhas">
             {%- for v, texto in pares %}
                 {%- set texto = texto.rotulo if texto.rotulo is defined else texto %}
+                {%- set motivo = indisponiveis.get(v) %}
                 <input class="escolha__entrada" type="radio" id="{{ nome }}-{{ v }}" name="{{ nome }}" value="{{ v }}"
-                        {%- if v|string == atual or (not atual and loop.first and not opcional) %} checked{% endif %}
+                        {%- if motivo %} disabled
+                        {%- elif v|string == atual or (not atual and loop.first and not opcional) %} checked{% endif %}
                         {%- if not opcional %} required{% endif %}>
-                <label class="escolha" for="{{ nome }}-{{ v }}">{{ texto }}</label>
+                {%- if motivo %}
+                    <label class="escolha escolha--indisponivel" for="{{ nome }}-{{ v }}" data-dica="{{ motivo }}">
+                        {{- texto }}<span class="visualmente-oculto"> ({{ motivo }})</span></label>
+                {%- else %}
+                    <label class="escolha" for="{{ nome }}-{{ v }}">{{ texto }}</label>
+                {%- endif %}
             {%- endfor %}
         </div>
         {%- if dica %}
