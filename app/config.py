@@ -28,9 +28,13 @@ class Config:
     POSTGRES_USER = os.environ["POSTGRES_USER"]
     POSTGRES_PASSWORD = os.environ["POSTGRES_PASSWORD"]
     POSTGRES_DB = os.environ["POSTGRES_DB"]
+
+    # API de IA no formato "chat completions" (padrão: Groq). Trocar de provedor = mudar estas 3 linhas
+    # no .env. Sem chave o app sobe normalmente: só a aba Assistente IA avisa que falta a IA_CHAVE
     IA_URL_BASE = os.getenv("IA_URL_BASE", "https://api.groq.com/openai/v1")
     IA_CHAVE = os.getenv("IA_CHAVE", "")
     IA_MODELO = os.getenv("IA_MODELO", "openai/gpt-oss-120b")
+
     # Upload de fotos até 5 MB (acima disso o Flask responde 413)
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024
 
@@ -61,3 +65,6 @@ class ConfigTeste(Config):
 
     # Os testes nunca enviam e-mail de verdade, mesmo que o .env de quem roda tenha SMTP configurado
     EMAIL_SMTP_HOST = ""
+
+    # Os testes nunca chamam a API de IA de verdade (nem gastam o limite grátis), mesmo com a chave no .env
+    IA_CHAVE = ""
