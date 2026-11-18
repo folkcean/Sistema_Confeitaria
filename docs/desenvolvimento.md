@@ -79,7 +79,7 @@ nele, nunca direto no SQL.
 
 - Nunca edite um arquivo de `db/update/` já commitado; para corrigir algo, crie um novo.
 - Depois de um `git pull` que trouxe arquivos novos em `db/update/`, aplique cada um, em ordem.
-- Cada migração é aplicada **uma única vez** em cada banco. O GitHub Actions aplica todas, em ordem, num banco novo.
+- Cada migração é aplicada **uma única vez** em cada banco.
 - Para recriar o banco do zero (**apaga todos os dados**): `docker compose down -v` e depois `docker compose up -d`.
 
 ## Versionamento
@@ -103,7 +103,7 @@ git commit -m "feat(escopo): o que foi feito"
 git push -u origin incremento/nome-da-funcionalidade
 ```
 
-1. Abra um **Pull Request** para a `main` e peça a revisão da dupla. O GitHub Actions executa a suíte no PR.
+1. Abra um **Pull Request** para a `main` e peça a revisão da dupla. Rode `pytest -q` antes de pedir a revisão.
 2. Ajustes pedidos na revisão: novos commits na mesma branch atualizam o PR.
 3. Se a `main` mudou enquanto o PR estava aberto: `git fetch origin`, `git merge origin/main`, resolver
    conflitos, rodar os testes e `git push`.

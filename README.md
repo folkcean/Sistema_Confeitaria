@@ -147,7 +147,6 @@ flowchart LR
 | Acesso ao banco | psycopg 3 | Driver PostgreSQL com consultas parametrizadas, sem ORM |
 | Frontend | HTML5, CSS3, Jinja2 | Páginas renderizadas no servidor; sem framework de JavaScript |
 | Testes | pytest 9 | Testes de unidade, integração com o banco e rotas |
-| Integração contínua | GitHub Actions | Executa a suíte a cada push e pull request |
 | Modelagem | Visual Paradigm | DER, diagrama de classes e casos de uso (`docs/`) |
 | Pagamentos | AbacatePay (API REST) | Cobranças Pix (opcional) |
 | Inteligência artificial | Groq, modelo `openai/gpt-oss-120b` | Assistente de reposição (opcional) |
@@ -301,6 +300,18 @@ Saída esperada da bateria de testes completa:
 Nenhum teste acessa a internet: os serviços externos (Pix, e-mail e IA) são substituídos por dublês definidos em
 `tests/falsos.py`.
 
+## Segurança e privacidade
+ 
+- **Senhas:** armazenadas apenas como hash (scrypt, via Werkzeug), com política de força mínima.
+- **Login:** bloqueio de 15 minutos após 5 tentativas seguidas sem sucesso para o mesmo e-mail.
+- **Sessão:** token assinado e com validade (ItsDangerous); cookie com `SameSite=Lax`.
+- **Controle de acesso:** três perfis (cliente, funcionário, administrador) e uma permissão adicional de acesso
+  financeiro. A matriz de acesso automatizada garante que cada rota do sistema tenha uma regra declarada e testada.
+- **Banco de dados:** todas as consultas são parametrizadas, o que impede SQL Injection.
+- **Entrada de dados:** toda entrada passa por validadores centralizados antes de chegar às entidades.
+- **Dados pessoais:** o CPF só é lido mediante verificação de permissão do solicitante; o Assistente IA não recebe
+  nenhum dado pessoal de cliente e acessa o banco apenas em modo somente leitura.
+- **Segredos:** chaves e senhas ficam no `.env`, fora do controle de versão.
 ## Estrutura de diretórios
  
 ```
@@ -320,13 +331,12 @@ Sistema_Confeitaria/
 ├── db/
 │   ├── init/             # script de criação do banco, gerado a partir do DER
 │   └── update/           # migrações numeradas, aplicadas em ordem
-├── docs/                 # modelos UML e DER (Visual Paradigm), guia de desenvolvimento e imagens
+├── docs/                 # modelos UML e DER (Visual Paradigm) e guia de desenvolvimento
 ├── tests/
 │   ├── models/  services/  validators/   # testes sem banco
 │   ├── db/               # testes de repositório e dados de demonstração (DB_fill.sql)
 │   ├── rotas/            # testes das rotas e matriz de acesso
 │   └── falsos.py         # dublês dos serviços externos
-├── .github/workflows/    # integração contínua (GitHub Actions)
 ├── docker-compose.yml    # PostgreSQL para desenvolvimento
 ├── requirements.txt      # dependências Python com versões fixadas
 ├── pytest.ini
