@@ -1,293 +1,359 @@
 # Sistema de Gestão de Confeitaria
 
-Repositório oficial do projeto da disciplina de Paradigma Orientado a Objetos para Desenvolvimento de Software (INF01210) da Universidade Estadual do Norte Fluminense Darcy Ribeiro (UENF).
+Sistema web integrado de gestão e atendimento para uma confeitaria artesanal. Ele reúne uma **área do cliente**
+(mobile-first), para fazer e acompanhar pedidos, e uma **área interna** (desktop-first), para administrar pedidos,
+produção, receitas, estoque, compras e clientes. As duas áreas compartilham as mesmas regras de negócio e o mesmo banco
+de dados.
+ 
+Projeto da disciplina **Paradigma Orientado a Objetos para Desenvolvimento de Software (INF01210)** da
+**Universidade Estadual do Norte Fluminense Darcy Ribeiro (UENF)**, 2026.
 
-## Sobre o Projeto
 
-O Sistema de Gestão de Confeitaria foi pensado para apoiar a futura operação de uma confeitaria afetiva com abertura planejada para os próximos anos. 
+## Sumário
+ 
+1. [Visão geral](#visão-geral)
+2. [Funcionalidades](#funcionalidades)
+3. [Arquitetura](#arquitetura)
+4. [Tecnologias](#tecnologias)
+5. [Instalação e execução](#instalação-e-execução)
+6. [Uso](#uso)
+7. [Testes](#testes)
+8. [Estrutura de diretórios](#estrutura-de-diretórios)
+9. [Documentação complementar](#documentação-complementar)
+10. [Autoria](#autoria)
 
-Atualmente, o negócio funciona de forma artesanal e sob encomenda para pessoas próximas, com controle de pedidos e estoque feitos manualmente.
+## Visão geral
+ 
+**Contexto.** A confeitaria que motivou o projeto ainda não está formalmente em operação. Hoje a proprietária
+produz sob encomenda para pessoas próximas, e os pedidos, o estoque e a precificação são controlados manualmente.
+A abertura do negócio está planejada para os próximos anos.
+ 
+**Problema.** No controle manual, os pedidos ficam dispersos entre canais, o estoque de ingredientes e embalagens
+não acompanha o consumo real e o preço de cada produto é calculado caso a caso, sem considerar com precisão o custo
+dos insumos e das personalizações.
+ 
+**Proposta.** O sistema foi projetado para a operação futura da confeitaria e se concentra em três necessidades
+levantadas com a proprietária:
+ 
+1. organizar o estoque de ingredientes e embalagens, com alerta de estoque mínimo;
+2. calcular o preço dos produtos a partir das receitas, dos custos e das personalizações;
+3. centralizar os pedidos, desde a solicitação do cliente até a entrega ou retirada.
+O fluxo principal conecta essas três frentes:
+ 
+```
+Cliente → Pedido → Produto → Receita → Insumos → Estoque → Produção → Entrega/Retirada
+```
 
-O objetivo deste software é organizar e automatizar a operação da confeitaria antes de sua formalização, focando em três grandes necessidades da proprietária:
-1. Organizar o estoque de ingredientes e embalagens.
-2. Automatizar a precificação dos produtos com base nos custos e personalizações.
-3. Gerenciar os pedidos de forma centralizada e sem confusões.
+## Funcionalidades
+ 
+### Área do cliente (mobile-first)
+ 
+| Funcionalidade | Descrição |
+|---|---|
+| Conta | Cadastro, login, verificação de e-mail por link assinado e edição dos dados pessoais |
+| Endereços | Cadastro de endereços de entrega reaproveitados entre pedidos |
+| Cardápio | Catálogo com busca, filtros (pronta entrega e encomenda) e página de cada produto |
+| Carrinho | Itens com personalização (opções com custo adicional) e escolha entre entrega e retirada |
+| Fazer pedido | Validação de prazo: encomendas respeitam a antecedência mínima do produto, e a pronta entrega fecha 1 hora antes do encerramento |
+| Pagamento | Sinal e restante por Pix (QR Code), via AbacatePay |
+| Acompanhamento | Linha do tempo do status do pedido e histórico de pedidos |
 
-A aplicação está dividida em duas grandes frentes que compartilham a mesma inteligência e o mesmo banco de dados:
+### Área interna (desktop-first)
+ 
+| Módulo | Funcionário | Administração |
+|---|---|---|
+| Início | Indicadores do dia, próximas entregas e retiradas, aniversários da semana | Idem |
+| Pedidos | Fila com filtros, detalhes, envio do orçamento e avanço de status | Também registra pagamentos recebidos fora do Pix e cancela pedidos (com motivo) |
+| Estoque | Saldo por insumo, alerta de mínimo e lista de compras sugerida | Também cadastra insumos, registra ajustes e perdas (com histórico) e desfaz ajustes |
+| Receitas | Consulta, com escala proporcional do rendimento | Cadastro, edição e desativação |
+| Produtos | Consulta | Cadastro com custo calculado pela receita, margem, opções de personalização e disponibilidade |
+| Compras | | Compras de insumos por fornecedor; o recebimento dá entrada no estoque |
+| Fornecedores | | Cadastro de fornecedores |
+| Clientes | | Cadastro, histórico de pedidos e marcação de clientes VIP |
+| Funcionários | | Cadastro e desativação das contas da equipe |
+| Relatórios | | Vendas, produtos e insumos, com gráficos\* |
+| Assistente IA | | Recomendações de reposição explicadas e perguntas em linguagem natural\* (ver [Uso](#assistente-ia)) |
 
-- Área do Cliente (no celular)
-- Área Interna (no computador)
+\* Exige o atributo `acesso_financeiro` do administrador, porque expõe custos e faturamento.
 
-## Tecnologias Utilizadas
+### Ciclo de vida do pedido
+ 
+As transições permitidas ficam numa única tabela (`StatusPedido`, em `app/models/enums.py`), e qualquer outra
+mudança é recusada. A confirmação exige o sinal pago e dá baixa nos insumos no estoque (tudo ou nada); o cancelamento
+exige motivo.
+ 
+```mermaid
+stateDiagram-v2
+    direction LR
+    state "Orçamento" as Orcamento
+    state "Em produção" as EmProducao
+    [*] --> Solicitado
+    Solicitado --> Orcamento: equipe envia o orçamento
+    Orcamento --> Confirmado: sinal pago, baixa no estoque
+    Confirmado --> EmProducao
+    EmProducao --> Pronto
+    Pronto --> Entregue
+    Entregue --> Finalizado
+    Confirmado --> Cancelado: com motivo
+    EmProducao --> Cancelado: com motivo
+    Pronto --> Cancelado: com motivo
+    Finalizado --> [*]
+    Cancelado --> [*]
+```
 
-- Linguagem: Python
-- Backend: Flask (microframework)
-- Banco de Dados: PostgreSQL
-- Interface (Frontend): HTML e CSS
-- Testes: pytest
-- Organização e Versão: Git, GitHub e Docker para rodar o banco de dados
+## Arquitetura
+ 
+Aplicação web monolítica em camadas: um backend Flask que renderiza as páginas no servidor, um banco
+PostgreSQL e três serviços externos, todos opcionais e isolados atrás de adaptadores.
+ 
+```mermaid
+flowchart LR
+    N["Navegador<br/>cliente (celular) e equipe (computador)"] --> C
+ 
+    subgraph App["Aplicação Flask"]
+        C["controllers<br/>acesso · loja · painel"] --> S["services<br/>casos de uso"]
+        S --> M["models<br/>entidades e regras de negócio"]
+        S --> R["repositories<br/>SQL parametrizado"]
+        S --> A["adaptadores<br/>Pix · IA · e-mail"]
+        C --> V["validators"]
+        M --> V
+    end
+ 
+    R --> DB[("PostgreSQL")]
+    A --> P["AbacatePay"]
+    A --> IA["API de IA (Groq)"]
+    A --> E["Servidor SMTP"]
+```
 
-## Banco de Dados (Docker)
+### Princípios e padrões de projeto
+ 
+| Padrão ou princípio | Onde | Para quê |
+|---|---|---|
+| Repository | `app/repositories/` | Isolar o SQL; os models não sabem que existe banco |
+| Adapter | `gateway_abacatepay.py`, `gateway_ia.py`, `envio_email.py` | Cada API externa fica num único arquivo; trocar de provedor não afeta o resto |
+| Protocol (contratos) | `app/models/contratos.py` | Interfaces como `GatewayPagamento`, `ModeloLinguagem` e `Recomendador`; permitem dublês nos testes |
+| Injeção de dependência | `app.extensions` | O app usa os serviços reais; os testes trocam por dublês (`tests/falsos.py`) |
+| State | `services/controle_login.py` | Estados *livre* e *bloqueado* do controle de tentativas de login |
+| Autômato por tabela | `models/enums.py` | Transições de status do pedido declaradas numa tabela, sem condicionais espalhadas |
+| Polimorfismo no lugar de condicionais | todo o código | O código não usa `if/elif/else`; usa polimorfismo, tabelas (`dict`/`Enum`) e `garantir(condição, erro)` |
 
-Pré-requisito: Docker com Docker Compose.
+## Tecnologias
+ 
+| Categoria | Tecnologia | Uso |
+|---|---|---|
+| Linguagem | Python 3.13 | Backend e testes |
+| Framework web | Flask 3.1 (Werkzeug, Jinja2, ItsDangerous) | Rotas, páginas, hash de senha e tokens assinados |
+| Banco de dados | PostgreSQL 18 | Persistência (em contêiner Docker) |
+| Acesso ao banco | psycopg 3 | Driver PostgreSQL com consultas parametrizadas, sem ORM |
+| Frontend | HTML5, CSS3, Jinja2 | Páginas renderizadas no servidor; sem framework de JavaScript |
+| Testes | pytest 9 | Testes de unidade, integração com o banco e rotas |
+| Modelagem | Visual Paradigm | DER, diagrama de classes e casos de uso (`docs/`) |
+| Pagamentos | AbacatePay (API REST) | Cobranças Pix (opcional) |
+| Inteligência artificial | Groq, modelo `openai/gpt-oss-120b` | Assistente de reposição (opcional) |
+| Infraestrutura local | Docker Compose | Banco de dados de desenvolvimento |
+ 
+As integrações externas usam apenas a biblioteca padrão (`urllib`), sem SDKs de terceiros.
 
-### Primeira vez
-1. `cp .env.example .env` — cria seu arquivo de configuração local (não vai para o GitHub).
-2. Edite o `.env` e defina uma senha em `POSTGRES_PASSWORD`.
-3. `docker compose up -d` — sobe o PostgreSQL e executa os scripts de `db/init/` (criação das tabelas).
-4. `docker compose ps` — aguarde o status `healthy`.
 
-### Dia a dia
-- `docker compose up -d` — liga o banco.
-- `docker compose stop` — desliga o banco (os dados continuam salvos).
-- `docker compose exec db psql -U app -d appdb` — abre o terminal SQL do banco.
-
-### Atenção
-Os scripts de `db/init/` só rodam quando o banco é criado pela primeira vez.
-Para recriar do zero (**apaga todos os dados**): `docker compose down -v` e depois `docker compose up -d`.
-
-## Alterações no Banco de Dados
-
-O DER no Visual Paradigm é a fonte da verdade do banco. Toda alteração começa nele, nunca direto no SQL.
-
-### Estrutura
-- `db/init/` — estrutura inicial do banco, gerada a partir do DER. Roda só uma vez, quando o banco é criado. **Não deve mais ser editada.**
-- `db/update/` — alterações feitas depois da criação inicial, numeradas em ordem (`001_...sql`, `002_...sql`).
-
-### Como fazer uma alteração
-1. Altere o DER no Visual Paradigm.
-2. Gere o script com a opção **Update** e exporte para arquivo em vez de executar direto no banco.
-3. Salve como `db/update/<próximo número>_<descricao_curta>.sql` (ex.: `001_adiciona_perfil_usuario.sql`).
-4. **Revise o script antes de rodar.** Se você renomeou uma coluna, o VP pode ter gerado `DROP COLUMN` + `ADD COLUMN`, o que apaga os dados. Nesse caso, troque por `ALTER TABLE ... RENAME COLUMN ...`.
-5. Aplique no seu banco:
+## Instalação e execução
+ 
+Os comandos abaixo são executados na raiz do projeto. No Windows, use `copy` no lugar de `cp` e
+`venv\Scripts\activate` no lugar de `source venv/bin/activate`.
+ 
+**1. Obter o código**
+ 
 ```bash
-   docker compose exec -T db psql -U app -d appdb -v ON_ERROR_STOP=1 --single-transaction < db/update/001_adiciona_perfil_usuario.sql
+git clone https://github.com/folkcean/Sistema_Confeitaria.git
+cd Sistema_Confeitaria
 ```
-6. Faça o commit do DER e do script juntos, e avise a dupla qual arquivo novo ela precisa aplicar.
-
-### Regras
-- Nunca edite um arquivo de `db/update/` que já foi commitado. Para corrigir algo, crie um novo.
-- Depois de um `git pull` que trouxe arquivos novos em `db/update/`, aplique cada um, em ordem, com o comando do passo 5.
-- Cada arquivo deve ser aplicado **uma única vez** em cada banco.
-
-## Assistente IA (Groq)
  
-Aba **Assistente IA** do painel (só a administradora com acesso financeiro). Ela sugere o que repor (quanto, até quando e por quê) e responde perguntas sobre estoque, compras, pedidos e vendas.
+**2. Configurar as variáveis de ambiente**
  
-Como funciona: a cada clique, o sistema roda 3 consultas **somente leitura** (insumos, pedidos em aberto
-e vendas por semana), junta com as regras de `app/conhecimento/reposicao.md` e manda para uma API de IA
-no formato *chat completions*. A IA **não acessa o banco** e **nenhum dado pessoal de cliente** vai na
-mensagem. Abrir a aba não chama a IA: só os botões chamam.
- 
-### Ligar a IA
-1. Crie a conta em https://console.groq.com (plano Free, sem cartão).
-2. **API Keys → Create API Key**. Copie na hora (começa com `gsk_` e só aparece uma vez).
-3. No seu `.env` (sem aspas):
+```bash
+cp .env.example .env
 ```
-IA_URL_BASE=https://api.groq.com/openai/v1
-IA_CHAVE=gsk_...
-IA_MODELO=openai/gpt-oss-120b
-```
-4. Reinicie o `flask run`. Sem a chave o app sobe normalmente; só a aba avisa que falta a `IA_CHAVE`.
-### Mudar as regras sem mexer no código
-As regras (ponto de pedido, prioridade, quanto comprar, horizonte de 14 dias...) ficam em
-`app/conhecimento/reposicao.md`. O arquivo é lido a cada clique: salve e clique de novo, sem reiniciar.
  
-### Trocar de provedor
-Qualquer API compatível com o formato da OpenAI serve; só o `.env` muda. Ex.: Gemini, com
-`IA_URL_BASE=https://generativelanguage.googleapis.com/v1beta/openai`, a chave do Google AI Studio e um
-modelo Flash atual. Atenção: no plano grátis do Gemini o Google pode usar o que vocês mandam; por isso
-a Groq é o padrão.
+Edite o `.env` e defina, no mínimo, `POSTGRES_PASSWORD` e `SECRET_KEY`. O arquivo `.env` não é versionado.
  
-### Limites do plano Free (openai/gpt-oss-120b)
-30 requisições por minuto, 1.000 por dia e 8 mil tokens por minuto. Um clique gasta uns 3,5 mil.
-Dois cliques seguidos no mesmo minuto podem dar `429`: espere alguns segundos.
+| Variável | Descrição |
+|---|---|
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Credenciais do banco (as mesmas usadas pelo Docker Compose) |
+| `POSTGRES_HOST`, `POSTGRES_PORT` | Endereço do banco (padrão `localhost:5432`) |
+| `SECRET_KEY` | Chave que assina sessões e links de verificação; use um valor longo e aleatório |
+| `ABACATEPAY_API_KEY` | Chave da AbacatePay; uma chave `abc_dev_...` ativa o Modo Teste |
+| `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORTA`, `EMAIL_SMTP_USUARIO`, `EMAIL_SMTP_SENHA`, `EMAIL_SMTP_TLS`, `EMAIL_REMETENTE` | Envio do e-mail de verificação; sem `EMAIL_SMTP_HOST`, o link é exibido no terminal |
+| `IA_URL_BASE`, `IA_CHAVE`, `IA_MODELO` | API de IA no formato *chat completions* (padrão: Groq) |
  
-### Testes
-Nenhum teste chama a internet: os testes de rota usam o `ModeloFalso` (`tests/falsos.py`) e o
-`ConfigTeste` apaga a `IA_CHAVE`. Testes da IA: `tests/db/test_contextoIARepositorio.py`,
-`tests/services/test_recomendador_ia.py` e `tests/rotas/test_painel_ia.py`.
-
-## Estrutura do Projeto
-
+Uma `SECRET_KEY` adequada pode ser gerada com:
+ 
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
 ```
-sistema-confeitaria/
-├── app/
-│   ├── controllers/                 # rotas Flask, sem regra de negócio
-│   │   ├── loja.py                  # área do cliente
-│   │   └── painel.py                # área interna
-│   ├── models/                      # entidades e regras do negócio; sem Flask e sem SQL
-│   │   ├── __init__.py              # índice dos models
-│   │   ├── administrador.py
-│   │   ├── base.py                  # Entidade (classe mãe de tudo que tem id)
-│   │   ├── cliente.py
-│   │   ├── compra_insumo.py
-│   │   ├── contratos.py             # Protocols: PedidoAvancavel, Recomendador, ClienteConsultavel
-│   │   ├── endereco.py
-│   │   ├── enums.py                 # Perfil, StatusPedido (autômato), StatusPagamento, TipoMovimentacao...
-│   │   ├── estoque.py               # Estoque (coordena vários insumos; não é tabela)
-│   │   ├── fornecedor.py
-│   │   ├── funcionario.py
-│   │   ├── insumo.py                # Insumo (tabela INGREDIENTE): saldo, mínimo, conversão de unidades
-│   │   ├── item_compra_insumo.py
-│   │   ├── movimentacao_estoque.py  # histórico imutável de entradas, consumos, perdas e ajustes
-│   │   ├── opcao_personalizacao.py
-│   │   ├── pedido.py                # Pedido, ItemPedido, ItemPedidoOpcao e Pagamento
-│   │   ├── produto.py               # Produto e ProdutoReceita (liga o produto às receitas)
-│   │   ├── receita.py               # Receita e ItemReceita (escala por regra de três)
-│   │   ├── senha.py                 # Senha (hash) e SenhaAusente
-│   │   └── usuario.py               # Usuario (classe abstrata)
-│   ├── repositories/                # acesso ao banco, sem regra de negócio
-│   │   ├── base.py                  # RepositorioBase: conexão e transação
-│   │   ├── clientes_rep.py
-│   │   ├── contexto_ia_rep.py       # retrato do banco para a IA (3 SELECTs, somente leitura)
-│   │   ├── compras_rep.py
-│   │   ├── fornecedores_rep.py
-│   │   ├── funcionarios_rep.py
-│   │   ├── insumos_rep.py
-│   │   ├── pedidos_rep.py
-│   │   ├── produtos_rep.py
-│   │   ├── receitas_rep.py
-│   │   ├── relatorios_rep.py
-│   │   └── usuarios_rep.py
-│   ├── services/                    # casos de uso
-│   │   ├── __init__.py
-│   │   ├── alerta_estoque.py        # alerta de estoque mínimo e lista de compras sugerida
-│   │   ├── autenticacao.py          # login e tokens
-│   │   ├── baixa_estoque.py         # desconta os insumos do pedido na confirmação (tudo ou nada)
-│   │   ├── compra_insumo_service.py # compra de insumos
-│   │   ├── controle_login.py        # bloqueio por tentativas
-│   │   ├── gateway_ia.py            # GatewayIA: POST /chat/completions (Groq ou outro provedor)
-│   │   ├── conversor_unidades.py    # conversão entre unidades-padrão (kg<->g, l<->ml)
-│   │   ├── pedido_service.py        # Carrinho e PedidoService: criar, confirmar (baixa o estoque), cancelar
-│   │   ├── pedidos.py               # serviço de pedidos usado pelas rotas
-│   │   ├── precificacao.py          # CalculadoraPreco: custo, margem, personalização e taxa de entrega
-│   │   └── recomendador_ia.py       # RecomendadorIA: regras do .md + contexto + esquema da resposta
-│   ├── conhecimento/
-│   │   └── reposicao.md             # as regras da IA (lidas a cada clique)
-│   ├── templates/
-│   ├── validators/                  # validação de dados; não conhece nenhuma entidade
-│   │   ├── __init__.py
-│   │   ├── campos.py                # garantir() e Validador
-│   │   ├── prazo_pedido.py          # prazo de encomenda e limite de pronta entrega
-│   │   └── senha.py                 # regras de força da senha
-│   ├── __init__.py
-│   └── exceptions.py                # ValidacaoError, AcessoNegadoError, EstoqueInsuficienteError, PedidoSemEstoqueError...
-├── tests/
-│   ├── db/                          # testes do banco (usam o Docker)
-│   ├── rotas/                       # testes das rotas Flask
-│   ├── models/
-│   │   ├── conftest.py              # fixtures compartilhadas (farinha, leite_condensado, caixa, estoque)
-│   │   ├── test_estoque.py
-│   │   ├── test_insumo.py
-│   │   ├── test_movimentacao_estoque.py
-│   │   ├── test_pedido.py
-│   │   ├── test_pedido_prazo.py     # Pedido x PrazoPedido, Produto.pronta_entrega, exigirConfirmavel
-│   │   ├── test_produto_receita.py
-│   │   ├── test_receita.py
-│   │   └── ...                      # demais testes dos models (um test_*.py por model)
-│   ├── services/
-│   │   ├── conftest.py              # fixtures da semana 5 (estoque, bolo, cliente)
-│   │   ├── test_alerta_estoque.py
-│   │   ├── test_baixa_estoque.py
-│   │   ├── test_conversor_unidades.py
-│   │   ├── test_pedido_service.py
-│   │   └── test_precificacao.py
-│   └── validators/
-│       ├── test_campos_estoque.py
-│       └── test_prazo_pedido.py
-├── .env                             # local, não vai para o GitHub
-├── .gitignore
-├── pytest.ini                       # configuração do pytest (raiz do projeto e pasta tests/)
-├── README.md
-├── requirements.txt
-└── run.py
+ 
+**3. Subir o banco de dados**
+ 
+```bash
+docker compose up -d
+docker compose ps          # aguarde o status "healthy"
 ```
-
-### Como rodar os testes
-Os testes de models, services e validators não usam o banco -> não precisam do Docker
-'''
-Primeira vez: criar e ligar o ambiente virtual e instalar as dependências
-python3 -m venv venv
+ 
+Na primeira execução, o contêiner cria as tabelas a partir de `db/init/`. Em seguida, aplique as migrações de
+`db/update/`, em ordem numérica, uma única vez por banco:
+ 
+```bash
+docker compose exec -T db psql -U app -d appdb -v ON_ERROR_STOP=1 --single-transaction < db/update/001_adiciona_email_verificado.sql
+```
+ 
+**4. Instalar as dependências**
+ 
+```bash
+python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+```
+ 
+**5. Carregar os dados de demonstração (opcional)**
+ 
+```bash
+docker compose exec -T db psql -U app -d appdb -v ON_ERROR_STOP=1 < tests/db/DB_fill.sql
+```
+ 
+> Este script **apaga os dados existentes** antes de inserir os de demonstração
+ 
+**6. Executar a aplicação**
+ 
+```bash
+flask run
+```
 
-Dia a dia: ligar o ambiente e rodar
+
+## Uso
+ 
+### Fluxo principal
+ 
+1. **Cliente** (celular): acessa o cardápio, adiciona um produto ao carrinho, escolhe entrega ou retirada e envia o
+   pedido, que fica como *Solicitado*.
+2. **Equipe** (computador): abre o pedido e envia o orçamento, e o pedido passa a *Orçamento*.
+3. **Cliente**: paga o sinal por Pix na página do pedido.
+4. **Equipe**: confirma o pedido. Nesse momento, os insumos das receitas são descontados do estoque; se
+   faltar algum, a confirmação é recusada e nada é alterado.
+5. **Equipe**: avança o pedido para *Em produção*, *Pronto* e *Entregue*. O cliente acompanha cada etapa na linha do
+   tempo do pedido.
+
+### Assistente IA
+ 
+Na área interna, a aba **Assistente IA** (administração com acesso financeiro) analisa o estado atual do estoque e
+recomenda o que repor, quanto comprar e até quando, com a justificativa de cada recomendação. Também responde perguntas
+sobre estoque, compras, pedidos e vendas, digitadas ou escolhidas entre perguntas prontas.
+ 
+A cada solicitação, o sistema executa três consultas em transação **somente leitura** (insumos, pedidos em aberto e
+vendas por semana), combina o resultado com as regras de reposição de
+[`app/conhecimento/reposicao.md`](app/conhecimento/reposicao.md) e envia o conjunto à API de IA. O modelo não tem
+acesso ao banco, e nenhum dado pessoal de cliente é enviado. As regras podem ser alteradas nesse arquivo sem
+reiniciar a aplicação.
+ 
+Exemplo de recomendação retornada (formato garantido por esquema JSON) para os dados de demonstração:
+ 
+```json
+{
+  "insumo": "Acucar refinado",
+  "prioridade": "alta",
+  "comprar": 1.8,
+  "unidade": "kg",
+  "pedir_ate": "2026-11-17",
+  "fornecedor": "",
+  "motivo": "Já está abaixo do mínimo e não há compra a caminho.",
+  "fatores": [
+    "saldo 8,73 kg − reservado 0,28 kg = 8,45 kg, abaixo do mínimo de 10 kg",
+    "consumo de 0,009 kg por dia nos últimos 30 dias",
+    "ponto de pedido 10 + 0,009 × 3 = 10,03 kg"
+  ]
+}
+```
+ 
+O assistente apenas recomenda: a decisão e o registro da compra continuam com a proprietária.
+
+## Testes
+ 
+O projeto tem **1.268 testes**. Os testes de banco e de rotas usam o PostgreSQL local; cada teste roda numa transação desfeita ao final, de
+modo que o banco não é alterado.
+ 
+```bash
 source venv/bin/activate
-pytest tests/models tests/services tests/validators     # tudo, sem o banco
-pytest tests/models/test_pedido.py -v                   # um arquivo só, mostrando cada teste
-pytest tests/models/test_pedido.py -x --tb=short        # para no primeiro erro, com mensagem curta
-'''
+pytest -q                                          # completo (requer o banco ligado)
+pytest tests/models tests/services tests/validators -q   # apenas os testes sem banco
+```
+ 
+Saída esperada da bateria de testes completa:
+```
+1260 passed, 1 skipped, 7 xfailed
+```
+ 
+| Pasta | Testes | O que cobre |
+|---|---:|---|
+| `tests/models` | 294 | Regras de negócio das entidades (prazos, transições de status, estoque, receitas, privacidade) |
+| `tests/services` | 177 | Casos de uso (baixa de estoque, precificação, pagamento, login, e-mail, assistente IA) |
+| `tests/validators` | 119 | Validação de campos, senhas e prazos |
+| `tests/db` | 42 | Repositórios contra o PostgreSQL, com os dados de demonstração |
+| `tests/rotas` | 636 | Rotas Flask, incluindo a matriz de acesso, que verifica cada rota para cada perfil |
+ 
+Nenhum teste acessa a internet: os serviços externos (Pix, e-mail e IA) são substituídos por dublês definidos em
+`tests/falsos.py`.
 
-## Convenções de código
+## Segurança e privacidade
+ 
+- **Senhas:** armazenadas apenas como hash (scrypt, via Werkzeug), com política de força mínima.
+- **Login:** bloqueio de 15 minutos após 5 tentativas seguidas sem sucesso para o mesmo e-mail.
+- **Sessão:** token assinado e com validade (ItsDangerous); cookie com `SameSite=Lax`.
+- **Controle de acesso:** três perfis (cliente, funcionário, administrador) e uma permissão adicional de acesso
+  financeiro. A matriz de acesso automatizada garante que cada rota do sistema tenha uma regra declarada e testada.
+- **Banco de dados:** todas as consultas são parametrizadas, o que impede SQL Injection.
+- **Entrada de dados:** toda entrada passa por validadores centralizados antes de chegar às entidades.
+- **Dados pessoais:** o CPF só é lido mediante verificação de permissão do solicitante; o Assistente IA não recebe
+  nenhum dado pessoal de cliente e acessa o banco apenas em modo somente leitura.
+- **Segredos:** chaves e senhas ficam no `.env`, fora do controle de versão.
+## Estrutura de diretórios
+ 
+```
+Sistema_Confeitaria/
+├── app/
+│   ├── controllers/      # rotas: acesso (login e cadastro), loja (cliente), painel (área interna), sessao
+│   ├── models/           # entidades do DER e regras de negócio; contratos (Protocols) e enumerações
+│   ├── services/         # casos de uso e adaptadores das APIs externas (Pix, IA, e-mail)
+│   ├── repositories/     # acesso ao PostgreSQL, uma classe por agregado
+│   ├── validators/       # validação de campos, senhas e prazos
+│   ├── conhecimento/     # regras de reposição usadas pelo Assistente IA (Markdown)
+│   ├── templates/        # páginas Jinja2: acesso/, loja/, painel/ e componentes compartilhados
+│   ├── static/           # CSS, imagens e fotos dos produtos
+│   ├── config.py         # configuração lida do .env (aplicação e testes)
+│   ├── exceptions.py     # hierarquia de exceções do domínio
+│   └── __init__.py       # fábrica da aplicação (create_app)
+├── db/
+│   ├── init/             # script de criação do banco, gerado a partir do DER
+│   └── update/           # migrações numeradas, aplicadas em ordem
+├── docs/                 # modelos UML e DER (Visual Paradigm) e guia de desenvolvimento
+├── tests/
+│   ├── models/  services/  validators/   # testes sem banco
+│   ├── db/               # testes de repositório e dados de demonstração (DB_fill.sql)
+│   ├── rotas/            # testes das rotas e matriz de acesso
+│   └── falsos.py         # dublês dos serviços externos
+├── docker-compose.yml    # PostgreSQL para desenvolvimento
+├── requirements.txt      # dependências Python com versões fixadas
+├── pytest.ini
+└── run.py                # ponto de entrada da aplicação
+```
 
-**Nomes**
-- Classes: `PascalCase` (`OpcaoPersonalizacao`)
-- Métodos e funções: `camelCase` (`adicionarEndereco`)
-- Variáveis, atributos e propriedades: `snake_case` (`custo_adicional`)
-- Constantes: `MAIUSCULAS` (`TAMANHO_MINIMO`)
-- Arquivos e pastas: `snake_case` (`opcao_personalizacao.py`)
-- Nome começando com `_` = uso interno da classe; não acessar de fora.
+## Documentação complementar
+ 
+| Documento | Conteúdo |
+|---|---|
+| `docs/Sistema Confeitaria.vpp` | Modelagem no Visual Paradigm (DER, diagrama de classes e casos de uso). O DER é a referência para qualquer alteração no banco |
+| [`docs/desenvolvimento.md`](docs/desenvolvimento.md) | Convenções de código, processo de alteração do banco e fluxo de versionamento da equipe |
+| [`app/conhecimento/reposicao.md`](app/conhecimento/reposicao.md) | Regras de reposição aplicadas pelo Assistente IA |
 
-**Orientação a objetos**
-- Não usamos `if/elif/else`. No lugar, usamos polimorfismo (cada classe responde do seu jeito),
-  tabelas (`dict`/`Enum`) e a função `garantir(condicao, erro)` para validações.
-  Única exceção: `if TYPE_CHECKING:` (recurso de tipagem, não é regra de negócio).
-- Entidades ficam em `app/models`, um arquivo por tabela do DER. Partes que só existem dentro de outra entidade também têm arquivo próprio e se referenciam por dicas de tipo.
-- Importações sempre absolutas: `from app.models import Cliente`.
-
-**Regras que não podem ser quebradas**
-- Todo dado que entra passa por `Validador` (`app/validators/campos.py`).
-  Erros usam as exceções de `app.exceptions`.
-- Dinheiro é `Decimal` (via `Validador.dinheiro`), **nunca `float`**.
-- A senha nunca é guardada em texto: use `Senha.criar(...)`. Só o hash vai para o banco.
-- O CPF só é lido por `obterCpf(solicitante)`, que confere a permissão.
-- Regra de negócio não fica em controller nem em repository.
-
-**Comentários**
-- Toda classe e função tem docstring (`"""..."""`) dizendo o que faz e por quê.
-- Uso de `#` para explicar sintaxe ou lógica que não é óbvia, escrito em português.
-
-## Versionamento
-
-### Novo ciclo de desenovolvimento:
-
-- `git switch nome-da-branch` Para trocar de branch.
-- `git pull` Para puxar a ultima atualização da branch.
-- `git switch -c funcionalidade/nome-da-funcionalidade-nova` Cria uma nova banch e troca automatico pra ela.
-- `git push -u origin funcionalidade/nome-da-funcionalidade-nova` Manda para o github sua nova branch.
-
-### Dia a dia depois de iniciar o novo ciclo:
-- `git add .` Para adicionar todos os arquivos (menos do .gitignore) para serem comitados.
-- `git commit -m "Escreve o que foi feito"` Comita as ultimas modificações.
-- `git push` Posta as atualizações online no github. O git add e git commit estavam apenas locais na maquina.
-
-### Fim do desenvolvimento da funcionalidade
-- `git status` Para conferir se não ficou nada sem commit.
-  -  Se tiver, faz `git add .` depois `git commit` e por fim `git push`.
-
-No site:
-- No GitHub, abrir um **Pull Request** da `funcionalidade/nome-da-funcionalidade-nova` para a `main` e pedir revisão.
-
-  - Terminal:
-    - Se pedirem ajustes: fazer as alterações e repetir `git add .` depois `git commit -m "Escreve o que mudou"` e `git push`. O Pull Request atualiza sozinho.
-  
-    - Se a `main` mudou enquanto o PR estava aberto(tentar não fazer isso):
-      - `git fetch origin` Baixa as atualizações do GitHub sem mexer nos seus arquivos.
-      - `git merge origin/main` Traz a `main` atualizada para dentro da sua branch (resolver conflitos, se tiver).
-      - `git push` Manda a branch atualizada para o PR.
-  
-- Depois de aprovado, fazer o merge no GitHub usando **"Create a merge commit"** (não usar squash!!!, manter visivel os comits).
-- Clicar em **"Delete branch"** no próprio PR para apagar a branch no GitHub.
-
-Por fim, de volta ao terminal:
-- `git switch main` Volta para a `main`.
-- `git pull` Puxa a `main` já com a funcionalidade nova.
-- `git branch -d funcionalidade/nome-da-funcionalidade-nova` Apaga a branch local (só apaga se já tiver sido mergeada).
-- `git fetch --prune` Limpa as referências de branches que já foram apagadas no GitHub.
-- Volta para o **Novo ciclo de desenvolvimento**.
-
-## Equipe
-
-- Anna Cecília Garcia
-- Iarlo Henrique Drumond Pires Pascoal
+## Autoria
+ 
+Desenvolvido por:
+ 
+- **Anna Cecília Garcia** · [@folkcean](https://github.com/folkcean)
+- **Iarlo Henrique Drumond Pires Pascoal** · [@iarloo](https://github.com/iarloo)
