@@ -69,6 +69,45 @@ O DER no Visual Paradigm é a fonte da verdade do banco. Toda alteração começ
 - Nunca edite um arquivo de `db/update/` que já foi commitado. Para corrigir algo, crie um novo.
 - Depois de um `git pull` que trouxe arquivos novos em `db/update/`, aplique cada um, em ordem, com o comando do passo 5.
 - Cada arquivo deve ser aplicado **uma única vez** em cada banco.
+
+## Assistente IA (Groq)
+ 
+Aba **Assistente IA** do painel (só a administradora com acesso financeiro). Ela sugere o que repor (quanto, até quando e por quê) e responde perguntas sobre estoque, compras, pedidos e vendas.
+ 
+Como funciona: a cada clique, o sistema roda 3 consultas **somente leitura** (insumos, pedidos em aberto
+e vendas por semana), junta com as regras de `app/conhecimento/reposicao.md` e manda para uma API de IA
+no formato *chat completions*. A IA **não acessa o banco** e **nenhum dado pessoal de cliente** vai na
+mensagem. Abrir a aba não chama a IA: só os botões chamam.
+ 
+### Ligar a IA
+1. Crie a conta em https://console.groq.com (plano Free, sem cartão).
+2. **API Keys → Create API Key**. Copie na hora (começa com `gsk_` e só aparece uma vez).
+3. No seu `.env` (sem aspas):
+```
+IA_URL_BASE=https://api.groq.com/openai/v1
+IA_CHAVE=gsk_...
+IA_MODELO=openai/gpt-oss-120b
+```
+4. Reinicie o `flask run`. Sem a chave o app sobe normalmente; só a aba avisa que falta a `IA_CHAVE`.
+### Mudar as regras sem mexer no código
+As regras (ponto de pedido, prioridade, quanto comprar, horizonte de 14 dias...) ficam em
+`app/conhecimento/reposicao.md`. O arquivo é lido a cada clique: salve e clique de novo, sem reiniciar.
+ 
+### Trocar de provedor
+Qualquer API compatível com o formato da OpenAI serve; só o `.env` muda. Ex.: Gemini, com
+`IA_URL_BASE=https://generativelanguage.googleapis.com/v1beta/openai`, a chave do Google AI Studio e um
+modelo Flash atual. Atenção: no plano grátis do Gemini o Google pode usar o que vocês mandam; por isso
+a Groq é o padrão.
+ 
+### Limites do plano Free (openai/gpt-oss-120b)
+30 requisições por minuto, 1.000 por dia e 8 mil tokens por minuto. Um clique gasta uns 3,5 mil.
+Dois cliques seguidos no mesmo minuto podem dar `429`: espere alguns segundos.
+ 
+### Testes
+Nenhum teste chama a internet: os testes de rota usam o `ModeloFalso` (`tests/falsos.py`) e o
+`ConfigTeste` apaga a `IA_CHAVE`. Testes da IA: `tests/db/test_contextoIARepositorio.py`,
+`tests/services/test_recomendador_ia.py` e `tests/rotas/test_painel_ia.py`.
+
 ## Estrutura do Projeto
 
 ```
@@ -101,6 +140,7 @@ sistema-confeitaria/
 │   ├── repositories/                # acesso ao banco, sem regra de negócio
 │   │   ├── base.py                  # RepositorioBase: conexão e transação
 │   │   ├── clientes_rep.py
+│   │   ├── contexto_ia_rep.py       # retrato do banco para a IA (3 SELECTs, somente leitura)
 │   │   ├── compras_rep.py
 │   │   ├── fornecedores_rep.py
 │   │   ├── funcionarios_rep.py
@@ -117,10 +157,14 @@ sistema-confeitaria/
 │   │   ├── baixa_estoque.py         # desconta os insumos do pedido na confirmação (tudo ou nada)
 │   │   ├── compra_insumo_service.py # compra de insumos
 │   │   ├── controle_login.py        # bloqueio por tentativas
+│   │   ├── gateway_ia.py            # GatewayIA: POST /chat/completions (Groq ou outro provedor)
 │   │   ├── conversor_unidades.py    # conversão entre unidades-padrão (kg<->g, l<->ml)
 │   │   ├── pedido_service.py        # Carrinho e PedidoService: criar, confirmar (baixa o estoque), cancelar
 │   │   ├── pedidos.py               # serviço de pedidos usado pelas rotas
-│   │   └── precificacao.py          # CalculadoraPreco: custo, margem, personalização e taxa de entrega
+│   │   ├── precificacao.py          # CalculadoraPreco: custo, margem, personalização e taxa de entrega
+│   │   └── recomendador_ia.py       # RecomendadorIA: regras do .md + contexto + esquema da resposta
+│   ├── conhecimento/
+│   │   └── reposicao.md             # as regras da IA (lidas a cada clique)
 │   ├── templates/
 │   ├── validators/                  # validação de dados; não conhece nenhuma entidade
 │   │   ├── __init__.py

@@ -1,0 +1,149 @@
+{#
+  painel/ia.html  (Assistente IA: só administradora com acesso financeiro, porque o contexto leva custos)
+  Rotas:
+    painel.ia                GET  /painel/ia                  abre a aba (NÃO chama a IA)
+    painel.iaRecomendacoes   POST /painel/ia/recomendacoes    gera a lista do que repor
+    painel.iaPergunta        POST /painel/ia/pergunta         pergunta livre ou atalho
+
+  Variáveis:
+    modelo           texto: o IA_MODELO do .env (aparece na nota do rodapé)
+    opcoes_insumo    lista de pares (nome, nome) dos insumos ativos, para o <select>
+    atalhos          {chave: texto} das perguntas prontas (ATALHOS_IA, em painel.py)
+    resultado        (opcional) o dicionário da IA, no formato do ESQUEMA_RECOMENDACOES:
+                       resumo          texto
+                       recomendacoes   lista; cada item tem insumo, prioridade (alta | media),
+                                       comprar (número), unidade, pedir_ate (AAAA-MM-DD ou ""),
+                                       fornecedor ("" = sem histórico), motivo e fatores (lista)
+                       avisos          lista de textos (o que faltou e o que a IA supôs)
+    pergunta         (opcional) o texto que foi para a IA
+    resposta         (opcional) a resposta da IA, em texto puro
+
+
+#}
+
+{% extends "painel/base.html" %}
+{% import "/_icones.html" as i %}
+{% import "/_macros.html" as m %}
+{# "with context": as macros de formulário leem request.form (mantém o que foi escolhido) #}
+{% import "/_formularios.html" as f with context %}
+
+{% set menu_ativo = "ia" %}
+
+{# Prioridade que a IA devolve -> texto e cor do selo (os tons existem no base.css) #}
+{% set PRIORIDADE = {
+  "alta":  {"rotulo": "Alta",  "tom": "erro"},
+  "media": {"rotulo": "Média", "tom": "aviso"},
+} %}
+
+{% block titulo %}Assistente IA{% endblock %}
+
+{% block conteudo %}
+    <p class="painel-saudacao">O assistente lê o estoque, as compras e os pedidos e sugere o que repor. Ele só
+        recomenda: quem decide e registra a compra é você.</p>
+
+    {# Desktop: recomendações à esquerda (1,6) e pergunta à direita (1). Celular: um embaixo do outro #}
+    <div class="grade-painel">
+
+        {# ============================ O QUE REPOR ============================ #}
+        <section class="bloco" aria-labelledby="titulo-repor">
+            <div class="bloco__topo">
+                <h2 id="titulo-repor">O que repor</h2>
+                <form method="post" action="{{ url_for('painel.iaRecomendacoes') }}">
+                    {{ m.csrf() }}
+                    <button class="botao" type="submit">
+                        {{ i.icone("estrela") }} {{ "Gerar de novo" if resultado else "Gerar recomendações" }}
+                    </button>
+                </form>
+                <p>Usa o saldo, o consumo dos últimos 30 dias, as compras a caminho e os pedidos em aberto. A
+                    resposta leva alguns segundos.</p>
+            </div>
+
+            {% if resultado %}
+                <p class="resumo-ia">{{ resultado.resumo }}</p>
+
+                {% if resultado.recomendacoes %}
+                    <ul class="recomendacoes">
+                        {% for item in resultado.recomendacoes %}
+                            <li class="recomendacao">
+                                <div class="recomendacao__topo">
+                                    <strong>{{ item.insumo }}</strong>
+                                    {{ m.selo(PRIORIDADE, item.prioridade) }}
+                                </div>
+                                <p class="recomendacao__compra">
+                                    {% if item.comprar %}
+                                        Comprar <strong>{{ m.quantidade(item.comprar, item.unidade, 2) }}</strong>
+                                    {% else %}
+                                        {# comprar 0: abaixo do mínimo, mas a compra a caminho resolve (regra 5 do .md) #}
+                                        Não precisa comprar: acompanhe a entrega
+                                    {% endif %}
+                                    {# A IA manda AAAA-MM-DD: inverte para DD/MM/AAAA #}
+                                    {% if item.pedir_ate %} · pedir até {{ item.pedir_ate.split("-")|reverse|join("/") }}{% endif %}
+                                    {% if item.fornecedor %} · {{ item.fornecedor }}{% endif %}
+                                </p>
+                                {# O "por quê": o motivo é o título; aberto, mostra cada número com a conta #}
+                                <details class="expansivel">
+                                    <summary>{{ i.icone("info") }} {{ item.motivo }}</summary>
+                                    <ul class="expansivel__conteudo">
+                                        {% for fator in item.fatores %}
+                                            <li>{{ fator }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </details>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    {{ m.vazio("ok", "Nada para repor agora", "Nenhum insumo chegou ao ponto de pedido. Gere de novo depois de registrar pedidos ou compras.") }}
+                {% endif %}
+
+                {# Avisos: dados que faltaram e o que a IA supôs (ex.: prazo de 3 dias sem histórico) #}
+                {% for aviso in resultado.avisos %}
+                    <p class="nota-bloco">{{ aviso }}</p>
+                {% endfor %}
+            {% else %}
+                {{ m.vazio("estrela", "Nenhuma recomendação gerada ainda", "Clique em Gerar recomendações. A lista mostra o que comprar, quanto, até quando e o porquê de cada item.") }}
+            {% endif %}
+        </section>
+
+        {# ========================== PERGUNTE À IA ========================== #}
+        <section class="bloco" aria-labelledby="titulo-pergunta">
+            <h2 id="titulo-pergunta">Pergunte à IA</h2>
+            <p class="bloco__nota">Sobre estoque, compras, pedidos e vendas.</p>
+
+            <form class="pergunta-ia" method="post" action="{{ url_for('painel.iaPergunta') }}">
+                {{ m.csrf() }}
+
+                {# Atalhos: cada botão manda só a chave (name="atalho"); o texto sai do ATALHOS_IA, no Python.
+                   formnovalidate: o atalho funciona mesmo com os campos abaixo vazios #}
+                <div class="escolhas atalhos-ia" role="group" aria-label="Perguntas prontas">
+                    {% for chave, texto in atalhos.items() %}
+                        <button class="escolha" type="submit" name="atalho" value="{{ chave }}" formnovalidate>{{ texto }}</button>
+                    {% endfor %}
+                </div>
+
+                {{ f.selecao("insumo", "Sobre qual insumo?", opcoes_insumo, vazio="Todos os insumos", opcional=true,
+                             dica="Escolha um insumo e clique em Perguntar sem escrever nada para ver a explicação dele.") }}
+
+                {{ f.area("pergunta", "Ou escreva a sua pergunta", dicionarios=3, opcional=true, maxlength=500,
+                          placeholder="Ex.: Tenho farinha para os pedidos de sábado?") }}
+
+                <button class="botao" type="submit">Perguntar</button>
+            </form>
+
+            {% if resposta %}
+                {# aria-live: leitores de tela anunciam a resposta quando a página volta #}
+                <div class="resposta-ia" aria-live="polite">
+                    <p class="resposta-ia__pergunta"><strong>Você perguntou:</strong> {{ pergunta }}</p>
+                    <p class="resposta-ia__texto">{{ resposta }}</p>
+                </div>
+            {% endif %}
+
+            {# Transparência: o que sai do sistema a cada clique #}
+            <p class="nota-bloco">
+                Vai para a IA ({{ modelo }}): insumos, compras a caminho, pedidos em aberto sem nenhum dado de
+                cliente e vendas por semana. A IA não acessa o banco e pode errar uma conta: confira os
+                fatores antes de comprar.
+            </p>
+        </section>
+    </div>
+{% endblock %}

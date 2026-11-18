@@ -11,10 +11,11 @@ from pathlib import Path
 from flask import Blueprint, render_template, request, flash, redirect, url_for, abort, current_app
 
 from app.controllers.sessao import conferirEquipe, soAdmin, usuarioLogado
-from app.exceptions import ValidacaoError, AcessoNegadoError, EstoqueInsuficienteError
+from app.exceptions import ValidacaoError, AcessoNegadoError, EstoqueInsuficienteError, GatewayIAError
 from app.models import Insumo, Estoque, Perfil, Produto, OpcaoPersonalizacao, Cliente, Senha, Receita, \
     ItemReceita, Funcionario, StatusPedido, Fornecedor
 from app.repositories.clientes_rep import RepositorioClientes
+from app.repositories.contexto_ia_rep import RepositorioContextoIA
 from app.repositories.compras_rep import RepositorioCompras
 from app.repositories.conexao_rep import obterConexao
 from app.repositories.fornecedores_rep import RepositorioFornecedores
@@ -28,6 +29,7 @@ from app.repositories.usuarios_rep import RepositorioUsuarios
 from app.services.compra_insumo_service import ServicoCompras
 from app.services.pedidos import valoresDoPedido
 from app.services.precificacao import CalculadoraPreco
+from app.services.recomendador_ia import RecomendadorIA
 from app.validators.campos import garantir, Validador
 from app.validators.senha import ValidadorSenha
 
@@ -1695,6 +1697,101 @@ ABAS_RELATORIO = {
     "produtos": _abaProdutos,
     "insumos": _abaInsumos,
 }
+
+
+# Assistente IA (só administradora com acesso financeiro, porque o contexto leva custos)
+# Fluxo: a rota monta o retrato do banco (somente leitura) -> o Administrador confere a permissão ->
+# o RecomendadorIA junta as regras do reposicao.md + o retrato em JSON -> a GatewayIA chama a API de fora
+repo_contexto_ia = RepositorioContextoIA(obterConexao)
+
+# O "claude.md" da IA: as regras de reposição ficam nesse arquivo, fora do código
+INSTRUCOES_IA = Path(__file__).resolve().parent.parent / "conhecimento" / "reposicao.md"
+
+# Perguntas prontas (botões da tela). O formulário manda só a CHAVE; o texto sai daqui, então
+# ninguém consegue mandar outro texto fingindo ser um atalho
+ATALHOS_IA = {
+    "faltar": "O que vai faltar para os pedidos desta semana?",
+    "vendas": "Como foram as vendas nas últimas semanas? Algum produto subiu ou caiu?",
+    "gasto": "Quanto devo gastar, mais ou menos, com as compras de reposição desta semana?",
+}
+
+# Pergunta usada quando a dona escolhe um insumo e não escreve nada
+PERGUNTA_SOBRE_INSUMO = "Explique a situação deste insumo: saldo, consumo, o que está reservado e quando comprar."
+
+
+def _recomendadorIA():
+    """Lê as instruções a cada uso: mudar uma regra no .md vale na próxima chamada, sem reiniciar o app"""
+    # current_app.extensions["ia"]: GatewayIA no app; ModeloFalso nos testes (tests/rotas/conftest.py)
+    return RecomendadorIA(current_app.extensions["ia"], INSTRUCOES_IA.read_text(encoding="utf-8"))
+
+
+def _telaIA(**variaveis):
+    """
+    Renderiza a aba com o que a rota tiver (resultado, pergunta, resposta)
+    `opcoes_insumo` vai sempre: são os pares (valor, texto) do <select> "Sobre qual insumo?"
+    """
+    opcoes_insumo = [(insumo.nome, insumo.nome) for insumo in _insumosAtivos()]
+    return render_template("painel/ia.html", modelo=current_app.config["IA_MODELO"],
+                           opcoes_insumo=opcoes_insumo, atalhos=ATALHOS_IA, **variaveis)
+
+
+def _perguntaDoFormulario():
+    """
+    O texto que vai para a IA, nesta ordem:
+      1. o atalho clicado (texto da tabela ATALHOS_IA);
+      2. o que a dona digitou;
+      3. com um insumo escolhido e nada digitado, a PERGUNTA_SOBRE_INSUMO.
+    Com um insumo escolhido, a pergunta ganha o foco nele ("Sobre o insumo X: ...")
+    """
+    atalho = ATALHOS_IA.get(request.form.get("atalho", ""), "")
+    insumo = request.form.get("insumo", "").strip()
+    # `or` em cadeia, sem if: fica o primeiro texto que não for vazio
+    pergunta = atalho or request.form.get("pergunta", "").strip() or (insumo and PERGUNTA_SOBRE_INSUMO)
+    # `and`: só põe o foco quando há insumo E pergunta; senão devolve a pergunta como está ("" se vazia)
+    return (insumo and pergunta and f"Sobre o insumo {insumo}: {pergunta}") or pergunta
+
+
+@painel.get("/ia")
+@soAdmin
+def ia():
+    """A aba do assistente: botão de recomendações e caixa de pergunta (nada vai para a IA ao abrir)"""
+    _exigirAcessoFinanceiro()
+    return _telaIA()
+
+
+@painel.post("/ia/recomendacoes")
+@soAdmin
+def iaRecomendacoes():
+    """Manda o retrato do banco para a IA e mostra o que repor"""
+    # Confere antes de montar o contexto: sem permissão, nem consulta o banco
+    _exigirAcessoFinanceiro()
+    try:
+        # O Administrador também confere o acesso financeiro (regra do model, diagrama de classes)
+        resultado = usuarioLogado().gerarRelatorioReposicao(_recomendadorIA(), repo_contexto_ia.montar())
+    except GatewayIAError as erro:
+        flash(str(erro), "erro")
+        # 502 (Bad Gateway): quem falhou foi a API de fora, não o pedido da dona
+        return _telaIA(), 502
+    return _telaIA(resultado=resultado)
+
+
+@painel.post("/ia/pergunta")
+@soAdmin
+def iaPergunta():
+    """Pergunta livre (ou atalho) sobre estoque, compras, pedidos e vendas"""
+    _exigirAcessoFinanceiro()
+    pergunta = _perguntaDoFormulario()
+    try:
+        # perguntar() valida: vazia ou com mais de 500 caracteres vira ValidacaoError, sem chamar a IA
+        resposta = _recomendadorIA().perguntar(repo_contexto_ia.montar(), pergunta)
+    except ValidacaoError as erro:
+        flash(str(erro), "erro")
+        # 400: o problema está no que foi enviado
+        return _telaIA(pergunta=pergunta), 400
+    except GatewayIAError as erro:
+        flash(str(erro), "erro")
+        return _telaIA(pergunta=pergunta), 502
+    return _telaIA(pergunta=pergunta, resposta=resposta)
 
 EXTENSOES_FOTO = (".jpg", ".jpeg", ".png", ".webp")
 

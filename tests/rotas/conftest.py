@@ -14,7 +14,7 @@ from app import create_app
 from app.config import ConfigTeste
 from app.repositories.usuarios_rep import RepositorioUsuarios
 from app.services.verificacao_email import VerificacaoEmail
-from tests.falsos import EnviadorFalso, GatewayFalso
+from tests.falsos import EnviadorFalso, GatewayFalso, ModeloFalso
 
 # O mesmo DB_fill.sql da fixture `seed` (tests/conftest.py)
 SEED = Path(__file__).resolve().parent.parent / "db" / "DB_fill.sql"
@@ -52,6 +52,8 @@ def app_com_a_conexao_de_teste(conexao):
     aplicacao = create_app(ConfigTeste)
     # Gateway de pagamento em memória: nenhum teste de rota chama a AbacatePay de verdade
     aplicacao.extensions["pagamentos"] = GatewayFalso()
+    # API de IA em memória: nenhum teste de rota chama a Groq (os testes pegam o falso em extensions["ia"])
+    aplicacao.extensions["ia"] = ModeloFalso()
 
     # E-mail em memória: nenhum teste de rota envia e-mail de verdade nem escreve no terminal
     enviador = EnviadorFalso()
