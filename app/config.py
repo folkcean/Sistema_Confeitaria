@@ -55,7 +55,8 @@ class Config:
     # "sim" liga o STARTTLS (criptografia). Servidor de teste local (Mailpit) usa "nao"
     EMAIL_SMTP_TLS = os.getenv("EMAIL_SMTP_TLS", "sim").strip().lower() == "sim"
     EMAIL_REMETENTE = os.getenv("EMAIL_REMETENTE", "Dolce Bea <noreply@localhost>")
-    
+
+
 class ConfigTeste(Config):
     """
     Configuração dos testes: herda tudo e liga o modo de teste do Flask
@@ -68,3 +69,13 @@ class ConfigTeste(Config):
 
     # Os testes nunca chamam a API de IA de verdade (nem gastam o limite grátis), mesmo com a chave no .env
     IA_CHAVE = ""
+
+
+class ConfigProducao(Config):
+    """
+    Configuração de produção: herda tudo e exige HTTPS no cookie da sessão
+    """
+
+    # Com Secure ligado o navegador só envia o cookie da sessão por HTTPS.
+    # Em http:// ele simplesmente não é enviado, e o login não persiste
+    SESSION_COOKIE_SECURE = True

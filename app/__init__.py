@@ -11,6 +11,8 @@ from app.services.carrinho import Carrinho
 from app.services.gateway_abacatepay import GatewayAbacatePay
 from app.services.envio_email import criarEnviador
 from app.services.verificacao_email import VerificacaoEmail
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 
 def paginaNaoEncontrada(erro):
     """404: endereço que não existe (ou abort(404) numa rota)"""
@@ -42,6 +44,8 @@ def create_app(config=Config):
     """Cria o app com a configuração recebida (a de teste troca só isso)"""
     app = Flask(__name__)
     app.config.from_object(config)
+
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     # Import aqui dentro: os controllers importam coisas de `app`;
     # no topo do arquivo, um importaria o outro antes de terminar de carregar

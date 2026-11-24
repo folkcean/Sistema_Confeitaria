@@ -3,21 +3,53 @@ services:
     image: postgres:18
     restart: unless-stopped
     environment:
-      #Diz quais são as credenciais
       POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}   #Vai procurar no .env
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+      TZ: America/Sao_Paulo
+    command: [ "postgres", "-c", "timezone=America/Sao_Paulo" ]
     volumes:
-      - pgdata:/var/lib/postgresql #Diretorio onde o banco de dados está armazenado
-      - ./db/init:/docker-entrypoint-initdb.d:ro   #Diretorio onde os scripts the inicialização estão guardados.
+      - pgdata:/var/lib/postgresql
+      - ./db/init:/docker-entrypoint-initdb.d:ro
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
-      #Teste de integridade.
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
       interval: 5s
       timeout: 3s
       retries: 10
 
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db          # sobrescreve o localhost do .env
+      POSTGRES_PORT: 5432
+      TZ: America/Sao_Paulo
+    volumes:
+      - fotos:/app/app/static/fotos
+    expose:
+      - "8000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
 volumes:
   pgdata:
+  fotos:
+  caddy_data:
+  caddy_config:
