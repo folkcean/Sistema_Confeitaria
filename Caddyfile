@@ -1,4 +1,4 @@
-:80 {
+dolcebea.com {
     encode zstd gzip
 
     request_body {
