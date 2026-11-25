@@ -56,27 +56,35 @@ def test_sugestao_de_compras_traz_o_tipo(estoque, caixa):
 
 
 # CONSUMO TUDO OU NADA
-def test_consumir_desconta_na_unidade_de_estoque(estoque, farinha, leite_condensado):
+def test_consumir_desconta_na_unidade_da_receita(estoque, farinha, leite_condensado):
+    # O saldo fica na unidade da RECEITA: 10 kg = 10000 g; 40 latas = 15800 g
+    farinha.ajustarPara(10000, "contagem em gramas")
+    leite_condensado.ajustarPara(15800, "contagem em gramas")
     movs = estoque.consumir([(farinha, 300), (leite_condensado, 395)], id_pedido=7)
-    assert farinha.quantidade_atual == Decimal("9.7")
-    assert leite_condensado.quantidade_atual == 39
+    assert farinha.quantidade_atual == Decimal("9700")
+    assert leite_condensado.quantidade_atual == Decimal("15405")
     assert len(movs) == 2 and all(m.id_pedido == 7 for m in movs)
 
 
 def test_consumir_soma_o_mesmo_insumo_repetido(estoque, farinha):
+    # O saldo fica na unidade da RECEITA: 10 kg = 10000 g; 40 latas = 15800 g
+    farinha.ajustarPara(10000, "contagem em gramas")
     movs = estoque.consumir([(farinha, 300), (farinha, 200)])
     assert len(movs) == 1  # um registro por insumo
-    assert farinha.quantidade_atual == Decimal("9.5")
+    assert farinha.quantidade_atual == Decimal("9500")
 
 
 def test_consumir_e_tudo_ou_nada(estoque, farinha, leite_condensado):
-    leite_condensado.ajustarPara(1, "contagem")  # só 1 lata
+    # O saldo fica na unidade da RECEITA: 10 kg = 10000 g; 40 latas = 15800 g
+    farinha.ajustarPara(10000, "contagem em gramas")
+    leite_condensado.ajustarPara(395, "contagem")  # só 1 lata (395 g)
     with pytest.raises(EstoqueInsuficienteError) as erro:
-        estoque.consumir([(farinha, 300), (leite_condensado, 1000)])  # 1000 g = 2,532 latas
-    assert farinha.quantidade_atual == 10  # a farinha NÃO foi descontada
-    assert leite_condensado.quantidade_atual == 1
+        estoque.consumir([(farinha, 300), (leite_condensado, 1000)])
+    assert farinha.quantidade_atual == 10000  # a farinha NÃO foi descontada
+    assert leite_condensado.quantidade_atual == 395
     assert [f["insumo"] for f in erro.value.faltas] == ["Leite condensado"]
-    assert erro.value.faltas[0]["faltam"] == Decimal("1.532")
+    assert erro.value.faltas[0]["faltam"] == Decimal("605")
+    assert erro.value.faltas[0]["unidade"] == "g"
 
 
 def test_faltas_somam_o_total_do_mesmo_insumo(estoque, farinha):
@@ -87,16 +95,20 @@ def test_faltas_somam_o_total_do_mesmo_insumo(estoque, farinha):
 
 
 def test_verificar_disponibilidade_nao_altera_o_estoque(estoque, farinha):
+    # O saldo fica na unidade da RECEITA: 10 kg = 10000 g; 40 latas = 15800 g
+    farinha.ajustarPara(10000, "contagem em gramas")
     faltas = estoque.verificarDisponibilidade([(farinha, 12000)])
-    assert faltas[0]["faltam"] == Decimal("2")
-    assert farinha.quantidade_atual == 10
+    assert faltas[0]["faltam"] == Decimal("2000")
+    assert farinha.quantidade_atual == 10000
     assert estoque.verificarDisponibilidade([(farinha, 1000)]) == []
 
 
 # ENTRADAS, PERDAS, AJUSTES
-def test_receber_da_entrada_em_varios_itens(estoque, farinha, leite_condensado):
+def test_receber_converte_da_unidade_de_compra_para_a_da_receita(estoque, farinha, leite_condensado):
+    # Compra em kg e em latas; o saldo soma em gramas (fator 1000 e 395)
     movs = estoque.receber([(farinha, 5), (leite_condensado, 10)], id_compra=3)
-    assert farinha.quantidade_atual == 15 and leite_condensado.quantidade_atual == 50
+    assert farinha.quantidade_atual == 10 + 5000
+    assert leite_condensado.quantidade_atual == 40 + 3950
     assert all(m.id_compra == 3 for m in movs)
 
 

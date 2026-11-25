@@ -192,6 +192,8 @@ def test_escalar_no_formato_que_o_estoque_consome(massa, estoque, farinha, leite
     """
     Integração: o resultado de escalar() entra direto em Estoque.consumir()
     """
+    farinha.ajustarPara(10000, "contagem em gramas")            # saldo na unidade da receita
+    leite_condensado.ajustarPara(15800, "contagem em gramas")   # 40 latas x 395 g
     estoque.consumir(massa.escalar(2))
-    assert farinha.quantidade_atual == Decimal("9.400")        # 10 kg - 600 g
-    assert leite_condensado.quantidade_atual == Decimal("38.000")   # 40 - 2 latas
+    assert farinha.quantidade_atual == Decimal("9400")         # 10000 g - 600 g
+    assert leite_condensado.quantidade_atual == Decimal("15010")    # 15800 g - 2 latas (790 g)

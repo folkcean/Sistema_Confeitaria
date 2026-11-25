@@ -4,7 +4,7 @@ tests/services/test_pedido_service.py
 TESTES DO PedidoService (app / services / pedido_service.py) e do Carrinho
 Meta da s5: "um pedido é criado, pago, confirmado, baixa o estoque e é finalizado".
 
-Cenário: ver tests / services / conftest.py (1 bolo = 0,5 kg de farinha + 1 lata de leite; estoque 10 kg e 40 latas)
+Cenário: ver tests / services / conftest.py (1 bolo = 500 g de farinha + 395 g de leite; estoque 10000 g e 15800 g)
 O preço do bolo vem da CalculadoraPreco (multiplicador 2,5 sobre o custo)
 
 Como rodar só esse arquivo:   pytest tests/services/test_pedido_service.py -v
@@ -140,21 +140,21 @@ def test_confirmar_baixa_estoque_e_muda_status(servico, pedido, farinha, leite):
     movimentacoes = servico.confirmar(pedido)
     assert pedido.status is StatusPedido.CONFIRMADO
     assert len(movimentacoes) == 2
-    assert farinha.quantidade_atual == Decimal("9.000") and leite.quantidade_atual == Decimal("38.000")
+    assert farinha.quantidade_atual == Decimal("9000") and leite.quantidade_atual == Decimal("15010")
 
 
 def test_confirmar_sem_sinal_nao_baixa_estoque(servico, pedido, farinha):
     servico.enviarOrcamento(pedido)
     with pytest.raises(ValidacaoError, match="sinal"):
         servico.confirmar(pedido)
-    assert farinha.quantidade_atual == Decimal("10")
+    assert farinha.quantidade_atual == Decimal("10000")
     assert pedido.status is StatusPedido.ORCAMENTO
 
 
 def test_confirmar_fora_do_fluxo_nao_baixa_estoque(servico, pedido, farinha):
     with pytest.raises(TransicaoStatusError):
         servico.confirmar(pedido)
-    assert farinha.quantidade_atual == Decimal("10")
+    assert farinha.quantidade_atual == Decimal("10000")
 
 
 def test_confirmar_sem_insumo_recusa_com_explicacao(estoque, cliente, bolo, farinha):
@@ -166,7 +166,7 @@ def test_confirmar_sem_insumo_recusa_com_explicacao(estoque, cliente, bolo, fari
     with pytest.raises(PedidoSemEstoqueError, match="Farinha"):
         servico.confirmar(pedido)
     assert pedido.status is StatusPedido.ORCAMENTO
-    assert farinha.quantidade_atual == Decimal("10")
+    assert farinha.quantidade_atual == Decimal("10000")
 
 
 def test_confirmar_usa_a_transacao_e_salva_dentro_dela(estoque, cliente, carrinho):
@@ -251,5 +251,5 @@ def test_fluxo_completo_criado_pago_confirmado_baixa_e_finalizado(servico, pedid
     servico.avancar(pedido, StatusPedido.FINALIZADO)
     assert pedido.status is StatusPedido.FINALIZADO
     assert pedido.pagamento.quitado is True
-    assert farinha.quantidade_atual == Decimal("9.000")
-    assert leite.quantidade_atual == Decimal("38.000")
+    assert farinha.quantidade_atual == Decimal("9000")
+    assert leite.quantidade_atual == Decimal("15010")

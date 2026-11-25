@@ -27,9 +27,9 @@ class AlertaEstoque:
 
     @staticmethod
     def mensagem(insumo: Insumo) -> str:
-        """Texto do alerta de UM insumo. Ex.: 'Farinha: 2.000 kg em estoque (mínimo 3.000 kg)'"""
-        return (f"{insumo.nome}: {insumo.quantidade_atual} {insumo.unidade_medida} em estoque "
-                f"(mínimo {insumo.estoque_minimo} {insumo.unidade_medida})")
+        """Texto do alerta de UM insumo, na unidade da receita (a do saldo). Ex.: 'Farinha: 2000 g em estoque (mínimo 3000 g)'"""
+        return (f"{insumo.nome}: {insumo.quantidade_atual} {insumo.unidade_receita} em estoque "
+                f"(mínimo {insumo.estoque_minimo} {insumo.unidade_receita})")
 
     def alertas(self) -> list[str]:
         """Mensagens de todos os insumos ativos que estão no mínimo ou abaixo dele"""

@@ -106,7 +106,7 @@ class Estoque:
             {
                 "nome": insumo.nome,
                 "tipo": insumo.tipo.value,
-                "unidade": insumo.unidade_medida,
+                "unidade": insumo.unidade_receita,
                 "quantidade_atual": insumo.quantidade_atual,
                 "estoque_minimo": insumo.estoque_minimo,
                 "abaixo_do_minimo": insumo.abaixo_do_minimo,
@@ -131,7 +131,7 @@ class Estoque:
             {
                 "insumo": insumo.nome,
                 "tipo": insumo.tipo.value,
-                "unidade": insumo.unidade_medida,
+                "unidade": insumo.unidade_receita,
                 "quantidade_atual": insumo.quantidade_atual,
                 "estoque_minimo": insumo.estoque_minimo,
                 "falta_para_minimo": insumo.falta_para_minimo,
@@ -142,7 +142,7 @@ class Estoque:
     # Consumo por pedidos
     def _totaisPorInsumo(self, necessidades: Iterable[tuple[Insumo, Decimal]]) -> dict[str, Decimal]:
         """
-        Converte cada necessidade para a unidade de ESTOQUE e SOMA por insumo
+        SOMA cada necessidade por insumo, na unidade da RECEITA (a mesma em que o saldo é guardado)
  
         Somar antes de conferir é essencial: se o mesmo insumo aparece duas vezes, a conferência precisa
         considerar o total, e não cada pedaço separado (senão 2 consumos "cabem" e juntos estouram)
@@ -152,7 +152,7 @@ class Estoque:
         # `for insumo, quantidade in ...` desempacota cada par da lista em duas variáveis.
         for insumo, quantidade_receita in necessidades:
             self._exigirPertencente(insumo)
-            totais[insumo.nome] += insumo.paraUnidadeEstoque(quantidade_receita)
+            totais[insumo.nome] += Validador.quantidade(quantidade_receita, "quantidade na unidade da receita")
         return totais
  
     def _faltas(self, totais: dict[str, Decimal]) -> list[dict]:
@@ -162,7 +162,7 @@ class Estoque:
         linhas = [
             {
                 "insumo": nome,
-                "unidade": self._insumos[nome].unidade_medida,
+                "unidade": self._insumos[nome].unidade_receita,
                 "faltam": total - self._insumos[nome].quantidade_atual,
             }
             for nome, total in totais.items()
@@ -202,7 +202,8 @@ class Estoque:
         """
         Dá entrada em vários insumos (ex.: itens de uma compra recebida, quando o módulo de compras existir)
  
-        Cada item é (insumo, quantidade na UNIDADE DE ESTOQUE, a mesma em que se compra: kg, lata...)
+        Cada item é (insumo, quantidade na UNIDADE DE COMPRA: caixa, pacote, kg...).
+        O saldo é guardado na unidade da receita: cada quantidade é convertida pelo fator antes de somar
         Valida TODOS antes de aplicar, para não ficar uma entrada pela metade
         """
         # list(itens) guarda os pares numa lista, porque percorreremos duas vezes (um gerador só vale uma vez)
@@ -210,7 +211,8 @@ class Estoque:
         for insumo, quantidade in itens:
             self._exigirPertencente(insumo)
             Validador.quantidadePositiva(quantidade, "quantidade recebida")
-        return [insumo.registrarEntrada(quantidade, id_compra=id_compra) for insumo, quantidade in itens]
+        return [insumo.registrarEntrada(insumo.paraUnidadeReceita(quantidade), id_compra=id_compra)
+                for insumo, quantidade in itens]
  
     def registrarPerda(self, insumo: Insumo, quantidade, motivo: str) -> MovimentacaoEstoque:
         """

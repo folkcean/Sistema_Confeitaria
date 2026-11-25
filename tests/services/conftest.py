@@ -5,9 +5,10 @@ Fixures compartilhadas pelos testes de baixa de estoque, alerta e PedidoService 
 Este arquivo vale só para tests/services/ (não substitui o tests/conftest.py do banco)
 
 CENÁRIO (números fáceis de conferir):
-    estoque: farinha 10 kg (mínimo 3, fator 1000 g/kg) e leite condensado 40 latas (mínimo 40, 395 g/lata)
+    estoque: farinha 10 kg = 10000 g (mínimo 3000 g, fator 1000 g/kg) e leite condensado 40 latas = 15800 g
+             (mínimo 10 latas = 3950 g, 395 g/lata). O saldo fica na unidade da RECEITA (g)
     receita do bolo: rende 1 un e usa 500 g de farinha + 395 g de leite (1 lata)
-    1 bolo consome 0,500 kg de farinha e 1,000 lata de leite.
+    1 bolo consome 500 g de farinha e 395 g (1 lata) de leite.
 """
 from datetime import datetime
 
@@ -27,14 +28,14 @@ ENTREGA_OK = datetime(2026, 11, 10, 15, 0)
 
 @pytest.fixture
 def farinha():
-    return Insumo("Farinha", "kg", "g", fator_conversao=1000, quantidade_atual=10,
-                  estoque_minimo=3, custo_por_unidade=Decimal("8"))
+    return Insumo("Farinha", "kg", "g", fator_conversao=1000, quantidade_atual=10000,
+                  estoque_minimo=3000, custo_por_unidade=Decimal("8"))
 
 
 @pytest.fixture
 def leite():
-    return Insumo("Leite condensado", "lata", "g", fator_conversao=395, quantidade_atual=40,
-                  estoque_minimo=10, custo_por_unidade=Decimal("6.5"))
+    return Insumo("Leite condensado", "lata", "g", fator_conversao=395, quantidade_atual=15800,
+                  estoque_minimo=3950, custo_por_unidade=Decimal("6.5"))
 
 
 @pytest.fixture

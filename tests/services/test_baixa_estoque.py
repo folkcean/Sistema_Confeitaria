@@ -32,8 +32,8 @@ def test_necessidades_multiplicam_pela_quantidade(cliente, bolo, estoque):
 
 def test_executar_desconta_os_insumos(cliente, bolo, estoque, farinha, leite):
     BaixaEstoque(estoque).executar(pedidoDeBolos(cliente, bolo, 4))
-    assert farinha.quantidade_atual == Decimal("8.000")     # 10 - 4 x 0,5
-    assert leite.quantidade_atual == Decimal("36.000")      # 40 - 4 x 1
+    assert farinha.quantidade_atual == Decimal("8000")      # 10000 g - 4 x 500 g
+    assert leite.quantidade_atual == Decimal("14220")       # 15800 g - 4 x 395 g
 
 
 def test_executar_devolve_movimentacoes_ligadas_ao_pedido(cliente, bolo, estoque):
@@ -48,19 +48,19 @@ def test_executar_grava_cada_movimentacao(cliente, bolo, estoque):
     gravadas = []
     baixa = BaixaEstoque(estoque, lambda insumo, mov: gravadas.append((insumo.nome, mov.quantidade)))
     baixa.executar(pedidoDeBolos(cliente, bolo, 2))
-    assert sorted(gravadas) == [("Farinha", Decimal("1.000")), ("Leite condensado", Decimal("2.000"))]
+    assert sorted(gravadas) == [("Farinha", Decimal("1000")), ("Leite condensado", Decimal("790"))]
 
 
 def test_falta_de_insumo_recusa_sem_descontar_nada(cliente, bolo, estoque, farinha, leite):
     with pytest.raises(PedidoSemEstoqueError) as erro:
-        BaixaEstoque(estoque).executar(pedidoDeBolos(cliente, bolo, 30))   # leite: 30 ok; farinha: 15 kg > 10
-    assert farinha.quantidade_atual == Decimal("10")
-    assert leite.quantidade_atual == Decimal("40")
-    assert erro.value.faltas == [{"insumo": "Farinha", "unidade": "kg", "faltam": Decimal("5.000")}]
+        BaixaEstoque(estoque).executar(pedidoDeBolos(cliente, bolo, 30))   # leite: 11850 g ok; farinha: 15000 g > 10000 g
+    assert farinha.quantidade_atual == Decimal("10000")
+    assert leite.quantidade_atual == Decimal("15800")
+    assert erro.value.faltas == [{"insumo": "Farinha", "unidade": "g", "faltam": Decimal("5000")}]
 
 
 def test_mensagem_explica_o_que_falta_e_o_que_fazer(cliente, bolo, estoque):
-    with pytest.raises(PedidoSemEstoqueError, match="falta de insumos: Farinha \\(faltam 5.000 kg\\)") as erro:
+    with pytest.raises(PedidoSemEstoqueError, match="falta de insumos: Farinha \\(faltam 5000.000 g\\)") as erro:
         BaixaEstoque(estoque).executar(pedidoDeBolos(cliente, bolo, 30))
     assert "Reponha o estoque" in str(erro.value)
 
@@ -73,7 +73,7 @@ def test_pedido_sem_estoque_e_um_estoque_insuficiente(cliente, bolo, estoque):
 def test_verificar_nao_altera_estoque(cliente, bolo, estoque, farinha):
     faltas = BaixaEstoque(estoque).verificar(pedidoDeBolos(cliente, bolo, 30))
     assert len(faltas) == 1
-    assert farinha.quantidade_atual == Decimal("10")
+    assert farinha.quantidade_atual == Decimal("10000")
 
 
 def test_verificar_pedido_possivel_devolve_lista_vazia(cliente, bolo, estoque):
@@ -84,6 +84,6 @@ def test_itens_do_mesmo_produto_somam_antes_de_conferir(cliente, bolo, estoque, 
     pedido = Pedido(cliente, TipoEntrega.RETIRADA, ENTREGA_OK, data_criacao=CRIACAO)
     pedido.adicionarItem(ItemPedido(bolo, 12, 50, 20))
     pedido.adicionarItem(ItemPedido(bolo, 12, 50, 20, personalizacao="Parabéns"))
-    with pytest.raises(PedidoSemEstoqueError):       # cada item sozinho cabe (6 kg), juntos não (12 kg)
+    with pytest.raises(PedidoSemEstoqueError):       # cada item sozinho cabe (6000 g), juntos não (12000 g)
         BaixaEstoque(estoque).executar(pedido)
-    assert farinha.quantidade_atual == Decimal("10")
+    assert farinha.quantidade_atual == Decimal("10000")
