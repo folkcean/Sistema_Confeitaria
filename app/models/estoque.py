@@ -152,7 +152,7 @@ class Estoque:
         # `for insumo, quantidade in ...` desempacota cada par da lista em duas variáveis.
         for insumo, quantidade_receita in necessidades:
             self._exigirPertencente(insumo)
-            totais[insumo.nome] += insumo.paraUnidadeEstoque(quantidade_receita)
+            totais[insumo.nome] += Validador.quantidade(quantidade_receita, "quantidade na unidade da receita")
         return totais
  
     def _faltas(self, totais: dict[str, Decimal]) -> list[dict]:
@@ -162,7 +162,7 @@ class Estoque:
         linhas = [
             {
                 "insumo": nome,
-                "unidade": self._insumos[nome].unidade_medida,
+                "unidade": self._insumos[nome].unidade_receita,
                 "faltam": total - self._insumos[nome].quantidade_atual,
             }
             for nome, total in totais.items()
@@ -210,7 +210,7 @@ class Estoque:
         for insumo, quantidade in itens:
             self._exigirPertencente(insumo)
             Validador.quantidadePositiva(quantidade, "quantidade recebida")
-        return [insumo.registrarEntrada(quantidade, id_compra=id_compra) for insumo, quantidade in itens]
+        return [insumo.registrarEntrada(insumo.paraUnidadeReceita(quantidade), id_compra=id_compra) for insumo, quantidade in itens]
  
     def registrarPerda(self, insumo: Insumo, quantidade, motivo: str) -> MovimentacaoEstoque:
         """
