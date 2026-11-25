@@ -149,3 +149,25 @@ class RepositorioInsumos(RepositorioBase):
             )
         movimentacao.atribuirID(linha["id_movimentacao_estoque"])
         return movimentacao
+
+    def reexpressarUnidadeDaReceita(self, insumo, fator):
+        """
+        Grava o cadastro e converte, pelo mesmo fator, tudo que estava guardado na unidade
+        antiga da receita: as quantidades das receitas que usam este insumo e o histórico de
+        movimentações
+
+        Tudo numa transação só: ou insumo e receitas passam a falar a mesma unidade, ou
+        nada muda
+        """
+        with self._transacao():
+            self.salvar(insumo)
+            self._executar(
+                "UPDATE item_receita SET quantidade_necessaria = ROUND(quantidade_necessaria * %s, 3) "
+                "WHERE id_insumo = %s",
+                (fator, insumo.id),
+            )
+            self._executar(
+                "UPDATE movimentacao_estoque SET quantidade = ROUND(quantidade * %s, 3) "
+                "WHERE id_insumo = %s",
+                (fator, insumo.id),
+            )

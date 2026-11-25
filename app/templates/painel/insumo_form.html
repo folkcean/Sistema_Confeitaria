@@ -12,6 +12,8 @@
     estoque_minimo, custo_por_unidade, quantidade_atual (só no cadastro)
   Para mudar a quantidade de um insumo que já existe, use o ajuste
   (gera MOVIMENTACAO_ESTOQUE do tipo "ajuste" com motivo).
+  Na edição, mudar unidade_receita converte o saldo, o mínimo e as quantidades
+  das receitas que usam o insumo (ver painel.insumoEditarSalvar).
 #}
 {% extends "painel/base.html" %}
 {% import "/_icones.html" as i %}
@@ -39,8 +41,14 @@
 
         <section class="bloco">
             <h2>Unidades</h2>
-            <p class="bloco__nota">Compra em uma unidade e usa em outra? O fator faz a conversão (entrevista 6.3 e
-                6.4).</p>
+            {% if novo %}
+                <p class="bloco__nota">Compra em uma unidade e usa em outra? O fator faz a
+                    conversão (entrevista 6.3 e 6.4).</p>
+            {% else %}
+                <p class="bloco__nota">Mudar a unidade da receita converte junto o saldo em
+                    estoque, o mínimo e as quantidades de todas as receitas que usam
+                    {{ insumo.nome }}. Só funciona entre unidades conhecidas (kg↔g, l↔ml).</p>
+            {% endif %}
             <div class="grade-campos grade-campos--3">
                 {{ f.campo("unidade_medida", "Unidade de compra", insumo, maxlength=255, placeholder="kg, lata, dúzia") }}
                 {{ f.campo("unidade_receita", "Unidade na receita", insumo, maxlength=20, placeholder="g, un, ml") }}

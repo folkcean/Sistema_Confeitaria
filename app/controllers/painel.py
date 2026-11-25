@@ -32,6 +32,7 @@ from app.services.precificacao import CalculadoraPreco
 from app.services.recomendador_ia import RecomendadorIA
 from app.validators.campos import garantir, Validador
 from app.validators.senha import ValidadorSenha
+from app.services.conversor_unidades import ConversorUnidades
 
 painel = Blueprint("painel", __name__, url_prefix="/painel")
 
@@ -780,19 +781,29 @@ def insumoEditar(id):
 @soAdmin
 def insumoEditarSalvar(id):
     """
-    Salva o estoque mínimo e o custo. O model ainda não tem como alterar nome, tipo
-    e unidades depois de criado; quando tiver, esses campos entram aqui
+    Salva o cadastro inteiro. Se a unidade da receita mudou, o ConversorUnidades dá o fator e
+    o saldo, o estoque mínimo, as quantidades das receitas e o histórico são convertidos
+    junto, numa transação só
     """
     insumo = repo_estoque.buscarPorId(id) or abort(404)
-
-    estoque_minimo = request.form.get("estoque_minimo")
-    # Custo vazio = "ainda não informado" (None)
-    custo_por_unidade = request.form.get("custo_por_unidade") or None
+    unidade_anterior = insumo.unidade_receita
+    unidade_nova = (request.form.get("unidade_receita") or "").strip()
 
     try:
-        insumo.alterarEstoqueMinimo(estoque_minimo)
-        insumo.alterarCustoPorUnidade(custo_por_unidade)
-        repo_estoque.salvar(insumo)
+        insumo.alterarNome(request.form.get("nome"))
+        insumo.alterarTipo(request.form.get("tipo"))
+        insumo.alterarUnidadeMedida(request.form.get("unidade_medida"))
+        insumo.alterarFatorConversao(request.form.get("fator_conversao"))
+        insumo.alterarEstoqueMinimo(request.form.get("estoque_minimo"))
+        # Custo vazio = "ainda não informado" (None)
+        insumo.alterarCustoPorUnidade(request.form.get("custo_por_unidade") or None)
+
+        if unidade_nova.lower() != unidade_anterior.lower():
+            fator = ConversorUnidades.fator(unidade_anterior, unidade_nova)
+            insumo.reexpressarEm(unidade_nova, fator)
+            repo_estoque.reexpressarUnidadeDaReceita(insumo, fator)
+        else:
+            repo_estoque.salvar(insumo)
     except ValidacaoError as erro:
         flash(str(erro), "erro")
         return render_template("painel/insumo_form.html", insumo=insumo), 400
@@ -1698,7 +1709,6 @@ ABAS_RELATORIO = {
     "insumos": _abaInsumos,
 }
 
-
 # Assistente IA (só administradora com acesso financeiro, porque o contexto leva custos)
 # Fluxo: a rota monta o retrato do banco (somente leitura) -> o Administrador confere a permissão ->
 # o RecomendadorIA junta as regras do reposicao.md + o retrato em JSON -> a GatewayIA chama a API de fora
@@ -1792,6 +1802,7 @@ def iaPergunta():
         flash(str(erro), "erro")
         return _telaIA(pergunta=pergunta), 502
     return _telaIA(pergunta=pergunta, resposta=resposta)
+
 
 EXTENSOES_FOTO = (".jpg", ".jpeg", ".png", ".webp")
 
